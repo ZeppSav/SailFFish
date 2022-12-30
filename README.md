@@ -5,7 +5,7 @@ The purpose of the SailFFish is ...
 ## Why should you use SailFFish?
 * Why not?
 
-% <img src="/img/OC4.PNG" width=75% height=75%>
+% <img src="/img/Ring_Omega_Vel.png" width=75% height=75%>
 
 ## Licensing and authorship
 SailFFish is developed by Joseph Saverin and is distributed under the GNU General Public License Version 2.0, copyright © Joseph Saverin 2022.

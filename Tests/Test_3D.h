@@ -25,7 +25,7 @@
 #ifndef TEST_3D_H
 #define TEST_3D_H
 
-#include "../src/Solvers/Solvers.h"
+#include "../src/SailFFish.h"
 #include "Test_Functions.h"
 
 //---------------------

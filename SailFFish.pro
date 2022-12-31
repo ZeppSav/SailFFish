@@ -90,6 +90,7 @@ HEADERS += \
     src/DataTypes/DataType_CUDA.h \
     src/DataTypes/DataType_FFTW.h \
     src/DataTypes/DataType_MKL.h \
+    src/SailFFish.h \
     src/Solvers/Dirichlet_Solver.h \
     src/Solvers/Greens_Functions.h \
     src/Solvers/Neumann_Solver.h \

@@ -18,16 +18,17 @@
 
     Information on file:
 
-    -> Test cases for each of the solver types.
+    -> Links to solvers
 
 *****************************************************************************/
 
-#ifndef SOLVERS_H
-#define SOLVERS_H
 
-#include "Periodic_Solver.h"
-#include "Dirichlet_Solver.h"
-#include "Neumann_Solver.h"
-#include "Unbounded_Solver.h"
+#ifndef SAILFFISH_H
+#define SAILFFISH_H
 
-#endif // SOLVERS_H
+#include "Solvers/Periodic_Solver.h"
+#include "Solvers/Dirichlet_Solver.h"
+#include "Solvers/Neumann_Solver.h"
+#include "Solvers/Unbounded_Solver.h"
+
+#endif // SAILFFISH_H

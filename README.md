@@ -132,7 +132,18 @@ The image of the vortex ring above was generated automatically with this functio
 Point to Preprint!
 
 ## Compilation
+The compilation of SailFFish has been tested with GCC (v7.3).
 Two options are available for compiling:
 - qmake: SailFFish was prepared with the cross-platform development environment [Qt Creator](https://www.qt.io/product/development-tools). 
 The .pro file required for compiling with qmake has been provided. 
 - CMake: The `CMakeLists.txt` file has been provided. 
+### Floating point precision	
+SailFFish can be compioled to use either single or double floating point precision. 
+Simply specify with the appropriate compiler flags: `SinglePrec` or `DoublePrec`
+### Choice of datatype
+As described above, there are two native options for `DataType` in SailFFish. These are specified with the appropriate compiler flags:
+* `FFTW` The code will compile such that the FFTW3 library is used. 
+* `CUDA` The code will compile such that the cuFFT library is used. 
+In either case, it should be clear from the `.pro` or `CMakeLists.txt` files where you need to point to the corresponding directories and the libraries which must be linked. 
+
+`

@@ -121,7 +121,8 @@ The solution $\psi$ on the grid can be extracted as follows:
 ```
 std::vector<float> Output;
 Solver2DP->Get_Output(Input);
-```The ordering is again row-major, as with the input. 
+```
+The ordering is again row-major, as with the input. 
 ### Exporting the source and solution on a grid
 A method is defined within each 2D and 3D solver base classes which creates a `.vti` file. 
 This allows visualisation of the source and solution fields with [Paraview](https://www.paraview.org/). 

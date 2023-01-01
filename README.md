@@ -8,7 +8,10 @@ but rather call existing (and very optimised) libraries through the inherited `D
 Currently two options exists: The first is the (deservedly) popular library [FFTW](https://www.fftw.org/) for calculation on a CPU. 
 The second is the high-performance NVIDIA FFT implementation [cuFFT](https://docs.nvidia.com/cuda/cufft/index.html) for calculation on a GPU. 
 Solvers exist for 1D, 2D and 3D scalar and 3D vector input fields. A range of differential operators may be applied to modify the form of the Poisson equation being solved.
-<img align="center" src="/img/Ring_Omega_Vel.png" width=65% height=65%> <br />
+
+<p align="center">
+<img src="/img/Ring_Omega_Vel.png" width=65% height=65%> 
+</p>
 *A 3D_Vector style solver with a curl differential operator has been used to solve for the velocity distribution (right half: x-velocity field) of a vortex ring (left half: voriticity contours).*
 <br />
 

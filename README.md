@@ -1,4 +1,4 @@
-# SailFFish - A simple, optimised fast Poisson solver in c++.
+# SailFFish - A lightweight & optimised fast Poisson solver for execution on both CPU & GPU.
 
 The purpose of the SailFFish is to provide an open source, easily linked fast Poisson solver with minimal 
 dependencies. The software is configured for shared memory machines. 
@@ -55,7 +55,7 @@ In order to use SailFFish you simply need to link to the `Solvers.h` header in t
 ### Creating a bounded type solver 
 This is achieved by generating the associated `Solver` type and then carrying out the grid setup:
 ```
-SailFFish::Grid_Type G = SailFFish::Staggered;
+SailFFish::Grid_Type G = SailFFish::STAGGERED;
 SailFFish::Bounded_Kernel K = SailFFish::FD2;
 SailFFish::Poisson_Periodic_2D *Solver2DP = new SailFFish::Poisson_Periodic_2D(G,K);
 int NX = 128;
@@ -93,9 +93,9 @@ In the $z$ direction the grid extends between $-1$ and $1$ and has $512$ cells.
 The input must be specified on a regular grid, so that the input is specified at $129$ x $257$ x $513$ cell-centred grid positions. 
 The solution will be found on this same grid (with the same ordering) by using the Hejlesen eighth-order Gaussian kernel.
 The options for the unbounded kernel and the differential operators are:
-* `Unbounded_Kernel` 	{HEJ_S0, HEJ_G2, HEJ_G4, HEJ_G6, HEJ_G8, HEJ_G10, CHAT_2};
+* `Unbounded_Kernel` 	{HEJ_S0, HEJ_G2, HEJ_G4, HEJ_G6, HEJ_G8, HEJ_G10};
 * `OperatorType` 		{NONE, DIV, CURL, GRAD, NABLA};
-### Specifying input vector ($f$)
+### Specifying input vector - f
 In order to pass the input (right-hand side, or $f$) values, you need to construct a `std::vector` of the chosen floating point precision. 
 ```
 std::vector<float> Input = std::vector<float>(NT,1.0);
@@ -120,9 +120,9 @@ to perform additional operations before or after the convolution, for flexibilit
 The solution $\psi$ on the grid can be extracted as follows:
 ```
 std::vector<float> Output;
-Solver2DP->Get_Output(Input);
+Solver2DP->Get_Output(Output);
 ```
-The ordering is again row-major, as with the input. 
+The ordering is again row-major, as with the input. The output vector is automatically allocated with the correct size within the `Get_Output` function.
 ### Exporting the source and solution on a grid
 A method is defined within each 2D and 3D solver base classes which creates a `.vti` file. 
 This allows visualisation of the source and solution fields with [Paraview](https://www.paraview.org/). 
@@ -136,14 +136,12 @@ The compilation of SailFFish has been tested with GCC (v7.3).
 Two options are available for compiling:
 - qmake: SailFFish was prepared with the cross-platform development environment [Qt Creator](https://www.qt.io/product/development-tools). 
 The .pro file required for compiling with qmake has been provided. 
-- CMake: The `CMakeLists.txt` file has been provided. 
+- CMake: The `CMakeLists.txt` file has been provided. Note: This is not thoroughly tested!
 ### Floating point precision	
-SailFFish can be compioled to use either single or double floating point precision. 
+SailFFish can be compiled to use either single or double floating point precision. 
 Simply specify with the appropriate compiler flags: `SinglePrec` or `DoublePrec`
 ### Choice of datatype
 As described above, there are two native options for `DataType` in SailFFish. These are specified with the appropriate compiler flags:
 * `FFTW` The code will compile such that the FFTW3 library is used. 
 * `CUDA` The code will compile such that the cuFFT library is used. 
 In either case, it should be clear from the `.pro` or `CMakeLists.txt` files where you need to point to the corresponding directories and the libraries which must be linked. 
-
-`

@@ -36,7 +36,7 @@ namespace SailFFish
 enum Grid_Type          {REGULAR, STAGGERED};
 enum Dim                {EX, EY, EZ};
 enum Bounded_Kernel     {PS, FD2};
-enum Unbounded_Kernel   {HEJ_S0, HEJ_G2, HEJ_G4, HEJ_G6, HEJ_G8, HEJ_G10, CHAT_2};
+enum Unbounded_Kernel   {HEJ_S0, HEJ_G2, HEJ_G4, HEJ_G6, HEJ_G8, HEJ_G10};
 
 inline int GID(const int &i, const int &j, const int &NX, const int &NY)                                {return i*NY + j;}
 inline int GID(const int &i, const int &j, const int &k, const int &NX, const int &NY, const int &NZ)   {return i*NY*NZ + j*NZ + k;}

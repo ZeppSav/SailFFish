@@ -51,53 +51,87 @@ For users who wish to implement specialized solver classes, it is simply a matte
 SailFFish is developed by Joseph Saverin and is distributed under the GNU General Public License Version 2.0, copyright © Joseph Saverin 2022.
 
 ## How to use SailFFish
-In order to use SailFFish you simply need to link to the `Solvers.h` header in the source directory.
-
-### Creating a solver for a specified grid
+In order to use SailFFish you simply need to link to the `Solvers.h` header in the source directory and link to the appropriate libraries for the chosen `DataType` class.
+### Creating a bounded type solver 
 This is achieved by generating the associated `Solver` type and then carrying out the grid setup:
 ```
 SailFFish::Grid_Type G = SailFFish::Staggered;
 SailFFish::Bounded_Kernel K = SailFFish::FD2;
-SailFFish::Poisson_Periodic_2D *Solver = new SailFFish::Poisson_Periodic_2D(G,K);
+SailFFish::Poisson_Periodic_2D *Solver2DP = new SailFFish::Poisson_Periodic_2D(G,K);
 int NX = 128;
 int NY = 256;
 float UnitX[2] = {-1.0, 1.0};
 float UnitY2[2] = {-2.0, 2.0};
-SailFFish::SFStatus Stat = Solver->Setup(UnitX,UnitY2,NX,NY);
+SailFFish::SFStatus Stat = Solver2DP->Setup(UnitX,UnitY2,NX,NY);
 ```
 This will generate a 2D solver for the Poisson equation with periodic BCs. 
 In the $x$ direction the grid extends between $-1$ and $1$ and has $128$ cells.
 In the $y$ direction the grid extends between $-2$ and $2$ and has $256$ cells. 
-The input must be specified on a staggered grid, so that the input is specified at $128$x$256$ cell-centred grid positions. 
+The input must be specified on a staggered grid, so that the input is specified at $128$ x $256$ cell-centred grid positions. 
 The solution will be found on this same grid (with the same ordering) by using the finite-difference second-order eigenvalues.
-
-### Inputing grid values
-Do that
+The options for grid type  and bounded kernel are:
+* `Grid_Type`          	{REGULAR, STAGGERED};
+* `Bounded_Kernel`     	{PS, FD2};
+### Creating an unbounded type solver 
+This is achieved by generating the associated `Solver` type and then carrying out the grid setup:
+```
+SailFFish::Grid_Type G = SailFFish::REGULAR;
+SailFFish::Unbounded_Kernel K = SailFFish::HEJ_G8;
+SailFFish::Unbounded_Solver_3DV *Solver3DU = new SailFFish::Unbounded_Solver_3DV(G,K);
+Solver3DU->Specify_Operator(SailFFish::CURL);
+int NX = 128;
+int NY = 256;
+int NZ = 512;
+float Unit[2] = {-1.0, 1.0};
+SailFFish::SFStatus Stat = Solver3DU->Setup(Unit,Unit,Unit,NX,NY,NZ);
+```
+This will generate a 3D solver for the Poisson equation with unbounded BCs. 
+This also illustrates where and how the differential operator is specified.
+In the $x$ direction the grid extends between $-1$ and $1$ and has $128$ cells.
+In the $y$ direction the grid extends between $-1$ and $1$ and has $256$ cells. 
+In the $z$ direction the grid extends between $-1$ and $1$ and has $512$ cells. 
+The input must be specified on a regular grid, so that the input is specified at $129$ x $257$ x $513$ cell-centred grid positions. 
+The solution will be found on this same grid (with the same ordering) by using the Hejlesen eighth-order Gaussian kernel.
+The options for the unbounded kernel and the differential operators are:
+* `Unbounded_Kernel` 	{HEJ_S0, HEJ_G2, HEJ_G4, HEJ_G6, HEJ_G8, HEJ_G10, CHAT_2};
+* `OperatorType` 		{NONE, DIV, CURL, GRAD, NABLA};
+### Specifying input vector ($f$)
+In order to pass the input (right-hand side, or $f$) values, you need to construct a `std::vector` of the chosen floating point precision. 
+```
+std::vector<float> Input = std::vector<float>(NT,1.0);
+SailFFish::SFStatus Stat = Solver2DP->Set_Input(Input);
+```
+In this example (given for the 2D periodic case above) an array of a very uninteresting input field is constructed. The spatial ordering of the grid in SailFFish is *row-major*. 
+This implies that as as you step through adjacent memory locations, the first dimension’s index varies most slowly and the last dimension’s index varies most quickly. 
+This is then passed to the solver using the `Set_Input` function. This function has an `SFStatus` output type as a check is carried out to ensure that the correct number of grid node values are being passed. 
+The following values are defined:
+* `SFStatus`       {NoError, DimError, MemError, SetupError, ExecError};
+This can be used to abort calculation if an error type is thrown (this is done in the test cases).
 ### Executing
-Know this 
+This is carried out by calling the following three functions in this order:
+```
+Solver3DU->Forward_Transform();
+Solver3DU->Convolution();
+Solver3DU->Backward_Transform();
+```
+where the `Solver3DU` solver from above has been used as an example. This could be wrapped together into a single function, however as the user may wish 
+to perform additional operations before or after the convolution, for flexibility it shall be left like this for now.
 ### Extracting results
-Know that
-
-## SailFFish DataType
-Blah
-
-### FFTW
-Bee bup
-### cuFFT
-Bup bup bo bup
+The solution $\psi$ on the grid can be extracted as follows:
+```
+std::vector<float> Output;
+Solver2DP->Get_Output(Input);
+```The ordering is again row-major, as with the input. 
+### Exporting the source and solution on a grid
+A method is defined within each 2D and 3D solver base classes which creates a `.vti` file. 
+This allows visualisation of the source and solution fields with [Paraview](https://www.paraview.org/). 
+The image of the vortex ring above was generated automatically with this function. 
 
 ## Citation information		
 Point to Preprint!
 
 ## Compilation
-
-
 Two options are available for compiling:
 - qmake: SailFFish was prepared with the cross-platform development environment [Qt Creator](https://www.qt.io/product/development-tools). 
 The .pro file required for compiling with qmake has been provided. 
-
 - CMake: The `CMakeLists.txt` file has been provided. 
-
-## Documentation
-
-A [readthedocs] page is currently being prepared. 

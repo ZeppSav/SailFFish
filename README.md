@@ -12,7 +12,7 @@ Solvers exist for 1D, 2D and 3D scalar and 3D vector input fields. A range of di
 <p align="center">
 <img src="/img/Ring_Omega_Vel.png" width=65% height=65%> 
 </p>
-*A 3D_Vector style solver with a curl differential operator has been used to solve for the velocity distribution (right half: x-velocity field) of a vortex ring (left half: voriticity contours).*
+A 3D_Vector style solver with a curl differential operator has been used to solve for the velocity distribution (right half: x-velocity field) of a vortex ring (left half: voriticity contours).
 <br />
 
 ## Why should you use SailFFish?
@@ -38,13 +38,15 @@ In this case three types of solver are available:
 	* Inhomogeneous BC: then arbitrary BCs may be specified however only with use of the (`SailFFish::FD2`) type eigenvalue.
 Alternatively an *unbounded* solver may be applied, whereby the BCs need not be specified and the potential is treated as if the problem were unbounded.
 In this case a range of options exist for the calculation of the free-space Green's function. 
+
 ## What is the data architecture of SailFFish?
 The functionality required for FFT plan setup, execution & destruction along with frequency space operations are wrapped up inside the `DataType` class. 
 The base `Solver` class is derived from the choice of `DataType` class specified at compile time. This inheritence is described in the figure below.   
 <img src="/img/Arch.png" width=100% height=100%>
-*Data architecture within SailFFish.*
+Data architecture within SailFFish. <br />
 For users who wish to use another FFT library, it is simply a matter of specifying a new `DataType` class, linking to the library and ensuring the `Solver` class inherits this.
-For users to with to implement specialized solver classes, it is simply a matter of creating a new derived class from the existing solvers. 
+For users who wish to implement specialized solver classes, it is simply a matter of creating a new derived class from the existing solvers. 
+
 ## Licensing and authorship
 SailFFish is developed by Joseph Saverin and is distributed under the GNU General Public License Version 2.0, copyright © Joseph Saverin 2022.
 
@@ -66,8 +68,9 @@ SailFFish::SFStatus Stat = Solver->Setup(UnitX,UnitY2,NX,NY);
 This will generate a 2D solver for the Poisson equation with periodic BCs. 
 In the $x$ direction the grid extends between $-1$ and $1$ and has $128$ cells.
 In the $y$ direction the grid extends between $-2$ and $2$ and has $256$ cells. 
-The input must be specified on a staggered grid, so that the input is specified at $[128x256]$ cell-centred grid positions. 
+The input must be specified on a staggered grid, so that the input is specified at $128$x$256$ cell-centred grid positions. 
 The solution will be found on this same grid (with the same ordering) by using the finite-difference second-order eigenvalues.
+
 ### Inputing grid values
 Do that
 ### Executing

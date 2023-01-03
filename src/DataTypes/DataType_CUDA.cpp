@@ -89,6 +89,22 @@ SFStatus DataType_CUDA::Allocate_Arrays()
     if (c_ft_in2)   cudaMalloc((void**)&c_FTInput2, sizeof(CUDAComplex)*NTM);
     if (c_ft_in3)   cudaMalloc((void**)&c_FTInput3, sizeof(CUDAComplex)*NTM);
 
+    // Prepare transforms for case of either in-place or out-of-place operation
+    c_ft_out1 = c_ft_in1;
+    c_ft_out2 = c_ft_in2;
+    c_ft_out3 = c_ft_in3;
+
+    if (InPlace){
+        if (c_ft_out1) c_FTOutput1 = c_FTInput1;
+        if (c_ft_out2) c_FTOutput2 = c_FTInput2;
+        if (c_ft_out3) c_FTOutput3 = c_FTInput3;
+    }
+    else{
+        if (c_ft_out1) cudaMalloc((void**)&c_FTOutput1, sizeof(CUDAComplex)*NTM);
+        if (c_ft_out2) cudaMalloc((void**)&c_FTOutput2, sizeof(CUDAComplex)*NTM);
+        if (c_ft_out3) cudaMalloc((void**)&c_FTOutput3, sizeof(CUDAComplex)*NTM);
+    }
+
     if (c_out_1)    cudaMalloc((void**)&c_Output1, sizeof(CUDAComplex)*NT);
     if (c_out_2)    cudaMalloc((void**)&c_Output2, sizeof(CUDAComplex)*NT);
     if (c_out_3)    cudaMalloc((void**)&c_Output3, sizeof(CUDAComplex)*NT);
@@ -115,46 +131,50 @@ SFStatus DataType_CUDA::Deallocate_Arrays()
     // This is simply controlled here by specifying the necessary flags during solver initialization
 
     // Real-valued arrays
-    if (r_in1)      cudaFree(r_Input1);
-    if (r_in2)      cudaFree(r_Input2);
-    if (r_in3)      cudaFree(r_Input3);
+    if (r_Input1)      cudaFree(r_Input1);
+    if (r_Input2)      cudaFree(r_Input2);
+    if (r_Input3)      cudaFree(r_Input3);
 
-    if (r_ft_in1)   cudaFree(r_FTInput1);
-    if (r_ft_in2)   cudaFree(r_FTInput2);
-    if (r_ft_in3)   cudaFree(r_FTInput3);
+//    if (r_FTInput1)   cudaFree(r_FTInput1);
+//    if (r_FTInput2)   cudaFree(r_FTInput2);
+//    if (r_FTInput3)   cudaFree(r_FTInput3);
 
-    if (r_out_1)    cudaFree(r_Output1);
-    if (r_out_2)    cudaFree(r_Output2);
-    if (r_out_3)    cudaFree(r_Output3);
+    if (r_Output1)    cudaFree(r_Output1);
+    if (r_Output2)    cudaFree(r_Output2);
+    if (r_Output3)    cudaFree(r_Output3);
 
     // Arrays for real Green's function
-    if (r_fg)       free(r_FG);
+    if (r_FG)       free(r_FG);
 
     // Complex-valued arrays
-    if (c_in1)      cudaFree(c_Input1);
-    if (c_in2)      cudaFree(c_Input2);
-    if (c_in3)      cudaFree(c_Input3);
+    if (c_Input1)      cudaFree(c_Input1);
+    if (c_Input2)      cudaFree(c_Input2);
+    if (c_Input3)      cudaFree(c_Input3);
 
-    if (c_ft_in1)   cudaFree(c_FTInput1);
-    if (c_ft_in2)   cudaFree(c_FTInput2);
-    if (c_ft_in3)   cudaFree(c_FTInput3);
+    if (c_FTInput1)   cudaFree(c_FTInput1);
+    if (c_FTInput2)   cudaFree(c_FTInput2);
+    if (c_FTInput3)   cudaFree(c_FTInput3);
 
-    if (c_out_1)    cudaFree(c_Output1);
-    if (c_out_2)    cudaFree(c_Output2);
-    if (c_out_3)    cudaFree(c_Output3);
+    if (!InPlace && c_FTOutput1)    {cudaFree(c_FTOutput1);}
+    if (!InPlace && c_FTOutput2)    {cudaFree(c_FTOutput2);}
+    if (!InPlace && c_FTOutput3)    {cudaFree(c_FTOutput3);}
+
+    if (c_Output1)    cudaFree(c_Output1);
+    if (c_Output2)    cudaFree(c_Output2);
+    if (c_Output3)    cudaFree(c_Output3);
 
     // Arrays for complex Green's function & spectral operators arrays
-    if (c_fg)       cudaFree(c_FG);
-    if (c_fg_i)     cudaFree(c_FGi);
-    if (c_fg_j)     cudaFree(c_FGj);
-    if (c_fg_k)     cudaFree(c_FGk);
+    if (c_FG)       cudaFree(c_FG);
+    if (c_FGi)      cudaFree(c_FGi);
+    if (c_FGj)      cudaFree(c_FGj);
+    if (c_FGk)      cudaFree(c_FGk);
 
-    if (c_dbf_1)    cudaFree(c_DummyBuffer1);
-    if (c_dbf_2)    cudaFree(c_DummyBuffer2);
-    if (c_dbf_3)    cudaFree(c_DummyBuffer3);
-    if (c_dbf_4)    cudaFree(c_DummyBuffer4);
-    if (c_dbf_5)    cudaFree(c_DummyBuffer5);
-    if (c_dbf_6)    cudaFree(c_DummyBuffer6);
+    if (c_DummyBuffer1)    cudaFree(c_DummyBuffer1);
+    if (c_DummyBuffer2)    cudaFree(c_DummyBuffer2);
+    if (c_DummyBuffer3)    cudaFree(c_DummyBuffer3);
+    if (c_DummyBuffer4)    cudaFree(c_DummyBuffer4);
+    if (c_DummyBuffer5)    cudaFree(c_DummyBuffer5);
+    if (c_DummyBuffer6)    cudaFree(c_DummyBuffer6);
 
     return NoError;
 }
@@ -179,7 +199,6 @@ SFStatus DataType_CUDA::Specify_1D_Plan()
         BFac = 1.0/NT;
         cufftPlan1d(&Forward_Plan,NX,cufft_R2C,1);
         cufftPlan1d(&Backward_Plan,NX,cufft_C2R,1);
-//        NXM = NX/2+1;
     }
     return NoError;
 }
@@ -226,9 +245,29 @@ SFStatus DataType_CUDA::Specify_3D_Plan()
         BFac = 1.0/NT;
         cufftPlan3d(&Forward_Plan,NX,NY,NZ,cufft_R2C);
         cufftPlan3d(&Backward_Plan,NX,NY,NZ,cufft_C2R);
-//        NZM = NZ/2+1;
     }
     return NoError;
+}
+
+//--- Convolution
+
+void DataType_CUDA::Convolution_Complex()
+{
+    // The multiplication will be carried out by using a modified cuBLAS tier-2 routine
+    cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTInput1, NTM, c_FG, 1, c_FTOutput1, NTM);
+    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Convolution_Complex 1 Failed \n");  return;}
+}
+
+void DataType_CUDA::Convolution_Complex3()
+{
+    // The multiplication will be carried out by using a modified cuBLAS tier-2 routine
+
+    cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTInput1, NTM, c_FG, 1, c_FTOutput1, NTM);
+    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Convolution_Complex 1 Failed \n");  return;}
+    cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTInput2, NTM, c_FG, 1, c_FTOutput2, NTM);
+    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Convolution_Complex 1 Failed \n");  return;}
+    cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTInput3, NTM, c_FG, 1, c_FTOutput3, NTM);
+    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Convolution_Complex 1 Failed \n");  return;}
 }
 
 //--- Greens functions prep
@@ -338,254 +377,224 @@ void DataType_CUDA::Prepare_Dif_Operators_3D(Real Hx, Real Hy, Real Hz)
     cudaMemcpy(c_FGk, CK.data(), (NTM)*sizeof(CUDAComplex), cudaMemcpyHostToDevice);
 }
 
-void DataType_CUDA::Spectral_Gradients_1D()
+void DataType_CUDA::Transfer_FTInOut_Comp()
 {
-    // The convolution of the input signal with the greens function was carried out in a previous step (DataType_CUDA::Convolution_Complex()).
-    // If the gradients are to be calculated, the spectral differentiation is carried out here.
-    // This is done in-place
-
-    if (Operator==NONE)     return;
-    if (Operator==CURL )    return; // Invalid in 1D
-    if (Operator==DIV)      return; // Just gradient in 1D
-
-    cout << "DataType_CUDA::Spectral_Gradients_1D() Not yet implemented!!!!" << endl;
-
-//    if (Operator==GRAD)
-//    {
-//        OpenMPfor
-//        for (int i=0; i<NXM; i++)   Multiply(c_FGi[i],c_FTInput1[i],c_FTInput1[i]);
-//    }
-
-//    if (Operator==NABLA)
-//    {
-//        OpenMPfor
-//        for (int i=0; i<NXM; i++){
-//                Multiply(c_FGi[i],c_FTInput1[i],c_FTInput1[i]);
-//                Multiply(c_FGi[i],c_FTInput1[i],c_FTInput1[i]);
-//        }
-//    }
+    // Note:Spatial operators act on the output vectors (the result likely already having been transformed.
+    // This means that in the specialized case of carrying out spectral operations on the vectors in out-of-place mode, they must be transferred
+    // they must be transferred from the Input array to the output array
+    if (InPlace) return;
+    if (c_FTInput1)     cudaMemcpy(c_FTOutput1, c_FTInput1, NTM*sizeof(CUDAComplex), cudaMemcpyDeviceToDevice);
+    if (c_FTInput2)     cudaMemcpy(c_FTOutput2, c_FTInput2, NTM*sizeof(CUDAComplex), cudaMemcpyDeviceToDevice);
+    if (c_FTInput3)     cudaMemcpy(c_FTOutput3, c_FTInput3, NTM*sizeof(CUDAComplex), cudaMemcpyDeviceToDevice);
 }
 
-void DataType_CUDA::Spectral_Gradients_2D()
+//--- 1D spectral gradients
+
+void DataType_CUDA::Spectral_Gradients_1D_Grad()
 {
-    // The convolution of the input signal with the greens function was carried out in a previous step
-    // If the gradients are to be calculated, the spectral differentiation is carried out here.
-    // This is done in-place to reduce data footprint
-
-    if (Operator==NONE) return;
-
-    if (Operator==GRAD)
-    {
-        cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTInput1, NTM, c_FGj, 1, c_FTInput2, NTM);
-        if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_2D Failed \n");  return;}
-        cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTInput1, NTM, c_FGi, 1, c_FTInput1, NTM);
-        if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_2D Failed \n");  return;}
-    }
-
-    if (Operator==DIV)
-    {
-        cout << "DataType_CUDA::Spectral_Gradients_2D()-> Div option untested!" << endl;
-
-        // Find gradients
-        cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTInput1, NTM, c_FGj, 1, c_FTInput2, NTM);
-        if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_2D Failed \n");  return;}
-        cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTInput1, NTM, c_FGi, 1, c_FTInput1, NTM);
-        if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_2D Failed \n");  return;}
-        // Now add together
-        cuComplex Alpha = {1.0,0.0};
-        cublas_axpy(cublashandle, NTM, &Alpha, c_FTInput2, 1, c_FTInput1, 1);
-        if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_2D Failed \n");  return;}
-    }
-
-    if (Operator==CURL)
-    {
-        cout << "DataType_CUDA::Spectral_Gradients_2D()-> Curl option untested!" << endl;
-
-        // Find gradients
-        cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTInput1, NTM, c_FGj, 1, c_FTInput2, NTM);
-        if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_2D Failed \n");  return;}
-        cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTInput1, NTM, c_FGi, 1, c_FTInput1, NTM);
-        if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_2D Failed \n");  return;}
-        // Transfer Uy to dummy buffer
-        cudaMemcpy(c_DummyBuffer1,c_FTInput1,NTM*sizeof(CUDAComplex),cudaMemcpyDeviceToDevice);
-        cuComplex Alpha = {-1.0,0.0};
-        cublas_axpy(cublashandle, NTM, &Alpha, c_FTInput2, 1, c_FTInput1, 1);                       // X velocity
-        if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_2D Failed \n");  return;}
-        cudaMemcpy(c_FTInput2,c_DummyBuffer1,NTM*sizeof(CUDAComplex),cudaMemcpyDeviceToDevice);     // Y velocity
-    }
-
-    if (Operator==NABLA)
-    {
-        cout << "DataType_CUDA::Spectral_Gradients_2D()-> Nabla option untested!" << endl;
-
-        // Find gradients
-        cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTInput1, NTM, c_FGj, 1, c_FTInput2, NTM);
-        if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_2D Failed \n");  return;}
-        cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTInput2, NTM, c_FGj, 1, c_FTInput2, NTM);
-        if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_2D Failed \n");  return;}
-        cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTInput1, NTM, c_FGi, 1, c_FTInput1, NTM);
-        if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_2D Failed \n");  return;}
-        cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTInput1, NTM, c_FGi, 1, c_FTInput1, NTM);
-        if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_2D Failed \n");  return;}
-    }
+    // Calculates gradient of 1D signal in spectral space. Done in-place.
+    cout << "DataType_CUDA::Spectral_Gradients_1D_Grad() Not yet implemented!!!!" << endl;
 }
 
-void DataType_CUDA::Spectral_Gradients_3D()
+void DataType_CUDA::Spectral_Gradients_1D_Nabla()
 {
-    // The convolution of the input signal with the greens function was carried out in a previous step (DataType_CUDA::Convolution_Complex()).
-    // If the gradients are to be calculated, the spectral differentiation is carried out here.
-    // This is done in-place
-
-    if (Operator==NONE) return;
-
-    if (Operator==GRAD)
-    {
-        cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTInput1, NTM, c_FGk, 1, c_FTInput3, NTM);
-        if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_2D Failed \n");  return;}
-        cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTInput1, NTM, c_FGj, 1, c_FTInput2, NTM);
-        if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_2D Failed \n");  return;}
-        cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTInput1, NTM, c_FGi, 1, c_FTInput1, NTM);
-        if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_2D Failed \n");  return;}
-    }
-
-    if (Operator==DIV)
-    {
-        cout << "DataType_CUDA::Spectral_Gradients_3D()-> Div option untested!" << endl;
-
-        // Find gradients
-        cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTInput1, NTM, c_FGk, 1, c_FTInput3, NTM);
-        if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_2D Failed \n");  return;}
-        cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTInput1, NTM, c_FGj, 1, c_FTInput2, NTM);
-        if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_2D Failed \n");  return;}
-        cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTInput1, NTM, c_FGi, 1, c_FTInput1, NTM);
-        if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_2D Failed \n");  return;}
-        // Now add together
-        cuComplex Alpha = {1.0,0.0};
-        cublas_axpy(cublashandle, NTM, &Alpha, c_FTInput3, 1, c_FTInput2, 1);
-        if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_2D Failed \n");  return;}
-        cublas_axpy(cublashandle, NTM, &Alpha, c_FTInput2, 1, c_FTInput1, 1);
-        if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_2D Failed \n");  return;}
-    }
-
-    cout << "DataType_CUDA::Spectral_Gradients_3D() Not yet implemented!!!!" << endl;
+    // Calculates nabla of 1D signal in spectral space. Done in-place.
+    cout << "DataType_CUDA::Spectral_Gradients_1D_Nabla() Not yet implemented!!!!" << endl;
 }
 
-void DataType_CUDA::Spectral_Gradients_3DV()
+//--- 2D spectral gradients
+
+void DataType_CUDA::Spectral_Gradients_2D_Grad()
 {
-    // The convolution of the input signal with the greens function was carried out in a previous step (DataType_CUDA::Convolution_Complex()).
-    // If the gradients are to be calculated, the spectral differentiation is carried out here.
-    // This is done in-place
+    // Calculates grad of 2D signal in spectral space. Done in-place.
 
-    if (Operator==NONE) return;
-
-    if (Operator==DIV)
-    {
-        cout << "DataType_CUDA::Spectral_Gradients_3DV()-> Div option untested!" << endl;
-
-        // Find gradients
-        cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTInput1, NTM, c_FGi, 1, c_FTInput1, NTM);
-        if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_3DV Failed \n");  return;}
-        cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTInput2, NTM, c_FGj, 1, c_FTInput2, NTM);
-        if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_3DV Failed \n");  return;}
-        cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTInput3, NTM, c_FGk, 1, c_FTInput3, NTM);
-        if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_3DV Failed \n");  return;}
-
-        // Now add together
-        cuComplex Alpha = {1.0,0.0};
-        cublas_axpy(cublashandle, NTM, &Alpha, c_FTInput3, 1, c_FTInput2, 1);
-        if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_3DV Failed \n");  return;}
-        cublas_axpy(cublashandle, NTM, &Alpha, c_FTInput2, 1, c_FTInput1, 1);
-        if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_3DV Failed \n");  return;}
-    }
-
-    if (Operator==GRAD)
-    {
-        // Ignore this case for now. We would require 9 arrays to store the outputs
-        // Will be useful at some point, but not right now!
-        cout << "DataType_CUDA::Spectral_Gradients_3DV() Grad option not yet implemented!!!!" << endl;
-    }
-
-    if (Operator==CURL)
-    {
-        // Velocity field extraction for 3D case! The holy grail!
-        // This is currently achieved with an extremely ugly (in terms of memory) approach.
-        // The better approach would be to write a cuda Kernel for this task.
-
-        cuComplex Alpha = {-1.0,0.0};
-
-        // Intermediate vars
-        cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTInput3, NTM, c_FGj, 1, c_DummyBuffer2, NTM);
-        if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_3DV Failed \n");  return;}
-        cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTInput2, NTM, c_FGk, 1, c_DummyBuffer1, NTM);
-        if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_3DV Failed \n");  return;}
-        cublas_axpy(cublashandle, NTM, &Alpha, c_DummyBuffer2, 1, c_DummyBuffer1, 1); // Add together (X velocity c_DummyBuffer1)
-        if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_3DV Failed \n");  return;}
-
-        if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_3DV Failed \n");  return;}
-        cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTInput1, NTM, c_FGk, 1, c_DummyBuffer3, NTM);
-        if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_3DV Failed \n");  return;}
-        cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTInput3, NTM, c_FGi, 1, c_DummyBuffer2, NTM);
-        if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_3DV Failed \n");  return;}
-        cublas_axpy(cublashandle, NTM, &Alpha, c_DummyBuffer3, 1, c_DummyBuffer2, 1); // Add together (Y velocity c_DummyBuffer2)
-        if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_3DV Failed \n");  return;}
-
-
-        cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTInput2, NTM, c_FGi, 1, c_DummyBuffer4, NTM);
-        if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_3DV Failed \n");  return;}
-        cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTInput1, NTM, c_FGj, 1, c_DummyBuffer3, NTM);
-        if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_3DV Failed \n");  return;}
-        cublas_axpy(cublashandle, NTM, &Alpha, c_DummyBuffer4, 1, c_DummyBuffer3, 1); // Add together (Z velocity c_DummyBuffer3)
-        if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_3DV Failed \n");  return;}
-
-        // Transfer back to appropriate positions
-        cudaMemcpy(c_FTInput1,c_DummyBuffer1, NTM*sizeof(CUDAComplex), cudaMemcpyDeviceToDevice);     // X velocity
-        cudaMemcpy(c_FTInput2,c_DummyBuffer2, NTM*sizeof(CUDAComplex), cudaMemcpyDeviceToDevice);     // Y velocity
-        cudaMemcpy(c_FTInput3,c_DummyBuffer3, NTM*sizeof(CUDAComplex), cudaMemcpyDeviceToDevice);     // Z velocity
-    }
-
-    if (Operator==NABLA)
-    {
-        cout << "DataType_CUDA::Spectral_Gradients_3DV()-> Nabla option untested!" << endl;
-
-        // Find gradients
-        cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTInput1, NTM, c_FGi, 1, c_FTInput1, NTM);
-        if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_3DV Failed \n");  return;}
-        cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTInput1, NTM, c_FGi, 1, c_FTInput1, NTM);
-        if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_3DV Failed \n");  return;}
-
-        cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTInput2, NTM, c_FGj, 1, c_FTInput2, NTM);
-        if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_3DV Failed \n");  return;}
-        cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTInput2, NTM, c_FGj, 1, c_FTInput2, NTM);
-        if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_3DV Failed \n");  return;}
-
-        cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTInput3, NTM, c_FGk, 1, c_FTInput3, NTM);
-        if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_3DV Failed \n");  return;}
-        cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTInput3, NTM, c_FGk, 1, c_FTInput3, NTM);
-        if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_3DV Failed \n");  return;}
-    }
-
+    cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTOutput1, NTM, c_FGj, 1, c_FTOutput2, NTM);
+    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_2D Failed \n");  return;}
+    cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTOutput1, NTM, c_FGi, 1, c_FTOutput1, NTM);
+    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_2D Failed \n");  return;}
 }
 
-//--- Convolution
-
-void DataType_CUDA::Convolution_Complex()
+void DataType_CUDA::Spectral_Gradients_2D_Div()
 {
-    // The multiplication will be carried out by using a modified cuBLAS tier-2 routine
-    cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTInput1, NTM, c_FG, 1, c_FTInput1, NTM);
-    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Convolution_Complex 1 Failed \n");  return;}
+    cout << "DataType_CUDA::Spectral_Gradients_2D_Div() option untested!" << endl;
+
+    // Find gradients
+    cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTOutput1, NTM, c_FGj, 1, c_FTOutput2, NTM);
+    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_2D Failed \n");  return;}
+    cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTOutput1, NTM, c_FGi, 1, c_FTOutput1, NTM);
+    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_2D Failed \n");  return;}
+
+    // Now add together
+    CUDAComplex Alpha = {1.0,0.0};
+    cublas_axpy(cublashandle, NTM, &Alpha, c_FTOutput2, 1, c_FTOutput1, 1);
+    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_2D Failed \n");  return;}
 }
 
-void DataType_CUDA::Convolution_Complex3()
+void DataType_CUDA::Spectral_Gradients_2D_Curl()
 {
-    // The multiplication will be carried out by using a modified cuBLAS tier-2 routine
-    // This is done in-place as with FFTW
+    // Calculates curl of 2D signal in spectral space. Done in-place.
 
-    cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTInput1, NTM, c_FG, 1, c_FTInput1, NTM);
-    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Convolution_Complex 1 Failed \n");  return;}
-    cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTInput2, NTM, c_FG, 1, c_FTInput2, NTM);
-    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Convolution_Complex 1 Failed \n");  return;}
-    cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTInput3, NTM, c_FG, 1, c_FTInput3, NTM);
-    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Convolution_Complex 1 Failed \n");  return;}
+    cout << "DataType_CUDA::Spectral_Gradients_2D_Curl untested!" << endl;
+
+    // Find gradients
+    cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTOutput1, NTM, c_FGj, 1, c_FTOutput2, NTM);
+    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_2D Failed \n");  return;}
+    cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTOutput1, NTM, c_FGi, 1, c_FTOutput1, NTM);
+    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_2D Failed \n");  return;}
+    // Transfer Uy to dummy buffer
+    cudaMemcpy(c_DummyBuffer1,c_FTOutput1,NTM*sizeof(CUDAComplex),cudaMemcpyDeviceToDevice);
+
+    CUDAComplex Alpha = {-1.0,0.0};
+    cublas_axpy(cublashandle, NTM, &Alpha, c_FTOutput2, 1, c_FTOutput1, 1);                       // X velocity
+    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_2D Failed \n");  return;}
+    cudaMemcpy(c_FTInput2,c_DummyBuffer1,NTM*sizeof(CUDAComplex),cudaMemcpyDeviceToDevice);     // Y velocity
+}
+
+void DataType_CUDA::Spectral_Gradients_2D_Nabla()
+{
+    // Calculates nabla of 2D signal in spectral space. Done in-place.
+
+    cout << "DataType_CUDA::Spectral_Gradients_2D_Nabla untested!" << endl;
+
+    // Find gradients
+    cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTOutput1, NTM, c_FGj, 1, c_FTOutput2, NTM);
+    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_2D Failed \n");  return;}
+    cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTOutput2, NTM, c_FGj, 1, c_FTOutput2, NTM);
+    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_2D Failed \n");  return;}
+    cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTOutput1, NTM, c_FGi, 1, c_FTOutput1, NTM);
+    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_2D Failed \n");  return;}
+    cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTOutput1, NTM, c_FGi, 1, c_FTOutput1, NTM);
+    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_2D Failed \n");  return;}
+}
+
+//--- 3D spectral gradients
+
+void DataType_CUDA::Spectral_Gradients_3D_Div()
+{
+    // Calculates div of 3D signal in spectral space. Done in-place.
+
+    cout << "DataType_CUDA::Spectral_Gradients_3D_Div() untested!" << endl;
+
+    // Find gradients
+    cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTOutput1, NTM, c_FGk, 1, c_FTOutput3, NTM);
+    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_2D Failed \n");  return;}
+    cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTOutput1, NTM, c_FGj, 1, c_FTOutput2, NTM);
+    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_2D Failed \n");  return;}
+    cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTOutput1, NTM, c_FGi, 1, c_FTOutput1, NTM);
+    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_2D Failed \n");  return;}
+    // Now add together
+    CUDAComplex Alpha = {1.0,0.0};
+    cublas_axpy(cublashandle, NTM, &Alpha, c_FTOutput3, 1, c_FTOutput2, 1);
+    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_2D Failed \n");  return;}
+    cublas_axpy(cublashandle, NTM, &Alpha, c_FTOutput2, 1, c_FTOutput1, 1);
+    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_2D Failed \n");  return;}
+}
+
+void DataType_CUDA::Spectral_Gradients_3D_Grad()
+{
+    // Calculates grad of 3D signal in spectral space. Done in-place.
+
+    cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTOutput1, NTM, c_FGk, 1, c_FTOutput3, NTM);
+    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_2D Failed \n");  return;}
+    cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTOutput1, NTM, c_FGj, 1, c_FTOutput2, NTM);
+    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_2D Failed \n");  return;}
+    cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTOutput1, NTM, c_FGi, 1, c_FTOutput1, NTM);
+    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_2D Failed \n");  return;}
+}
+
+//--- 3DV spectral gradients
+
+void DataType_CUDA::Spectral_Gradients_3DV_Div()
+{
+    // Calculates div of 3D signal in spectral space. Done in-place.
+
+    cout << "DataType_CUDA::Spectral_Gradients_3DV_Div() untested!" << endl;
+
+    // Find gradients
+    cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTOutput1, NTM, c_FGi, 1, c_FTOutput1, NTM);
+    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_3DV Failed \n");  return;}
+    cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTOutput2, NTM, c_FGj, 1, c_FTOutput2, NTM);
+    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_3DV Failed \n");  return;}
+    cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTOutput3, NTM, c_FGk, 1, c_FTOutput3, NTM);
+    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_3DV Failed \n");  return;}
+
+    // Now add together
+    CUDAComplex Alpha = {1.0,0.0};
+    cublas_axpy(cublashandle, NTM, &Alpha, c_FTOutput3, 1, c_FTOutput2, 1);
+    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_3DV Failed \n");  return;}
+    cublas_axpy(cublashandle, NTM, &Alpha, c_FTOutput2, 1, c_FTOutput1, 1);
+    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_3DV Failed \n");  return;}
+}
+
+void DataType_CUDA::Spectral_Gradients_3DV_Grad()
+{
+    // Calculates grad of 3D signal in spectral space. Done in-place.
+    // Require 9 elements!
+
+    cout << "DataType_CUDA::Spectral_Gradients_3DV_Grad() not yet implemented!!!!" << endl;
+}
+
+void DataType_CUDA::Spectral_Gradients_3DV_Curl()
+{
+    // Calculates curl of 3D signal in spectral space. Done in-place.
+
+    // Velocity field extraction for 3D case! The holy grail!
+    // This is currently achieved with an extremely ugly (in terms of memory) approach.
+    // The better approach would be to write a cuda Kernel for this task.
+
+    CUDAComplex Alpha = {-1.0,0.0};
+
+    // Intermediate vars
+    cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTOutput3, NTM, c_FGj, 1, c_DummyBuffer2, NTM);
+    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_3DV Failed \n");  return;}
+    cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTOutput2, NTM, c_FGk, 1, c_DummyBuffer1, NTM);
+    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_3DV Failed \n");  return;}
+    cublas_axpy(cublashandle, NTM, &Alpha, c_DummyBuffer2, 1, c_DummyBuffer1, 1); // Add together (X velocity c_DummyBuffer1)
+    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_3DV Failed \n");  return;}
+
+    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_3DV Failed \n");  return;}
+    cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTOutput1, NTM, c_FGk, 1, c_DummyBuffer3, NTM);
+    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_3DV Failed \n");  return;}
+    cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTOutput3, NTM, c_FGi, 1, c_DummyBuffer2, NTM);
+    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_3DV Failed \n");  return;}
+    cublas_axpy(cublashandle, NTM, &Alpha, c_DummyBuffer3, 1, c_DummyBuffer2, 1); // Add together (Y velocity c_DummyBuffer2)
+    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_3DV Failed \n");  return;}
+
+
+    cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTOutput2, NTM, c_FGi, 1, c_DummyBuffer4, NTM);
+    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_3DV Failed \n");  return;}
+    cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTOutput1, NTM, c_FGj, 1, c_DummyBuffer3, NTM);
+    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_3DV Failed \n");  return;}
+    cublas_axpy(cublashandle, NTM, &Alpha, c_DummyBuffer4, 1, c_DummyBuffer3, 1); // Add together (Z velocity c_DummyBuffer3)
+    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_3DV Failed \n");  return;}
+
+    // Transfer back to appropriate positions
+    cudaMemcpy(c_FTOutput1,c_DummyBuffer1, NTM*sizeof(CUDAComplex), cudaMemcpyDeviceToDevice);     // X velocity
+    cudaMemcpy(c_FTOutput2,c_DummyBuffer2, NTM*sizeof(CUDAComplex), cudaMemcpyDeviceToDevice);     // Y velocity
+    cudaMemcpy(c_FTOutput3,c_DummyBuffer3, NTM*sizeof(CUDAComplex), cudaMemcpyDeviceToDevice);     // Z velocity
+}
+
+void DataType_CUDA::Spectral_Gradients_3DV_Nabla()
+{
+    // Calculates nabla of 3D signal in spectral space. Done in-place.
+
+    cout << "DataType_CUDA::Spectral_Gradients_3DV_Nabla() untested!" << endl;
+
+    // Find gradients
+    cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTOutput1, NTM, c_FGi, 1, c_FTOutput1, NTM);
+    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_3DV Failed \n");  return;}
+    cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTOutput1, NTM, c_FGi, 1, c_FTOutput1, NTM);
+    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_3DV Failed \n");  return;}
+
+    cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTOutput2, NTM, c_FGj, 1, c_FTOutput2, NTM);
+    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_3DV Failed \n");  return;}
+    cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTOutput2, NTM, c_FGj, 1, c_FTOutput2, NTM);
+    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_3DV Failed \n");  return;}
+
+    cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTOutput3, NTM, c_FGk, 1, c_FTOutput3, NTM);
+    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_3DV Failed \n");  return;}
+    cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTOutput3, NTM, c_FGk, 1, c_FTOutput3, NTM);
+    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Spectral_Gradients_3DV Failed \n");  return;}
 }
 
 //--- Prepare input array
@@ -1016,15 +1025,15 @@ void DataType_CUDA::Backward_FFT_DFT()
 {
     // Carry out backward FFTs
     cufftResult R = CUFFT_SUCCESS;
-    if (c_out_1 && c_ft_in1)  R = cufft_Execute_C2C(FFT_Plan, c_FTInput1, c_Output1, CUFFT_INVERSE);
+    if (c_out_1 && c_ft_out1)  R = cufft_Execute_C2C(FFT_Plan, c_FTOutput1, c_Output1, CUFFT_INVERSE);
     if (R != CUFFT_SUCCESS) {fprintf(stderr,"CUFFT Error: %s\n", cudaGetErrorString(cudaError_t(R))); return;}
     if (cudaDeviceSynchronize() != cudaSuccess){fprintf(stderr, "CUFFT error: Failed to synchronize\n"); return;}
 
-    if (c_out_2 && c_ft_in2)  R = cufft_Execute_C2C(FFT_Plan, c_FTInput2, c_Output2, CUFFT_INVERSE);
+    if (c_out_2 && c_ft_out2)  R = cufft_Execute_C2C(FFT_Plan, c_FTOutput2, c_Output2, CUFFT_INVERSE);
     if (R != CUFFT_SUCCESS) {fprintf(stderr,"CUFFT Error: %s\n", cudaGetErrorString(cudaError_t(R))); return;}
     if (cudaDeviceSynchronize() != cudaSuccess){fprintf(stderr, "CUFFT error: Failed to synchronize\n"); return;}
 
-    if (c_out_3 && c_ft_in3)  R = cufft_Execute_C2C(FFT_Plan, c_FTInput3, c_Output3, CUFFT_INVERSE);
+    if (c_out_3 && c_ft_out3)  R = cufft_Execute_C2C(FFT_Plan, c_FTOutput3, c_Output3, CUFFT_INVERSE);
     if (R != CUFFT_SUCCESS) {fprintf(stderr,"CUFFT Error: %s\n", cudaGetErrorString(cudaError_t(R))); return;}
     if (cudaDeviceSynchronize() != cudaSuccess){fprintf(stderr, "CUFFT error: Failed to synchronize\n"); return;}
 }
@@ -1050,15 +1059,15 @@ void DataType_CUDA::Backward_FFT_C2R()
 {
     // Carry out backward FFTs
     cufftResult R = CUFFT_SUCCESS;
-    if (r_out_1 && c_ft_in1)  R = cufft_Execute_C2R(Backward_Plan, c_FTInput1, r_Output1);
+    if (r_out_1 && c_ft_out1)  R = cufft_Execute_C2R(Backward_Plan, c_FTOutput1, r_Output1);
     if (R != CUFFT_SUCCESS) {fprintf(stderr,"CUFFT Error: %s\n", cudaGetErrorString(cudaError_t(R))); return;}
     if (cudaDeviceSynchronize() != cudaSuccess){fprintf(stderr, "CUFFT error: Failed to synchronize\n"); return;}
 
-    if (r_out_2 && c_ft_in2)  R = cufft_Execute_C2R(Backward_Plan, c_FTInput2, r_Output2);
+    if (r_out_2 && c_ft_out2)  R = cufft_Execute_C2R(Backward_Plan, c_FTOutput2, r_Output2);
     if (R != CUFFT_SUCCESS) {fprintf(stderr,"CUFFT Error: %s\n", cudaGetErrorString(cudaError_t(R))); return;}
     if (cudaDeviceSynchronize() != cudaSuccess){fprintf(stderr, "CUFFT error: Failed to synchronize\n"); return;}
 
-    if (r_out_3 && c_ft_in3)  R = cufft_Execute_C2R(Backward_Plan, c_FTInput3, r_Output3);
+    if (r_out_3 && c_ft_out3)  R = cufft_Execute_C2R(Backward_Plan, c_FTOutput3, r_Output3);
     if (R != CUFFT_SUCCESS) {fprintf(stderr,"CUFFT Error: %s\n", cudaGetErrorString(cudaError_t(R))); return;}
     if (cudaDeviceSynchronize() != cudaSuccess){fprintf(stderr, "CUFFT error: Failed to synchronize\n"); return;}
 }

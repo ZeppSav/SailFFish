@@ -24,7 +24,7 @@ int main()
 //    Test_Dirichlet_2D_IHBC(nx,ny);
 //    Test_Neumann_2D(nx,ny);
 //    Test_Neumann_2D_IHBC(nx,ny);
-    Test_Periodic_2D(nx,ny);
+//    Test_Periodic_2D(nx,ny);
 //    Test_Unbounded_2D(nx,ny);
 //    Test_Unbounded_2D_Grad(nx,ny);
 
@@ -33,7 +33,7 @@ int main()
 //    Test_Dirichlet_3D_IHBC(nx,ny,nz);
 //    Test_Neumann_3D(nx,ny,nz);
 //    Test_Neumann_3D_IHBC(nx,ny,nz);
-//    Test_Periodic_3D(nx,ny,nz);
+    Test_Periodic_3D(nx,ny,nz);
 //    Test_Unbounded_3D(nx,ny,nz);
 
     //--- 3D vector solver tests

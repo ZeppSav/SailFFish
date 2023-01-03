@@ -19,7 +19,7 @@ void DataType_FFTW::Datatype_Setup()
     // For FFTW, I will initialize multihtreading here.
     int j = fftwf_init_threads();
     int nt = omp_get_max_threads();
-    fftwf_plan_with_nthreads(8);
+    fftwf_plan_with_nthreads(nt);
     cout << "FFTW is being executed in OpenMP mode: NThreads = " << nt << "." <<  endl;
 }
 
@@ -39,6 +39,22 @@ SFStatus DataType_FFTW::Allocate_Arrays()
     if (r_ft_in2)   r_FTInput2 = (Real*)malloc(NT*sizeof(Real));
     if (r_ft_in3)   r_FTInput3 = (Real*)malloc(NT*sizeof(Real));
 
+    // Prepare transforms for case of either in-place or out-of-place operation
+    r_ft_out1 = r_ft_in1;
+    r_ft_out2 = r_ft_in2;
+    r_ft_out3 = r_ft_in3;
+
+    if (InPlace){
+        if (r_ft_out1) r_FTOutput1 = r_FTInput1;
+        if (r_ft_out2) r_FTOutput2 = r_FTInput2;
+        if (r_ft_out3) r_FTOutput3 = r_FTInput3;
+    }
+    else{
+        if (r_ft_out1) r_FTOutput1 = (Real*)malloc(NT*sizeof(Real));
+        if (r_ft_out2) r_FTOutput2 = (Real*)malloc(NT*sizeof(Real));
+        if (r_ft_out3) r_FTOutput3 = (Real*)malloc(NT*sizeof(Real));
+    }
+
     if (r_out_1)    r_Output1 = (Real*)malloc(NT*sizeof(Real));
     if (r_out_2)    r_Output2 = (Real*)malloc(NT*sizeof(Real));
     if (r_out_3)    r_Output3 = (Real*)malloc(NT*sizeof(Real));
@@ -54,6 +70,22 @@ SFStatus DataType_FFTW::Allocate_Arrays()
     if (c_ft_in1)   c_FTInput1 = (FFTWReal*) FFTW_malloc(sizeof(FFTWReal) * NTM);
     if (c_ft_in2)   c_FTInput2 = (FFTWReal*) FFTW_malloc(sizeof(FFTWReal) * NTM);
     if (c_ft_in3)   c_FTInput3 = (FFTWReal*) FFTW_malloc(sizeof(FFTWReal) * NTM);
+
+    // Prepare transforms for case of either in-place or out-of-place operation
+    c_ft_out1 = c_ft_in1;
+    c_ft_out2 = c_ft_in2;
+    c_ft_out3 = c_ft_in3;
+
+    if (InPlace){
+        if (c_ft_out1) c_FTOutput1 = c_FTInput1;
+        if (c_ft_out2) c_FTOutput2 = c_FTInput2;
+        if (c_ft_out3) c_FTOutput3 = c_FTInput3;
+    }
+    else{
+        if (c_ft_out1) c_FTOutput1 = (FFTWReal*) FFTW_malloc(sizeof(FFTWReal) * NTM);
+        if (c_ft_out2) c_FTOutput2 = (FFTWReal*) FFTW_malloc(sizeof(FFTWReal) * NTM);
+        if (c_ft_out3) c_FTOutput3 = (FFTWReal*) FFTW_malloc(sizeof(FFTWReal) * NTM);
+    }
 
     if (c_out_1)    c_Output1 = (FFTWReal*) FFTW_malloc(sizeof(FFTWReal) * NT);
     if (c_out_2)    c_Output2 = (FFTWReal*) FFTW_malloc(sizeof(FFTWReal) * NT);
@@ -74,39 +106,49 @@ SFStatus DataType_FFTW::Deallocate_Arrays()
     // This is simply controlled here by specifying the necessary flags during solver initialization
 
     // Real-valued arrays
-    if (r_in1)      free(r_Input1);
-    if (r_in2)      free(r_Input2);
-    if (r_in3)      free(r_Input3);
+    if (r_Input1)       free(r_Input1);
+    if (r_Input2)       free(r_Input2);
+    if (r_Input3)       free(r_Input3);
 
-    if (r_ft_in1)   free(r_FTInput1);
-    if (r_ft_in2)   free(r_FTInput2);
-    if (r_ft_in3)   free(r_FTInput3);
+    if (r_FTInput1)     free(r_FTInput1);
+    if (r_FTInput2)     free(r_FTInput2);
+    if (r_FTInput3)     free(r_FTInput3);
 
-    if (r_out_1)    free(r_Output1);
-    if (r_out_2)    free(r_Output2);
-    if (r_out_3)    free(r_Output3);
+    if (!InPlace && r_FTOutput1)    free(r_FTOutput1);
+    if (!InPlace && r_FTOutput2)    free(r_FTOutput2);
+    if (!InPlace && r_FTOutput3)    free(r_FTOutput3);
+
+    if (r_Output1)      free(r_Output1);
+    if (r_Output2)      free(r_Output2);
+    if (r_Output3)      free(r_Output3);
 
     // Arrays for real Green's function
-    if (r_fg)       free(r_FG);
+    if (r_FG)           free(r_FG);
 
     // Complex-valued arrays
-    if (c_in1)      FFTW_Free(c_Input1);
-    if (c_in2)      FFTW_Free(c_Input2);
-    if (c_in3)      FFTW_Free(c_Input3);
+    if (c_Input1)       FFTW_Free(c_Input1);
+    if (c_Input2)       FFTW_Free(c_Input2);
+    if (c_Input3)       FFTW_Free(c_Input3);
 
-    if (c_ft_in1)   FFTW_Free(c_FTInput1);
-    if (c_ft_in2)   FFTW_Free(c_FTInput2);
-    if (c_ft_in3)   FFTW_Free(c_FTInput3);
+    if (c_FTInput1)     FFTW_Free(c_FTInput1);
+    if (c_FTInput2)     FFTW_Free(c_FTInput2);
+    if (c_FTInput3)     FFTW_Free(c_FTInput3);
 
-    if (c_out_1)    FFTW_Free(c_Output1);
-    if (c_out_2)    FFTW_Free(c_Output2);
-    if (c_out_3)    FFTW_Free(c_Output3);
+    if (!InPlace && c_FTOutput1)    FFTW_Free(c_FTOutput1);
+    if (!InPlace && c_FTOutput2)    FFTW_Free(c_FTOutput2);
+    if (!InPlace && c_FTOutput3)    FFTW_Free(c_FTOutput3);
+
+    if (c_Output1)      FFTW_Free(c_Output1);
+    if (c_Output2)      FFTW_Free(c_Output2);
+    if (c_Output3)      FFTW_Free(c_Output3);
 
     // Arrays for complex Green's function & spectral operators arrays
-    if (c_fg)       FFTW_Free(c_FG);
-    if (c_fg_i)     FFTW_Free(c_FGi);
-    if (c_fg_j)     FFTW_Free(c_FGj);
-    if (c_fg_k)     FFTW_Free(c_FGk);
+    if (c_FG)           FFTW_Free(c_FG);
+    if (c_FGi)          FFTW_Free(c_FGi);
+    if (c_FGj)          FFTW_Free(c_FGj);
+    if (c_FGk)          FFTW_Free(c_FGk);
+
+    cout << "DataType arrays have been successfuly cleared." << endl;
 
     return NoError;
 }
@@ -144,13 +186,13 @@ SFStatus DataType_FFTW::Specify_1D_Plan()
     {
         BFac = 1.0/NT;
         Forward_Plan =  FFTW_Plan_1D(NX, c_Input1, c_FTInput1, FFTW_FORWARD, FFTW_PLANSETUP);
-        Backward_Plan = FFTW_Plan_1D(NX, c_FTInput1, c_Output1, FFTW_BACKWARD, FFTW_PLANSETUP);
+        Backward_Plan = FFTW_Plan_1D(NX, c_FTOutput1, c_Output1, FFTW_BACKWARD, FFTW_PLANSETUP);
     }
     if (Transform==DFT_R2C)
     {
         BFac = 1.0/NT;
         Forward_Plan =  FFTW_Plan_1D_R2C(NX, r_Input1, c_FTInput1, FFTW_PLANSETUP);
-        Backward_Plan = FFTW_Plan_1D_C2R(NX, c_FTInput1, r_Output1, FFTW_PLANSETUP);
+        Backward_Plan = FFTW_Plan_1D_C2R(NX, c_FTOutput1, r_Output1, FFTW_PLANSETUP);
     }
     return NoError;
 }
@@ -186,13 +228,13 @@ SFStatus DataType_FFTW::Specify_2D_Plan()
     {
         BFac = 1.0/NT;
         Forward_Plan = FFTW_Plan_2D(NX, NY, c_Input1, c_FTInput1, FFTW_FORWARD, FFTW_PLANSETUP);
-        Backward_Plan = FFTW_Plan_2D(NX, NY, c_FTInput1, c_Output1, FFTW_BACKWARD, FFTW_PLANSETUP);
+        Backward_Plan = FFTW_Plan_2D(NX, NY, c_FTOutput1, c_Output1, FFTW_BACKWARD, FFTW_PLANSETUP);
     }
     if (Transform==DFT_R2C)
     {
         BFac = 1.0/NT;
         Forward_Plan =  FFTW_Plan_2D_R2C(NX, NY, r_Input1, c_FTInput1, FFTW_PLANSETUP);
-        Backward_Plan = FFTW_Plan_2D_C2R(NX, NY, c_FTInput1, r_Output1, FFTW_PLANSETUP);
+        Backward_Plan = FFTW_Plan_2D_C2R(NX, NY, c_FTOutput1, r_Output1, FFTW_PLANSETUP);
     }
     return NoError;
 }
@@ -228,13 +270,13 @@ SFStatus DataType_FFTW::Specify_3D_Plan()
     {
         BFac = 1.0/NT;
         Forward_Plan = FFTW_Plan_3D(NX, NY, NZ, c_Input1, c_FTInput1, FFTW_FORWARD, FFTW_PLANSETUP);
-        Backward_Plan = FFTW_Plan_3D(NX, NY, NZ, c_FTInput1, c_Output1, FFTW_BACKWARD, FFTW_PLANSETUP);
+        Backward_Plan = FFTW_Plan_3D(NX, NY, NZ, c_FTOutput1, c_Output1, FFTW_BACKWARD, FFTW_PLANSETUP);
     }
     if (Transform==DFT_R2C)
     {
         BFac = 1.0/NT;
         Forward_Plan = FFTW_Plan_3D_R2C(NX, NY, NZ, r_Input1, c_FTInput1, FFTW_PLANSETUP);
-        Backward_Plan = FFTW_Plan_3D_C2R(NX, NY, NZ, c_FTInput1, r_Output1, FFTW_PLANSETUP);
+        Backward_Plan = FFTW_Plan_3D_C2R(NX, NY, NZ, c_FTOutput1, r_Output1, FFTW_PLANSETUP);
     }
     return NoError;
 }
@@ -496,6 +538,13 @@ inline void Multiply(const FFTWReal &A, const FFTWReal &B, FFTWReal &Out)
     Out[1] = Im;
 }
 
+inline void Copy(const FFTWReal &src, FFTWReal &dst)
+{
+    // Naiv copy algorithm for improved readability
+    dst[0] = src[0];
+    dst[1] = src[1];
+}
+
 void DataType_FFTW::Convolution_Real()
 {
     // The convolution is carried out by multiplying the RHS in the frequency space with the chosen Greens function
@@ -503,7 +552,7 @@ void DataType_FFTW::Convolution_Real()
     if (!Kernel_Convolution) return;
 
     OpenMPfor
-    for (int i=0; i<NTM; i++)    r_FTInput1[i] *= r_FG[i];
+    for (int i=0; i<NTM; i++)    r_FTOutput1[i] = r_FG[i]*r_FTInput1[i];
 }
 
 void DataType_FFTW::Convolution_Real3()
@@ -514,9 +563,9 @@ void DataType_FFTW::Convolution_Real3()
 
     OpenMPfor
     for (int i=0; i<NTM; i++){
-        r_FTInput1[i] *= r_FG[i];
-        r_FTInput2[i] *= r_FG[i];
-        r_FTInput3[i] *= r_FG[i];
+        r_FTOutput1[i] = r_FG[i]*r_FTInput1[i];
+        r_FTOutput2[i] = r_FG[i]*r_FTInput2[i];
+        r_FTOutput3[i] = r_FG[i]*r_FTInput3[i];
     }
 }
 
@@ -527,7 +576,7 @@ void DataType_FFTW::Convolution_Complex()
     if (!Kernel_Convolution) return;
 
     OpenMPfor
-    for (int i=0; i<NTM; i++)    Multiply(c_FTInput1[i],c_FG[i],c_FTInput1[i]);
+    for (int i=0; i<NTM; i++)    Multiply(c_FTInput1[i],c_FG[i],c_FTOutput1[i]);
 }
 
 void DataType_FFTW::Convolution_Complex3()
@@ -538,9 +587,9 @@ void DataType_FFTW::Convolution_Complex3()
 
     OpenMPfor
     for (int i=0; i<NTM; i++){
-        Multiply(c_FTInput1[i],c_FG[i],c_FTInput1[i]);
-        Multiply(c_FTInput2[i],c_FG[i],c_FTInput2[i]);
-        Multiply(c_FTInput3[i],c_FG[i],c_FTInput3[i]);
+        Multiply(c_FTInput1[i],c_FG[i],c_FTOutput1[i]);
+        Multiply(c_FTInput2[i],c_FG[i],c_FTOutput2[i]);
+        Multiply(c_FTInput3[i],c_FG[i],c_FTOutput3[i]);
     }
 }
 
@@ -622,222 +671,215 @@ void DataType_FFTW::Prepare_Dif_Operators_3D(Real Hx, Real Hy, Real Hz)
     }
 }
 
-void DataType_FFTW::Spectral_Gradients_1D()
+void DataType_FFTW::Transfer_FTInOut_Real()
 {
-    // The convolution of the input signal with the greens function was carried out in a previous step (DataType_FFTW::Convolution_Complex()).
-    // If the gradients are to be calculated, the spectral differentiation is carried out here.
-    // This is done in-place
+    // Note:Spatial operators act on the output vectors (the result likely already having been transformed.
+    // This means that in the specialized case of carrying out spectral operations on the vectors in out-of-place mode, they must be transferred
+    // they must be transferred from the Input array to the output array
+    if (InPlace) return;
+    if (r_FTInput1) std::memcpy(r_FTOutput1, r_FTInput1, NTM*sizeof(Real));   // Just copy over
+    if (r_FTInput2) std::memcpy(r_FTOutput1, r_FTInput2, NTM*sizeof(Real));   // Just copy over
+    if (r_FTInput3) std::memcpy(r_FTOutput1, r_FTInput3, NTM*sizeof(Real));   // Just copy over
+}
 
-    if (Operator==NONE)     return;
-    if (Operator==CURL )    return; // Invalid in 1D
-    if (Operator==DIV)      return; // Just gradient in 1D
-
-    if (Operator==GRAD)
-    {
-        OpenMPfor
-        for (int i=0; i<NXM; i++)   Multiply(c_FGi[i],c_FTInput1[i],c_FTInput1[i]);
+void DataType_FFTW::Transfer_FTInOut_Comp()
+{
+    // Note:Spatial operators act on the output vectors (the result likely already having been transformed.
+    // This means that in the specialized case of carrying out spectral operations on the vectors in out-of-place mode, they must be transferred
+    // they must be transferred from the Input array to the output array
+    if (InPlace) return;
+    OpenMPfor
+    for (int i=0; i<NTM; i++){
+        Copy(c_FTInput1[i],c_FTOutput1[i]);
+        Copy(c_FTInput2[i],c_FTOutput2[i]);
+        Copy(c_FTInput3[i],c_FTOutput3[i]);
     }
+}
 
-    if (Operator==NABLA)
-    {
-        OpenMPfor
-        for (int i=0; i<NXM; i++){
-                Multiply(c_FGi[i],c_FTInput1[i],c_FTInput1[i]);
-                Multiply(c_FGi[i],c_FTInput1[i],c_FTInput1[i]);
+//--- 1D spectral gradients
+
+void DataType_FFTW::Spectral_Gradients_1D_Grad()
+{
+    // Calculates gradient of 1D signal in spectral space. Done in-place.
+
+    OpenMPfor
+    for (int i=0; i<NXM; i++)   Multiply(c_FGi[i],c_FTOutput1[i],c_FTOutput1[i]);
+}
+
+void DataType_FFTW::Spectral_Gradients_1D_Nabla()
+{
+    // Calculates nabla of 1D signal in spectral space. Done in-place.
+
+    OpenMPfor
+    for (int i=0; i<NXM; i++){
+            FFTWReal Prod;
+            Multiply(c_FGi[i],c_FGi[i],Prod);
+            Multiply(Prod,c_FTOutput1[i],c_FTOutput1[i]);
+    }
+}
+
+//--- 2D spectral gradients
+
+void DataType_FFTW::Spectral_Gradients_2D_Grad()
+{
+    // Calculates grad of 2D signal in spectral space. Done in-place.
+
+    OpenMPfor
+    for (int i=0; i<NXM; i++){
+        for (int j=0; j<NYM; j++){
+            int id = i*NYM + j;
+            Multiply(c_FGj[j],c_FTOutput1[id],c_FTOutput2[id]);
+            Multiply(c_FGi[i],c_FTOutput1[id],c_FTOutput1[id]);
         }
     }
 }
 
-void DataType_FFTW::Spectral_Gradients_2D()
+void DataType_FFTW::Spectral_Gradients_2D_Curl()
 {
-    // The convolution of the input signal with the greens function was carried out in a previous step (DataType_FFTW::Convolution_Complex()).
-    // If the gradients are to be calculated, the spectral differentiation is carried out here.
-    // This is done in-place
+    // Calculates curl of 2D signal in spectral space. Done in-place.
 
-    if (Operator==NONE) return;
-
-    if (Operator==DIV)
-    {
-        OpenMPfor
-        for (int i=0; i<NXM; i++){
-            for (int j=0; j<NYM; j++){
-                int id = i*NYM + j;
-                FFTWReal GTX, GTY;
-                Multiply(c_FGi[i],c_FTInput1[id],GTX);
-                Multiply(c_FGj[j],c_FTInput1[id],GTY);
-                c_FTInput1[id][0] = GTX[0]+GTY[0];
-                c_FTInput1[id][1] = GTX[1]+GTY[1];
-            }
+    OpenMPfor
+    for (int i=0; i<NXM; i++){
+        for (int j=0; j<NYM; j++){
+            int id = i*NYM + j;
+            Multiply(c_FGi[i],c_FTOutput1[id],c_FTOutput2[id]);
+            Multiply(c_FGj[j],c_FTOutput1[id],c_FTOutput1[id]);
+            c_FTInput2[id][0] *= -1.0;
+            c_FTInput2[id][1] *= -1.0;
         }
     }
+}
 
-    if (Operator==GRAD)
-    {
-        OpenMPfor
-        for (int i=0; i<NXM; i++){
-            for (int j=0; j<NYM; j++){
-                int id = i*NYM + j;
-                Multiply(c_FGj[j],c_FTInput1[id],c_FTInput2[id]);
-                Multiply(c_FGi[i],c_FTInput1[id],c_FTInput1[id]);
-            }
+void DataType_FFTW::Spectral_Gradients_2D_Nabla()
+{
+    // Calculates nabla of 2D signal in spectral space. Done in-place.
+
+    OpenMPfor
+    for (int i=0; i<NXM; i++){
+        for (int j=0; j<NYM; j++){
+            int id = i*NYM + j;
+            Multiply(c_FGj[j],c_FTOutput1[id],c_FTOutput2[id]);
+            Multiply(c_FGj[j],c_FTOutput2[id],c_FTOutput2[id]);
+            Multiply(c_FGi[i],c_FTOutput1[id],c_FTOutput1[id]);
+            Multiply(c_FGi[i],c_FTOutput1[id],c_FTOutput1[id]);
         }
     }
+}
 
-    if (Operator==CURL)
-    {
-        OpenMPfor
-        for (int i=0; i<NXM; i++){
-            for (int j=0; j<NYM; j++){
-                int id = i*NYM + j;
-                Multiply(c_FGi[i],c_FTInput1[id],c_FTInput2[id]);
-                Multiply(c_FGj[j],c_FTInput1[id],c_FTInput1[id]);
-                c_FTInput2[id][0] *= -1.0;
-                c_FTInput2[id][1] *= -1.0;
-            }
-        }
-    }
+//--- 3D spectral gradients
 
-    if (Operator==NABLA)
-    {
-        OpenMPfor
-        for (int i=0; i<NXM; i++){
-            for (int j=0; j<NYM; j++){
-                int id = i*NYM + j;
-                Multiply(c_FGj[j],c_FTInput1[id],c_FTInput2[id]);
-                Multiply(c_FGj[j],c_FTInput2[id],c_FTInput2[id]);
-                Multiply(c_FGi[i],c_FTInput1[id],c_FTInput1[id]);
-                Multiply(c_FGi[i],c_FTInput1[id],c_FTInput1[id]);
+void DataType_FFTW::Spectral_Gradients_3D_Div()
+{
+    // Calculates div of 3D signal in spectral space. Done in-place.
+
+    OpenMPfor
+    for (int i=0; i<NXM; i++){
+        for (int j=0; j<NYM; j++){
+            for (int k=0; k<NZM; k++){
+                int id = i*NYM*NZM + j*NZM + k;
+                FFTWReal GTX, GTY, GTZ;
+                Multiply(c_FGi[i],c_FTOutput1[id],GTX);
+                Multiply(c_FGj[j],c_FTOutput1[id],GTY);
+                Multiply(c_FGk[k],c_FTOutput1[id],GTZ);
+                c_FTOutput1[id][0] = GTX[0]+GTY[0]+GTZ[0];
+                c_FTOutput1[id][1] = GTX[1]+GTY[1]+GTZ[1];
             }
         }
     }
 }
 
-void DataType_FFTW::Spectral_Gradients_3D()
+void DataType_FFTW::Spectral_Gradients_3D_Grad()
 {
-    // The convolution of the input signal with the greens function was carried out in a previous step (DataType_FFTW::Convolution_Complex()).
-    // If the gradients are to be calculated, the spectral differentiation is carried out here.
-    // This is done in-place
+    // Calculates grad of 3D signal in spectral space. Done in-place.
 
-    if (Operator==NONE) return;
-
-    if (Operator==DIV)
-    {
-        OpenMPfor
-        for (int i=0; i<NXM; i++){
-            for (int j=0; j<NYM; j++){
-                for (int k=0; k<NZM; k++){
-                    int id = i*NYM*NZM + j*NZM + k;
-                    FFTWReal GTX, GTY, GTZ;
-                    Multiply(c_FGi[i],c_FTInput1[id],GTX);
-                    Multiply(c_FGj[j],c_FTInput1[id],GTY);
-                    Multiply(c_FGk[k],c_FTInput1[id],GTZ);
-                    c_FTInput1[id][0] = GTX[0]+GTY[0]+GTZ[0];
-                    c_FTInput1[id][1] = GTX[1]+GTY[1]+GTZ[1];
-                }
+    OpenMPfor
+    for (int i=0; i<NXM; i++){
+        for (int j=0; j<NYM; j++){
+            for (int k=0; k<NZM; k++){
+                int id = i*NYM*NZM + j*NZM + k;
+                Multiply(c_FGk[k],c_FTOutput1[id],c_FTOutput3[id]);
+                Multiply(c_FGj[j],c_FTOutput1[id],c_FTOutput2[id]);
+                Multiply(c_FGi[i],c_FTOutput1[id],c_FTOutput1[id]);
             }
         }
-    }
-
-    if (Operator==GRAD)
-    {
-        OpenMPfor
-        for (int i=0; i<NXM; i++){
-            for (int j=0; j<NYM; j++){
-                for (int k=0; k<NZM; k++){
-                    int id = i*NYM*NZM + j*NZM + k;
-                    Multiply(c_FGk[k],c_FTInput1[id],c_FTInput3[id]);
-                    Multiply(c_FGj[j],c_FTInput1[id],c_FTInput2[id]);
-                    Multiply(c_FGi[i],c_FTInput1[id],c_FTInput1[id]);
-                }
-            }
-        }
-    }
-
-    if (Operator==CURL)
-    {
-        // Ignore this case...
-        //we would need to scan through and check which vector component is actually being filled ()
     }
 }
 
-void DataType_FFTW::Spectral_Gradients_3DV()
+//--- 3DV spectral gradients
+
+void DataType_FFTW::Spectral_Gradients_3DV_Div()
 {
-    // The convolution of the input signal with the greens function was carried out in a previous step (DataType_FFTW::Convolution_Complex()).
-    // If the gradients are to be calculated, the spectral differentiation is carried out here.
-    // This is done in-place
+    // Calculates div of 3D signal in spectral space. Done in-place.
 
-    if (Operator==NONE) return;
-
-    if (Operator==DIV)
-    {
-        OpenMPfor
-        for (int i=0; i<NXM; i++){
-            for (int j=0; j<NYM; j++){
-                for (int k=0; k<NZM; k++){
-                    int id = i*NYM*NZM + j*NZM + k;
-                    FFTWReal GTX, GTY, GTZ;
-                    Multiply(c_FGi[i],c_FTInput1[id],GTX);
-                    Multiply(c_FGj[j],c_FTInput2[id],GTY);
-                    Multiply(c_FGk[k],c_FTInput3[id],GTZ);
-                    c_FTInput1[id][0] = GTX[0]+GTY[0]+GTZ[0];
-                    c_FTInput1[id][1] = GTX[1]+GTY[1]+GTZ[1];
-                }
+    OpenMPfor
+    for (int i=0; i<NXM; i++){
+        for (int j=0; j<NYM; j++){
+            for (int k=0; k<NZM; k++){
+                int id = i*NYM*NZM + j*NZM + k;
+                FFTWReal GTX, GTY, GTZ;
+                Multiply(c_FGi[i],c_FTOutput1[id],GTX);
+                Multiply(c_FGj[j],c_FTOutput2[id],GTY);
+                Multiply(c_FGk[k],c_FTOutput3[id],GTZ);
+                c_FTOutput1[id][0] = GTX[0]+GTY[0]+GTZ[0];
+                c_FTOutput1[id][1] = GTX[1]+GTY[1]+GTZ[1];
             }
         }
     }
+}
 
-    if (Operator==GRAD)
-    {
-        // Ignore this case for now. We would require 9 arrays to store the outputs
-        // Will be useful at some point, but not right now!
-    }
+void DataType_FFTW::Spectral_Gradients_3DV_Grad()
+{
+    // Calculates grad of 3D signal in spectral space. Done in-place.
+    // Require 9 elements!
+}
 
-    if (Operator==CURL)
-    {
-        // Velocity field extraction for 3D case! The holy grail!
+void DataType_FFTW::Spectral_Gradients_3DV_Curl()
+{
+    // Calculates curl of 3D signal in spectral space. Done in-place.
 
-        OpenMPfor
-        for (int i=0; i<NXM; i++){
-            for (int j=0; j<NYM; j++){
-                for (int k=0; k<NZM; k++){
+    OpenMPfor
+    for (int i=0; i<NXM; i++){
+        for (int j=0; j<NYM; j++){
+            for (int k=0; k<NZM; k++){
 
-                    int id = i*NYM*NZM + j*NZM + k;
+                int id = i*NYM*NZM + j*NZM + k;
 
-                    // Calculate the frequency space representations of the curl operator
-                    FFTWReal XT1, XT2, YT1, YT2, ZT1, ZT2;
-                    Multiply(c_FGj[j],c_FTInput3[id],XT1);  // 1
-                    Multiply(c_FGk[k],c_FTInput2[id],XT2);
-                    Multiply(c_FGk[k],c_FTInput1[id],YT1);  // 2
-                    Multiply(c_FGi[i],c_FTInput3[id],YT2);
-                    Multiply(c_FGi[i],c_FTInput2[id],ZT1);  // 3
-                    Multiply(c_FGj[j],c_FTInput1[id],ZT2);
+                // Calculate the frequency space representations of the curl operator
+                FFTWReal XT1, XT2, YT1, YT2, ZT1, ZT2;
+                Multiply(c_FGj[j],c_FTOutput3[id],XT1);  // 1
+                Multiply(c_FGk[k],c_FTOutput2[id],XT2);
+                Multiply(c_FGk[k],c_FTOutput1[id],YT1);  // 2
+                Multiply(c_FGi[i],c_FTOutput3[id],YT2);
+                Multiply(c_FGi[i],c_FTOutput2[id],ZT1);  // 3
+                Multiply(c_FGj[j],c_FTOutput1[id],ZT2);
 
-                    // Store in arrays for backward transform
-                    c_FTInput1[id][0] = XT2[0]-XT1[0];
-                    c_FTInput1[id][1] = XT2[1]-XT1[1];
-                    c_FTInput2[id][0] = YT2[0]-YT1[0];
-                    c_FTInput2[id][1] = YT2[1]-YT1[1];
-                    c_FTInput3[id][0] = ZT2[0]-ZT1[0];
-                    c_FTInput3[id][1] = ZT2[1]-ZT1[1];
-                }
+                // Store in arrays for backward transform
+                c_FTOutput1[id][0] = XT2[0]-XT1[0];
+                c_FTOutput1[id][1] = XT2[1]-XT1[1];
+                c_FTOutput2[id][0] = YT2[0]-YT1[0];
+                c_FTOutput2[id][1] = YT2[1]-YT1[1];
+                c_FTOutput3[id][0] = ZT2[0]-ZT1[0];
+                c_FTOutput3[id][1] = ZT2[1]-ZT1[1];
             }
         }
     }
+}
 
-    if (Operator==NABLA)
-    {
-        OpenMPfor
-        for (int i=0; i<NXM; i++){
-            for (int j=0; j<NYM; j++){
-                for (int k=0; k<NZM; k++){
-                    int id = i*NYM*NZM + j*NZM + k;
-                    Multiply(c_FGi[i],c_FTInput1[id],c_FTInput1[id]);
-                    Multiply(c_FGi[i],c_FTInput1[id],c_FTInput1[id]);
-                    Multiply(c_FGj[j],c_FTInput2[id],c_FTInput2[id]);
-                    Multiply(c_FGj[j],c_FTInput2[id],c_FTInput2[id]);
-                    Multiply(c_FGk[k],c_FTInput3[id],c_FTInput3[id]);
-                    Multiply(c_FGk[k],c_FTInput3[id],c_FTInput3[id]);
-                }
+void DataType_FFTW::Spectral_Gradients_3DV_Nabla()
+{
+    // Calculates nabla of 3D signal in spectral space. Done in-place.
+
+    OpenMPfor
+    for (int i=0; i<NXM; i++){
+        for (int j=0; j<NYM; j++){
+            for (int k=0; k<NZM; k++){
+                int id = i*NYM*NZM + j*NZM + k;
+                Multiply(c_FGi[i],c_FTOutput1[id],c_FTOutput1[id]);
+                Multiply(c_FGi[i],c_FTOutput1[id],c_FTOutput1[id]);
+                Multiply(c_FGj[j],c_FTOutput2[id],c_FTOutput2[id]);
+                Multiply(c_FGj[j],c_FTOutput2[id],c_FTOutput2[id]);
+                Multiply(c_FGk[k],c_FTOutput3[id],c_FTOutput3[id]);
+                Multiply(c_FGk[k],c_FTOutput3[id],c_FTOutput3[id]);
             }
         }
     }

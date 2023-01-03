@@ -81,27 +81,18 @@ protected:
     cublasHandle_t cublashandle;
 
     //--- Memory objects (Complex)
-    CUDAComplex *c_Input1, *c_FTInput1;
-    CUDAComplex *c_Input2, *c_FTInput2;
-    CUDAComplex *c_Input3, *c_FTInput3;
-    CUDAComplex *c_Output1;
-    CUDAComplex *c_Output2;
-    CUDAComplex *c_Output3;
+    CUDAComplex *c_Input1, *c_FTInput1, *c_FTOutput1, *c_Output1;
+    CUDAComplex *c_Input2, *c_FTInput2, *c_FTOutput2, *c_Output2;
+    CUDAComplex *c_Input3, *c_FTInput3, *c_FTOutput3, *c_Output3;
     CUDAComplex *c_DummyBuffer1, *c_DummyBuffer2, *c_DummyBuffer3;
     CUDAComplex *c_DummyBuffer4, *c_DummyBuffer5, *c_DummyBuffer6;
     CUDAComplex *c_FG, *c_FGi, *c_FGj, *c_FGk;
-//    FFTWReal     *c_FG;            // Just a placeholder for compiling
-//    CVector c_FG;
 
     //--- Memory objects (Real)
     // In reality these are actually stored on the GPU, we shall use these simply as interfacing arrays.
-    CUDAReal *r_Input1, *r_FTInput1;
-    CUDAReal *r_Input2, *r_FTInput2;
-    CUDAReal *r_Input3, *r_FTInput3;
-    CUDAReal *r_Output1;
-    CUDAReal *r_Output2;
-    CUDAReal *r_Output3;
-//    CUDAReal *cu_r_FG;
+    CUDAReal *r_Input1, *r_FTInput1, *r_Output1;
+    CUDAReal *r_Input2, *r_FTInput2, *r_Output2;
+    CUDAReal *r_Input3, *r_FTInput3, *r_Output3;
 
 public:
 
@@ -156,10 +147,21 @@ public:
     void Convolution_Real3()                    {}
     void Convolution_Complex();
     void Convolution_Complex3();
-    void Spectral_Gradients_1D();
-    void Spectral_Gradients_2D();
-    void Spectral_Gradients_3D();
-    void Spectral_Gradients_3DV();
+
+    //--- Spectral Gradients
+    void Transfer_FTInOut_Comp();
+    void Spectral_Gradients_1D_Grad();
+    void Spectral_Gradients_1D_Nabla();
+    void Spectral_Gradients_2D_Div();
+    void Spectral_Gradients_2D_Grad();
+    void Spectral_Gradients_2D_Curl();
+    void Spectral_Gradients_2D_Nabla();
+    void Spectral_Gradients_3D_Div();
+    void Spectral_Gradients_3D_Grad();
+    void Spectral_Gradients_3DV_Div();
+    void Spectral_Gradients_3DV_Grad();
+    void Spectral_Gradients_3DV_Curl();
+    void Spectral_Gradients_3DV_Nabla();
 
     //--- Destructor
     ~DataType_CUDA();

@@ -100,23 +100,15 @@ protected:
     FFTWPlan R2DPlan;
 
     //--- Memory objects (Complex)
-    FFTWReal *c_Input1, *c_FTInput1;
-    FFTWReal *c_Input2, *c_FTInput2;
-    FFTWReal *c_Input3, *c_FTInput3;
-    FFTWReal *c_Output1;
-    FFTWReal *c_Output2;
-    FFTWReal *c_Output3;
-    FFTWReal *c_FG;
-    FFTWReal *c_FGi, *c_FGj, *c_FGk;
+    FFTWReal *c_Input1, *c_FTInput1, *c_FTOutput1, *c_Output1;
+    FFTWReal *c_Input2, *c_FTInput2, *c_FTOutput2, *c_Output2;
+    FFTWReal *c_Input3, *c_FTInput3, *c_FTOutput3, *c_Output3;
+    FFTWReal *c_FG, *c_FGi, *c_FGj, *c_FGk;
 
     //--- Memory objects (Real)
-    Real *r_Input1, *r_FTInput1;
-    Real *r_Input2, *r_FTInput2;
-    Real *r_Input3, *r_FTInput3;
-    Real *r_Output1;
-    Real *r_Output2;
-    Real *r_Output3;
-//    Real *r_FG;
+    Real *r_Input1, *r_FTInput1, *r_FTOutput1, *r_Output1;
+    Real *r_Input2, *r_FTInput2, *r_FTOutput2, *r_Output2;
+    Real *r_Input3, *r_FTInput3, *r_FTOutput3, *r_Output3;
 
 public:
 
@@ -161,10 +153,14 @@ public:
     }
     void Backward_FFT_R2R()
     {
-        if (r_out_1 && r_ft_in1)    FFTW_Execute_R2R(Backward_Plan,r_FTInput1,r_Output1);
-        if (r_out_2 && r_ft_in2)    FFTW_Execute_R2R(Backward_Plan,r_FTInput2,r_Output2);
-        if (r_out_3 && r_ft_in3)    FFTW_Execute_R2R(Backward_Plan,r_FTInput3,r_Output3);
+//        if (r_out_1 && r_ft_in1)    FFTW_Execute_R2R(Backward_Plan,r_FTInput1,r_Output1);
+//        if (r_out_2 && r_ft_in2)    FFTW_Execute_R2R(Backward_Plan,r_FTInput2,r_Output2);
+//        if (r_out_3 && r_ft_in3)    FFTW_Execute_R2R(Backward_Plan,r_FTInput3,r_Output3);
+        if (r_out_1 && r_ft_out1)    FFTW_Execute_R2R(Backward_Plan,r_FTOutput1,r_Output1);
+        if (r_out_2 && r_ft_out2)    FFTW_Execute_R2R(Backward_Plan,r_FTOutput2,r_Output2);
+        if (r_out_3 && r_ft_out3)    FFTW_Execute_R2R(Backward_Plan,r_FTOutput3,r_Output3);
     }    
+
     void Forward_FFT_DFT()
     {
         if (c_in1 && c_ft_in1)      FFTW_Execute_DFT(Forward_Plan,c_Input1,c_FTInput1);
@@ -173,10 +169,14 @@ public:
     } 
     void Backward_FFT_DFT()
     {
-        if (c_out_1 && c_ft_in1)    FFTW_Execute_DFT(Backward_Plan,c_FTInput1,c_Output1);
-        if (c_out_2 && c_ft_in2)    FFTW_Execute_DFT(Backward_Plan,c_FTInput2,c_Output2);
-        if (c_out_3 && c_ft_in3)    FFTW_Execute_DFT(Backward_Plan,c_FTInput3,c_Output3);
+//        if (c_out_1 && c_ft_in1)    FFTW_Execute_DFT(Backward_Plan,c_FTInput1,c_Output1);
+//        if (c_out_2 && c_ft_in2)    FFTW_Execute_DFT(Backward_Plan,c_FTInput2,c_Output2);
+//        if (c_out_3 && c_ft_in3)    FFTW_Execute_DFT(Backward_Plan,c_FTInput3,c_Output3);
+        if (c_out_1 && c_ft_out1)    FFTW_Execute_DFT(Backward_Plan,c_FTOutput1,c_Output1);
+        if (c_out_2 && c_ft_out2)    FFTW_Execute_DFT(Backward_Plan,c_FTOutput2,c_Output2);
+        if (c_out_3 && c_ft_out3)    FFTW_Execute_DFT(Backward_Plan,c_FTOutput3,c_Output3);
     }   
+
     void Forward_FFT_R2C()
     {
         if (r_in1 && c_ft_in1)      FFTW_Execute_R2C(Forward_Plan,r_Input1,c_FTInput1);
@@ -185,9 +185,12 @@ public:
     }
     void Backward_FFT_C2R()
     {
-        if (r_out_1 && c_ft_in1)    FFTW_Execute_C2R(Backward_Plan,c_FTInput1,r_Output1);
-        if (r_out_2 && c_ft_in2)    FFTW_Execute_C2R(Backward_Plan,c_FTInput2,r_Output2);
-        if (r_out_3 && c_ft_in3)    FFTW_Execute_C2R(Backward_Plan,c_FTInput3,r_Output3);
+//        if (r_out_1 && c_ft_in1)    FFTW_Execute_C2R(Backward_Plan,c_FTInput1,r_Output1);
+//        if (r_out_2 && c_ft_in2)    FFTW_Execute_C2R(Backward_Plan,c_FTInput2,r_Output2);
+//        if (r_out_3 && c_ft_in3)    FFTW_Execute_C2R(Backward_Plan,c_FTInput3,r_Output3);
+        if (r_out_1 && c_ft_out1)    FFTW_Execute_C2R(Backward_Plan,c_FTOutput1,r_Output1);
+        if (r_out_2 && c_ft_out2)    FFTW_Execute_C2R(Backward_Plan,c_FTOutput2,r_Output2);
+        if (r_out_3 && c_ft_out3)    FFTW_Execute_C2R(Backward_Plan,c_FTOutput3,r_Output3);
     }
 
     //--- Greens functions prep
@@ -202,10 +205,22 @@ public:
     void Convolution_Real3();
     void Convolution_Complex();
     void Convolution_Complex3();
-    void Spectral_Gradients_1D();
-    void Spectral_Gradients_2D();
-    void Spectral_Gradients_3D();
-    void Spectral_Gradients_3DV();
+
+    //--- Spectral Gradients
+    void Transfer_FTInOut_Real();
+    void Transfer_FTInOut_Comp();
+    void Spectral_Gradients_1D_Grad();
+    void Spectral_Gradients_1D_Nabla();
+    void Spectral_Gradients_2D_Div();
+    void Spectral_Gradients_2D_Grad();
+    void Spectral_Gradients_2D_Curl();
+    void Spectral_Gradients_2D_Nabla();
+    void Spectral_Gradients_3D_Div();
+    void Spectral_Gradients_3D_Grad();
+    void Spectral_Gradients_3DV_Div();
+    void Spectral_Gradients_3DV_Grad();
+    void Spectral_Gradients_3DV_Curl();
+    void Spectral_Gradients_3DV_Nabla();
 
     //--- Destructor
     ~DataType_FFTW();

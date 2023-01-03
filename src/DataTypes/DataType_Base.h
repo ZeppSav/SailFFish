@@ -55,16 +55,17 @@ protected:
     Real FFac = 1.0, BFac = 1.0;
 
     //--- Allocation flags. These specify which arrays should be allocated.
+    bool InPlace = false;       // Are the transforms being carried out in-place?
 
     // Real-valued arrays
-    bool r_in1 = false, r_ft_in1 = false, r_out_1 = false;
-    bool r_in2 = false, r_ft_in2 = false, r_out_2 = false;
-    bool r_in3 = false, r_ft_in3 = false, r_out_3 = false;
+    bool r_in1 = false, r_ft_in1 = false, r_ft_out1 = false, r_out_1 = false;
+    bool r_in2 = false, r_ft_in2 = false, r_ft_out2 = false, r_out_2 = false;
+    bool r_in3 = false, r_ft_in3 = false, r_ft_out3 = false, r_out_3 = false;
 
     // Complex-valued arrays
-    bool c_in1 = false, c_ft_in1 = false, c_out_1 = false;
-    bool c_in2 = false, c_ft_in2 = false, c_out_2 = false;
-    bool c_in3 = false, c_ft_in3 = false, c_out_3 = false;
+    bool c_in1 = false, c_ft_in1 = false, c_ft_out1 = false, c_out_1 = false;
+    bool c_in2 = false, c_ft_in2 = false, c_ft_out2 = false, c_out_2 = false;
+    bool c_in3 = false, c_ft_in3 = false, c_ft_out3 = false, c_out_3 = false;
 
     // Arrays for Green's functions & spectral operators
     bool r_fg = false, c_fg = false;

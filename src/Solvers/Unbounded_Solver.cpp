@@ -163,6 +163,10 @@ void Unbounded_Solver_3DV::Specify_Operator(OperatorType O)
 //        c_dbf_5 = true; // May require a dummy  buffer
 //        c_dbf_6 = true; // May require a dummy  buffer
     }
+
+//    if (Operator==NABLA)        // No additional arrays necessary
+
+
 }
 
 //------------------------

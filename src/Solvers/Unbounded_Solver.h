@@ -46,11 +46,7 @@ public:
     //--- Frequency space operations
     void Forward_Transform()    {Forward_FFT_R2C();}
     void Backward_Transform()   {Backward_FFT_C2R();}
-    void Convolution()
-    {
-        Convolution_Complex();
-        Spectral_Gradients_1D();
-    }
+    void Convolution()          {Convolution_Complex();}
 
     //--- Greens function spec
     void Specify_Greens_Function();
@@ -72,11 +68,7 @@ public:
     //--- Frequency space operations
     void Forward_Transform()    {Forward_FFT_R2C();}
     void Backward_Transform()   {Backward_FFT_C2R();}
-    void Convolution()
-    {
-        Convolution_Complex();
-        Spectral_Gradients_2D();
-    }
+    void Convolution()          {Convolution_Complex();}
 
     //--- Greens function spec
     void Specify_Greens_Function();
@@ -98,11 +90,7 @@ public:
     //--- Frequency space operations
     void Forward_Transform()    {Forward_FFT_R2C();}
     void Backward_Transform()   {Backward_FFT_C2R();}
-    void Convolution()
-    {
-        Convolution_Complex();
-        Spectral_Gradients_3D();
-    }
+    void Convolution()          {Convolution_Complex();}
 
     //--- Greens function spec
     void Specify_Greens_Function();
@@ -124,11 +112,7 @@ public:
     //--- Frequency space operations
     void Forward_Transform()    {Forward_FFT_R2C();}
     void Backward_Transform()   {Backward_FFT_C2R();}
-    void Convolution()
-    {
-        Convolution_Complex3();
-        Spectral_Gradients_3DV();
-    }
+    void Convolution()          {Convolution_Complex3();}
 
     //--- Greens function spec
     void Specify_Greens_Function();

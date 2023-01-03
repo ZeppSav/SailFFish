@@ -354,6 +354,7 @@ void Test_Unbounded_3DV_Curl(int NX, int NY, int NZ, bool ExportVTI = false)
     // Carry out execution
     Solver->Forward_Transform();
     Solver->Convolution();
+    Solver->Spectral_Gradients_3DV_Curl();
     Solver->Backward_Transform();
     unsigned int t4 = stopwatch();
 
@@ -381,5 +382,81 @@ void Test_Unbounded_3DV_Curl(int NX, int NY, int NZ, bool ExportVTI = false)
 
     delete Solver;
 }
+
+void Test_Unbounded_3DV_Nabla(int NX, int NY, int NZ, bool ExportVTI = false)
+{
+    // Test case for 2D unbounded Poisson solver
+
+    SailFFish::SFStatus Status = SailFFish::NoError;    // Status of execution
+    stopwatch();                                        // Begin timer for profiling
+
+    // Define solver
+    SailFFish::Unbounded_Solver_3DV *Solver = new SailFFish::Unbounded_Solver_3DV();
+    Solver->Specify_Operator(SailFFish::NABLA);
+    Status = Solver->Setup(UnitX,UnitY,UnitZ,NX,NY,NZ);
+    if (Status!=SailFFish::NoError)   {cout << "Solver exiting." << endl; return;}
+    unsigned int t2 = stopwatch();  // Timer
+
+    // Extract grid values
+    RVector XGrid, YGrid, ZGrid;
+    Real Lx, Ly, Lz;
+//    Real Hx, Hy, Hz;
+    Solver->Get_XGrid(XGrid);
+    Solver->Get_YGrid(YGrid);
+    Solver->Get_ZGrid(ZGrid);
+    Solver->Get_Grid_Dims(Lx, Ly, Lz);
+//    Solver->Get_Grid_Res(Hx, Hy, Hz);
+
+    // If this is a grid-boundary solve, we have 1 extra grid point
+    int NXM = NX, NYM = NY, NZM = NZ;
+    if (Solver->Get_Grid_Type()==SailFFish::REGULAR) {NXM++; NYM++; NZM++;}
+
+    // Generate Input & solution arrays
+    int NT = NXM*NYM*NZM;
+    RVector Input1 = RVector(NT,0);
+    RVector Input2 = RVector(NT,0);
+    RVector Input3 = RVector(NT,0);
+    RVector Output1 = RVector(NT,0);
+    RVector Output2 = RVector(NT,0);
+    RVector Output3 = RVector(NT,0);
+//    RVector Solution1 = RVector(NT,0);
+//    RVector Solution2 = RVector(NT,0);
+//    RVector Solution3 = RVector(NT,0);
+
+    OpenMPfor
+    for (int i=0; i<NXM; i++){
+        for (int j=0; j<NYM; j++){
+            for (int k=0; k<NZM; k++){
+                int id = i*NYM*NZM + j*NZM + k;
+                RVector Inp = UTest_Omega_Hejlesen(     XGrid[i],YGrid[j],ZGrid[k],0.5);
+                RVector Sol = UTest_Velocity_Hejlesen(  XGrid[i],YGrid[j],ZGrid[k],0.5);
+                Input1[id] = Inp[0];        // X Vorticity
+                Input2[id] = Inp[1];        // Y Vorticity
+                Input3[id] = Inp[2];        // Z Vorticity
+//                Solution1[id] = Sol[0];     // X Velocity
+//                Solution2[id] = Sol[1];     // Y Velocity
+//                Solution3[id] = Sol[2];     // Z Velocity
+            }
+        }
+    }
+    Status = Solver->Set_Input_Unbounded_3D(Input1,Input2,Input3);
+    if (Status!=SailFFish::NoError)   {cout << "Solver exiting." << endl; return;}
+    unsigned int t3 = stopwatch();  // Timer
+
+    // Carry out execution
+    Solver->Forward_Transform();
+//    Solver->Convolution();
+    Solver->Transfer_FTInOut_Comp();    // This is necessary to extract the chosen arrays
+    Solver->Spectral_Gradients_3DV_Nabla();
+
+    Solver->Backward_Transform();
+    unsigned int t4 = stopwatch();
+
+    // If selected, export grid as VTI
+    if (ExportVTI) Solver->Create_vti();
+
+    delete Solver;
+}
+
 
 #endif // TEST_3DV_H

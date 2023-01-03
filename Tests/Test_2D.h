@@ -494,6 +494,7 @@ void Test_Unbounded_2D_Grad(int NX, int NY, bool ExportVTI = false)
     // Carry out execution
     Solver->Forward_Transform();
     Solver->Convolution();
+    Solver->Spectral_Gradients_2D_Grad();
     Solver->Backward_Transform();
     unsigned int t4 = stopwatch();
 

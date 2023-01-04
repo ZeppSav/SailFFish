@@ -1,11 +1,11 @@
-# SailFFish - A lightweight & optimised fast Poisson solver for execution on both CPU & GPU.
+# SailFFish - A lightweight fast Poisson solver for execution on both CPU & GPU.
 
 The purpose of the SailFFish is to provide an open source, easily linked fast Poisson solver with minimal 
 dependencies. The software is configured for shared memory machines. 
 At the heart of the solver is the fast fourier transform (FFT), which allows us to integrate the Poisson equation in frequency space.
 Transforms to and from the frequency space via FFTs are not carried out by SailFFish, 
 but rather call existing (and very optimised) libraries through the inherited `DataType` class. 
-Currently two options exists: The first is the (deservedly) popular library [FFTW](https://www.fftw.org/) for calculation on a CPU. 
+Currently two compilation options exists: The first is the (deservedly) popular library [FFTW](https://www.fftw.org/) for calculation on a CPU. 
 The second is the high-performance NVIDIA FFT implementation [cuFFT](https://docs.nvidia.com/cuda/cufft/index.html) for calculation on a GPU. 
 Solvers exist for 1D, 2D and 3D scalar and 3D vector input fields. A range of differential operators may be applied to modify the form of the Poisson equation being solved.
 
@@ -14,6 +14,8 @@ Solvers exist for 1D, 2D and 3D scalar and 3D vector input fields. A range of di
 </p>
 A 3D_Vector style solver with a curl differential operator has been used to solve for the velocity distribution (right half: x-velocity field) of a vortex ring (left half: voriticity contours).
 <br />
+
+A [preprint](https://arxiv.org/abs/2301.01145) has been prepared for SailFFish which contains a detailed overview of the software architecture along with a full set of validation cases.
 
 ## Why should you use SailFFish?
 * You want a relatively simple library for the calculation of the Poisson equation on a regular grid;
@@ -28,7 +30,8 @@ SailFish solves the Poisson equation
 \nabla^2\psi = f
 ```
 where the right-hand side $f$ is defined on a rectangular grid with regular grid spacing. 
-The input/solution vector can be specified for either *regular* (cell boundary) or *staggered* (cell centre) grid configurations. 
+The input/solution vector can be specified for either *regular* (cell boundary) or *staggered* (cell centre) grid configurations and can be defined as either 
+scalar data or 3-vector data.  
 ### Which boundary conditions are available?
 The solver can be executed as a *bounded* solver, whereby the boundary conditions (BC) are specified.
 In this case three types of solver are available:
@@ -36,6 +39,7 @@ In this case three types of solver are available:
 * Dirichlet (even-symmetric) or Neumann (odd-symmetric) BC
 	* Homogeneous BC: Two options exist for the eigenvalues: pseudo-spectral (`SailFFish::PS`) or finite-difference second-order (`SailFFish::FD2`) 
 	* Inhomogeneous BC: then arbitrary BCs may be specified however only with use of the (`SailFFish::FD2`) type eigenvalue.
+
 Alternatively an *unbounded* solver may be applied, whereby the BCs need not be specified and the potential is treated as if the problem were unbounded.
 In this case a range of options exist for the calculation of the free-space Green's function. 
 
@@ -90,7 +94,7 @@ This also illustrates where and how the differential operator is specified.
 In the $x$ direction the grid extends between $-1$ and $1$ and has $128$ cells.
 In the $y$ direction the grid extends between $-1$ and $1$ and has $256$ cells. 
 In the $z$ direction the grid extends between $-1$ and $1$ and has $512$ cells. 
-The input must be specified on a regular grid, so that the input is specified at $129$ x $257$ x $513$ cell-centred grid positions. 
+The input must be specified on a regular grid, so that the input is specified at $129$ x $257$ x $513$ cell-boundary grid positions. 
 The solution will be found on this same grid (with the same ordering) by using the Hejlesen eighth-order Gaussian kernel.
 The options for the unbounded kernel and the differential operators are:
 * `Unbounded_Kernel` 	{HEJ_S0, HEJ_G2, HEJ_G4, HEJ_G6, HEJ_G8, HEJ_G10};
@@ -129,7 +133,8 @@ This allows visualisation of the source and solution fields with [Paraview](http
 The image of the vortex ring above was generated automatically with this function. 
 
 ## Citation information		
-Point to Preprint!
+An ArXiv preprint has been prepared which contains an overview of the solver, data architecture and a range of validation cases. 
+This can be found at the [following link](https://arxiv.org/abs/2301.01145).
 
 ## Compilation
 The compilation of SailFFish has been tested with GCC (v7.3).

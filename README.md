@@ -1,6 +1,6 @@
 # SailFFish - A lightweight fast Poisson solver for execution on both CPU & GPU.
 
-The purpose of the SailFFish is to provide an open source, easily linked fast Poisson solver with minimal 
+The purpose of SailFFish is to provide an open source, easily linked fast Poisson solver with minimal 
 dependencies. The software is configured for shared memory machines. 
 At the heart of the solver is the fast fourier transform (FFT), which allows us to integrate the Poisson equation in frequency space.
 Transforms to and from the frequency space via FFTs are not carried out by SailFFish, 

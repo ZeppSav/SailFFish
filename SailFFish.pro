@@ -43,7 +43,7 @@ win32{
     INCLUDEPATH += $$FFTW_DIR
     LIBS += -L$$FFTW_DIR -llibfftw3-3 -llibfftw3f-3
 }
-unix: LIBS += -lfftwf -lfftwf_threads -lfftw -lfftw_threads
+unix: LIBS += -lfftw3f -lfftw3f_threads -lfftw3 -lfftw3_threads
 ##----------------------------------------------
 
 

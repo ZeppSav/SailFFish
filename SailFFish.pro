@@ -8,7 +8,7 @@ CONFIG -= qt
 #----------------------------------------------
 
 DEFINES += SinglePrec
-#DEFINES += DoublePrec
+# DEFINES += DoublePrec
 
 #----------------------------------------------
 # Configuration flags
@@ -28,24 +28,22 @@ QMAKE_CXXFLAGS += -march=native     # Activate all optimisation flags
 #----------------------------------------------
 # OpenMP support
 #----------------------------------------------
-
-QMAKE_CXXFLAGS += -fopenmp  # Compiler support for openMP
+QMAKE_CXXFLAGS += -fopenmp
 LIBS += -fopenmp
-INCLUDEPATH += "C:\Qt\Qt5.12.12\Tools\mingw730_64\lib\gcc\x86_64-w64-mingw32\7.3.0\include"
 
 ##----------------------------------------------
 ## DataType FFTW
 ##----------------------------------------------
 DEFINES += FFTW
-##----------------------------------------------
-## include path to FFTW & FFTW Libraries
-##----------------------------------------------
-INCLUDEPATH += $$PWD/../FFTW/fftw-3.3.5-dll64
-#INCLUDEPATH += $$PWD/../FFTW
-LIBS += -L$$PWD/../FFTW/fftw-3.3.5-dll64/ -llibfftw3-3
-LIBS += -L$$PWD/../FFTW/fftw-3.3.5-dll64/ -llibfftw3f-3
-#LIBS += -L$$PWD/../FFTW/ -llibfftw3-3
-#LIBS += -L$$PWD/../FFTW/ -llibfftw3f-3     # Precompiled from FFTW
+#----------------------------------------------
+# include path to FFTW & FFTW Libraries
+#----------------------------------------------
+win32{
+    FFTW_DIR = $$PWD/../FFTW/fftw-3.3.5-dll64
+    INCLUDEPATH += $$FFTW_DIR
+    LIBS += -L$$FFTW_DIR -llibfftw3-3 -llibfftw3f-3
+}
+unix: LIBS += -lfftwf -lfftwf_threads -lfftw -lfftw_threads
 ##----------------------------------------------
 
 

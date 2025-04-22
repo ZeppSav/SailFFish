@@ -26,11 +26,15 @@
 #define DATATYPE_BASE_H
 
 #include "../SailFFish_Math_Types.h"
+#include <filesystem>
+#include <fstream>
 
 namespace SailFFish
 {
 
-enum SFStatus       {NoError, DimError, MemError, SetupError, ExecError};
+//--- Status messages
+
+enum SFStatus       {NoError, DimError, MemError, SetupError, ExecError, GridError};
 enum FTType         {DCT1, DCT2, DST1, DST2, DFT_C2C, DFT_R2C};
 enum OperatorType   {NONE, DIV, CURL, GRAD, NABLA};
 
@@ -78,6 +82,9 @@ protected:
     //--- Memory objects (Real)
     Real *r_FG;
 
+    //--- Solver status
+    SFStatus Status = NoError;
+
 public:
 
     //--- Constructor
@@ -106,6 +113,7 @@ public:
     virtual SFStatus Set_Input_Unbounded_2D(RVector &I)                             {}
     virtual SFStatus Set_Input_Unbounded_3D(RVector &I)                             {}
     virtual SFStatus Set_Input_Unbounded_3D(RVector &I1, RVector &I2, RVector &I3)  {}
+    virtual SFStatus Transfer_Data_Device()                                         {}
 
     //--- Retrieve output array
     virtual void Get_Output(RVector &I)                                             {}
@@ -115,6 +123,10 @@ public:
     virtual void Get_Output_Unbounded_2D(RVector &I1, RVector &I2)                  {}
     virtual void Get_Output_Unbounded_3D(RVector &I)                                {}
     virtual void Get_Output_Unbounded_3D(RVector &I1, RVector &I2, RVector &I3)     {}
+
+
+    //--- Spectral gradients
+    virtual void Spectral_Gradients_3DV_Reprojection()                              {}
 
     //--- Destructor
     virtual ~DataType()    {}

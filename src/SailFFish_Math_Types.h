@@ -1,21 +1,10 @@
 #ifndef VPML_TYPES_H
 #define VPML_TYPES_H
 
-//#include <Eigen/Eigen>          // Eigen data types
-#include <tr1/cmath>            // Special functions
-#include <memory>               // Shared ptr.
-//#include <cstdio>
-//#include <cstdlib>
-#include <cstring>              // Memset
+#include <Eigen/Eigen>          // Eigen data types (
 #include <iostream>
 #include <iomanip>
-#include <complex>
-#include <vector>
-#include <string>
-#include <algorithm>
 #include <fstream>              // ofstream
-
-using namespace std;
 
 #define OpenMPfor _Pragma("omp parallel for")
 #define csp <<" "<<
@@ -27,6 +16,14 @@ typedef float                       Real;
 typedef std::complex<float>         CReal;
 typedef std::vector<float>          RVector;
 typedef std::vector<CReal>          CVector;
+#define fmadd fmaf
+
+typedef Eigen::MatrixXf             Matrix;
+typedef Eigen::VectorXf             Vector;
+typedef Eigen::Vector3f             Vector3;
+typedef Eigen::Matrix<float,6,1>    Vector6;
+typedef Eigen::Matrix3f             Matrix3;
+typedef Eigen::Quaternionf          Quat;
 
 #endif
 
@@ -37,8 +34,24 @@ typedef double                      Real;
 typedef std::complex<double>        CReal;
 typedef std::vector<double>         RVector;
 typedef std::vector<CReal>          CVector;
+#define fmadd fma
+
+typedef Eigen::MatrixXd             Matrix;
+typedef Eigen::VectorXd             Vector;
+typedef Eigen::Vector3d             Vector3;
+typedef Eigen::Matrix<double,6,1>   Vector6;
+typedef Eigen::Matrix3d             Matrix3;
+typedef Eigen::Quaterniond          Quat;
 
 #endif
+
+//--- Macros to improve readability
+
+#define OpenMPfor _Pragma("omp parallel for")
+#define csp <<" "<<
+
+#define Parallel_Kernel(X) OpenMPfor for (int i=0; i<(X); i++)
+#define Serial_Kernel(X) for (int i=0; i<(X); i++)
 
 //---- Mathematical Constants
 
@@ -77,6 +90,18 @@ inline int CreateDirectory(std::string Path)
         mode_t nMode = 0733; // UNIX style permissions
         return mkdir(Path.c_str(),nMode);
     #endif
+}
+
+//---- Input string handling
+
+inline std::vector<std::string> SplitUp(const std::string &str)
+{
+    // Used to split string around spaces.
+    std::istringstream ss(str);
+    std::string word;
+    std::vector<std::string> tokens;
+    while (ss >> word)  tokens.push_back(word);
+    return tokens;
 }
 
 #endif // VPML_TYPES_H

@@ -81,14 +81,17 @@ SFStatus Solver_1D_Scalar::Setup(Real X[2], int iNX)
 
     X_Grid_Setup(X,iNX);
     gNT = gNX;                  // Total number of grid points
+    GridDim = dim3(iNX);
+
+    // Prepare data
     Datatype_Setup();
     Stat = FFT_Data_Setup();
     Specify_Greens_Function();
     if (Operator!=NONE) Prepare_Dif_Operators_1D(Hx);
 
-    cout << "Solver_1D_Scalar Grid Setup Complete" << endl;
-    cout << "Xl = " << Xl << " Xu = " << Xu << " Lx = " << Lx << " Hx = " << Hx << endl;
-    cout << "NX = " << NX << endl;
+    std::cout << "Solver_1D_Scalar Grid Setup Complete" << std::endl;
+    std::cout << "Xl = " << Xl << " Xu = " << Xu << " Lx = " << Lx << " Hx = " << Hx << std::endl;
+    std::cout << "NX = " << NX << std::endl;
 
     return Stat;
 }
@@ -109,9 +112,7 @@ SFStatus Solver_2D_Scalar::Setup(Real X[2], Real Y[2], int iNX, int iNY)
     X_Grid_Setup(X,iNX);
     Y_Grid_Setup(Y,iNY);
     gNT = gNX*gNY;
-
-    // Specify indexing parameters.
-    D2D = EX;
+    GridDim = dim3(iNX,iNY);
 
     // Prepare data
     Datatype_Setup();
@@ -119,10 +120,10 @@ SFStatus Solver_2D_Scalar::Setup(Real X[2], Real Y[2], int iNX, int iNY)
     Specify_Greens_Function();
     if (Operator!=NONE) Prepare_Dif_Operators_2D(Hx,Hy);
 
-    cout << "Solver_2D_Scalar Grid Setup Complete" << endl;
-    cout << "Xl = " << Xl << " Xu = " << Xu << " Lx = " << Lx << " Hx = " << Hx << endl;
-    cout << "Yl = " << Yl << " Yu = " << Yu << " Ly = " << Ly << " Hy = " << Hy << endl;
-    cout << "NX = " << NX << " NY = " << NY << endl;
+    std::cout << "Solver_2D_Scalar Grid Setup Complete" << std::endl;
+    std::cout << "Xl = " << Xl << " Xu = " << Xu << " Lx = " << Lx << " Hx = " << Hx << std::endl;
+    std::cout << "Yl = " << Yl << " Yu = " << Yu << " Ly = " << Ly << " Hy = " << Hy << std::endl;
+    std::cout << "NX = " << NX << " NY = " << NY << std::endl;
 
     return Stat;
 }
@@ -144,16 +145,19 @@ SFStatus Solver_3D_Scalar::Setup(Real X[2], Real Y[2], Real Z[2], int iNX, int i
     Y_Grid_Setup(Y,iNY);
     Z_Grid_Setup(Z,iNZ);
     gNT = gNX*gNY*gNZ;                  // Total number of grid points
+    GridDim = dim3(iNX, iNY, iNZ);
+
+    // Prepare data
     Datatype_Setup();
     Stat = FFT_Data_Setup();
     Specify_Greens_Function();
     if (Operator!=NONE) Prepare_Dif_Operators_3D(Hx,Hy,Hz);
 
-    cout << "Bounded_Poisson_Dirichlet_3D Grid Setup Complete" << endl;
-    cout << "Xl = " << Xl << " Xu = " << Xu << " Lx = " << Lx << " Hx = " << Hx << endl;
-    cout << "Yl = " << Yl << " Yu = " << Yu << " Ly = " << Ly << " Hy = " << Hy << endl;
-    cout << "Zl = " << Zl << " Zu = " << Zu << " Zy = " << Lz << " Hz = " << Hz << endl;
-    cout << "NX = " << NX << " NY = " << NY << " NZ = " << NZ << endl;
+    std::cout << "Bounded_Poisson_Dirichlet_3D Grid Setup Complete" << std::endl;
+    std::cout << "Xl = " << Xl << " Xu = " << Xu << " Lx = " << Lx << " Hx = " << Hx << std::endl;
+    std::cout << "Yl = " << Yl << " Yu = " << Yu << " Ly = " << Ly << " Hy = " << Hy << std::endl;
+    std::cout << "Zl = " << Zl << " Zu = " << Zu << " Zy = " << Lz << " Hz = " << Hz << std::endl;
+    std::cout << "NX = " << NX << " NY = " << NY << " NZ = " << NZ << std::endl;
 
     return Stat;
 }
@@ -175,16 +179,19 @@ SFStatus Solver_3D_Vector::Setup(Real X[2], Real Y[2], Real Z[2], int iNX, int i
     Y_Grid_Setup(Y,iNY);
     Z_Grid_Setup(Z,iNZ);
     gNT = gNX*gNY*gNZ;                  // Total number of grid points
+    GridDim = dim3(iNX, iNY, iNZ);
+
+    // Prepare data
     Datatype_Setup();
     Stat = FFT_Data_Setup();
     Specify_Greens_Function();
     if (Operator!=NONE) Prepare_Dif_Operators_3D(Hx,Hy,Hz);
 
-    cout << "3D Vector Grid Setup Complete" << endl;
-    cout << "Xl = " << Xl << " Xu = " << Xu << " Lx = " << Lx << " Hx = " << Hx << endl;
-    cout << "Yl = " << Yl << " Yu = " << Yu << " Ly = " << Ly << " Hy = " << Hy << endl;
-    cout << "Zl = " << Zl << " Zu = " << Zu << " Zy = " << Lz << " Hz = " << Hz << endl;
-    cout << "NX = " << NX << " NY = " << NY << " NZ = " << NZ << endl;
+    std::cout << "3D Vector Grid Setup Complete" << std::endl;
+    std::cout << "Xl = " << Xl << " Xu = " << Xu << " Lx = " << Lx << " Hx = " << Hx << std::endl;
+    std::cout << "Yl = " << Yl << " Yu = " << Yu << " Ly = " << Ly << " Hy = " << Hy << std::endl;
+    std::cout << "Zl = " << Zl << " Zu = " << Zu << " Zy = " << Lz << " Hz = " << Hz << std::endl;
+    std::cout << "NX = " << NX << " NY = " << NY << " NZ = " << NZ << std::endl;
 
     return Stat;
 }

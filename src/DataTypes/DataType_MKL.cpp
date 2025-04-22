@@ -103,18 +103,18 @@ void DataType_MKL::Setup_2D_DFT(int iNX, int iNY)
 //            Input[i*NY+j][0] = sin(M_PI*x)*cos(M_PI*y);                   // Sin-cos curve
 //            if (r2<=1.0) r_Input1[i*NY+j] = exp(-1.0/(1.0-r2));        // Bump function
 //            if (r2<=1.0) r_Input1[i*(ny+1)+j] = exp(-1.0/(1.0-r2));      // Bump function
-//            cout << x <<  " " << y csp r_Input1[i*(ny+1)+j] << endl;
+//            std::cout << x <<  " " << y csp r_Input1[i*(ny+1)+j] << std::endl;
 //            r_Input1[i*(ny+1)+j] = 2.0*y*(Ly-y) + 2.0*x*(Lx-x);
             r_Input1[i+j*(nx+1)] = 2.0*y*(Ly-y) + 2.0*x*(Lx-x);
 
-//            cout << x <<  " " << y csp r_Input1[i*(ny+1)+j] << endl;
+//            std::cout << x <<  " " << y csp r_Input1[i*(ny+1)+j] << std::endl;
         }
     }
 
     //--- Debug Input (remember MKL ordering....)
 //    for (int i=0; i<nx+1; i++){
 //        for (int j=0; j<ny+1; j++){
-//            cout << x <<  " " << y csp r_Input1[i*(ny+1)+j] << endl;
+//            std::cout << x <<  " " << y csp r_Input1[i*(ny+1)+j] << std::endl;
 //        }
 //    }
 
@@ -132,7 +132,7 @@ void DataType_MKL::Setup_2D_DFT(int iNX, int iNY)
         for (int j=0; j<ny+1; j++){
             Real x = ax + i*Hx;
             Real y = ay + j*Hy;
-            cout << x csp y csp r_Input1[i+j*(nx+1)] << endl;
+            std::cout << x csp y csp r_Input1[i+j*(nx+1)] << std::endl;
         }
     }
 }

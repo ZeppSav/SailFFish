@@ -46,7 +46,7 @@ void Test_Dirichlet_2D(int NX, int NY, bool ExportVTI = false)
 
     SailFFish::Poisson_Dirichlet_2D *Solver = new SailFFish::Poisson_Dirichlet_2D();
     Status = Solver->Setup(UnitX,UnitY,NX,NY);
-    if (Status!=SailFFish::NoError)   {cout << "Solver exiting." << endl; return;}
+    if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
     unsigned int t2 = stopwatch();  // Timer
 
     // Extract grid values
@@ -69,7 +69,7 @@ void Test_Dirichlet_2D(int NX, int NY, bool ExportVTI = false)
         }
     }
     Status = Solver->Set_Input(Input);
-    if (Status!=SailFFish::NoError)   {cout << "Solver exiting." << endl; return;}
+    if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
     unsigned int t3 = stopwatch();  // Timer
 
     // Carry out execution
@@ -83,17 +83,17 @@ void Test_Dirichlet_2D(int NX, int NY, bool ExportVTI = false)
     unsigned int t5 = stopwatch();
     Real tTot = Real(t2+t3+t4+t5);
 
-    cout << "Trial Calculation: Solution of the 2D Poisson equation with Dirichlet boundary conditions." << endl;
-    cout << std::scientific;
-    cout << "The grid was resolved with [" << NX <<" , "<< NY <<" , "<< 1 <<"] cells. " << endl;
-    cout << "E_inf Error =" csp std::scientific << E_Inf(Output,Solution) << endl;
-    cout << std::fixed << std::setprecision(1);
-    cout << "Execution Time:" <<  endl;
-    cout << "Solver setup "     << std::setw(10) << t2 csp "ms. [" << 100.0*t2/tTot << " %]" << endl;
-    cout << "Input spec.  "     << std::setw(10) << t3 csp "ms. [" << 100.0*t3/tTot << " %]" << endl;
-    cout << "Execution    "     << std::setw(10) << t4 csp "ms. [" << 100.0*t4/tTot << " %]" << endl;
-    cout << "Output spec. "     << std::setw(10) << t5 csp "ms. [" << 100.0*t5/tTot << " %]" << endl;
-    cout << std::scientific;
+    std::cout << "Trial Calculation: Solution of the 2D Poisson equation with Dirichlet boundary conditions." << std::endl;
+    std::cout << std::scientific;
+    std::cout << "The grid was resolved with [" << NX <<" , "<< NY <<" , "<< 1 <<"] cells. " << std::endl;
+    std::cout << "E_inf Error =" csp std::scientific << E_Inf(Output,Solution) << std::endl;
+    std::cout << std::fixed << std::setprecision(1);
+    std::cout << "Execution Time:" <<  std::endl;
+    std::cout << "Solver setup "     << std::setw(10) << t2 csp "ms. [" << 100.0*t2/tTot << " %]" << std::endl;
+    std::cout << "Input spec.  "     << std::setw(10) << t3 csp "ms. [" << 100.0*t3/tTot << " %]" << std::endl;
+    std::cout << "Execution    "     << std::setw(10) << t4 csp "ms. [" << 100.0*t4/tTot << " %]" << std::endl;
+    std::cout << "Output spec. "     << std::setw(10) << t5 csp "ms. [" << 100.0*t5/tTot << " %]" << std::endl;
+    std::cout << std::scientific;
 
     // If selected, export grid as VTI
     if (ExportVTI) Solver->Create_vti();
@@ -111,7 +111,7 @@ void Test_Dirichlet_2D_IHBC(int NX, int NY, bool ExportVTI = false)
     // Define solver
     SailFFish::Poisson_Dirichlet_2D *Solver = new SailFFish::Poisson_Dirichlet_2D(SailFFish::REGULAR, SailFFish::FD2);
     Status = Solver->Setup(UnitX,UnitY,NX,NY);
-    if (Status!=SailFFish::NoError)   {cout << "Solver exiting." << endl; return;}
+    if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
     unsigned int t2 = stopwatch();  // Timer
 
     // Extract grid values
@@ -138,7 +138,7 @@ void Test_Dirichlet_2D_IHBC(int NX, int NY, bool ExportVTI = false)
         }
     }
     Status = Solver->Set_Input(Input);
-    if (Status!=SailFFish::NoError)   {cout << "Solver exiting." << endl; return;}
+    if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
     unsigned int t3 = stopwatch();  // Timer
 
     // Set BC
@@ -160,17 +160,17 @@ void Test_Dirichlet_2D_IHBC(int NX, int NY, bool ExportVTI = false)
     unsigned int t5 = stopwatch();
     Real tTot = Real(t2+t3+t4+t5);
 
-    cout << "Trial Calculation: Solution of the 2D Poisson equation with Dirichlet boundary conditions." << endl;
-    cout << std::scientific;
-    cout << "The grid was resolved with [" << NX <<" , "<< NY <<" , "<< 1 <<"] cells. " << endl;
-    cout << "E_inf Error =" csp std::scientific << E_Inf(Output,Solution) << endl;
-    cout << std::fixed << std::setprecision(1);
-    cout << "Execution Time:" <<  endl;
-    cout << "Solver setup "     << std::setw(10) << t2 csp "ms. [" << 100.0*t2/tTot << " %]" << endl;
-    cout << "Input spec.  "     << std::setw(10) << t3 csp "ms. [" << 100.0*t3/tTot << " %]" << endl;
-    cout << "Execution    "     << std::setw(10) << t4 csp "ms. [" << 100.0*t4/tTot << " %]" << endl;
-    cout << "Output spec. "     << std::setw(10) << t5 csp "ms. [" << 100.0*t5/tTot << " %]" << endl;
-    cout << std::scientific;
+    std::cout << "Trial Calculation: Solution of the 2D Poisson equation with Dirichlet boundary conditions." << std::endl;
+    std::cout << std::scientific;
+    std::cout << "The grid was resolved with [" << NX <<" , "<< NY <<" , "<< 1 <<"] cells. " << std::endl;
+    std::cout << "E_inf Error =" csp std::scientific << E_Inf(Output,Solution) << std::endl;
+    std::cout << std::fixed << std::setprecision(1);
+    std::cout << "Execution Time:" <<  std::endl;
+    std::cout << "Solver setup "     << std::setw(10) << t2 csp "ms. [" << 100.0*t2/tTot << " %]" << std::endl;
+    std::cout << "Input spec.  "     << std::setw(10) << t3 csp "ms. [" << 100.0*t3/tTot << " %]" << std::endl;
+    std::cout << "Execution    "     << std::setw(10) << t4 csp "ms. [" << 100.0*t4/tTot << " %]" << std::endl;
+    std::cout << "Output spec. "     << std::setw(10) << t5 csp "ms. [" << 100.0*t5/tTot << " %]" << std::endl;
+    std::cout << std::scientific;
 
     // If selected, export grid as VTI
     if (ExportVTI) Solver->Create_vti();
@@ -188,7 +188,7 @@ void Test_Neumann_2D(int NX, int NY, bool ExportVTI = false)
     // Define solver
     SailFFish::Poisson_Neumann_2D *Solver = new SailFFish::Poisson_Neumann_2D();
     Status = Solver->Setup(UnitX,UnitY,NX,NY);
-    if (Status!=SailFFish::NoError)   {cout << "Solver exiting." << endl; return;}
+    if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
     unsigned int t2 = stopwatch();  // Timer
 
     // Extract grid values
@@ -211,7 +211,7 @@ void Test_Neumann_2D(int NX, int NY, bool ExportVTI = false)
         }
     }
     Status = Solver->Set_Input(Input);
-    if (Status!=SailFFish::NoError)   {cout << "Solver exiting." << endl; return;}
+    if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
     unsigned int t3 = stopwatch();  // Timer
 
     // Carry out execution
@@ -225,17 +225,17 @@ void Test_Neumann_2D(int NX, int NY, bool ExportVTI = false)
     unsigned int t5 = stopwatch();
     Real tTot = Real(t2+t3+t4+t5);
 
-    cout << "Trial Calculation: Solution of the 2D Poisson equation with Neumann boundary conditions." << endl;
-    cout << std::scientific;
-    cout << "The grid was resolved with [" << NX <<" , "<< NY <<" , "<< 1 <<"] cells. " << endl;
-    cout << "E_inf Error =" csp std::scientific << E_Inf(Output,Solution) << endl;
-    cout << std::fixed << std::setprecision(1);
-    cout << "Execution Time:" <<  endl;
-    cout << "Solver setup "     << std::setw(10) << t2 csp "ms. [" << 100.0*t2/tTot << " %]" << endl;
-    cout << "Input spec.  "     << std::setw(10) << t3 csp "ms. [" << 100.0*t3/tTot << " %]" << endl;
-    cout << "Execution    "     << std::setw(10) << t4 csp "ms. [" << 100.0*t4/tTot << " %]" << endl;
-    cout << "Output spec. "     << std::setw(10) << t5 csp "ms. [" << 100.0*t5/tTot << " %]" << endl;
-    cout << std::scientific;
+    std::cout << "Trial Calculation: Solution of the 2D Poisson equation with Neumann boundary conditions." << std::endl;
+    std::cout << std::scientific;
+    std::cout << "The grid was resolved with [" << NX <<" , "<< NY <<" , "<< 1 <<"] cells. " << std::endl;
+    std::cout << "E_inf Error =" csp std::scientific << E_Inf(Output,Solution) << std::endl;
+    std::cout << std::fixed << std::setprecision(1);
+    std::cout << "Execution Time:" <<  std::endl;
+    std::cout << "Solver setup "     << std::setw(10) << t2 csp "ms. [" << 100.0*t2/tTot << " %]" << std::endl;
+    std::cout << "Input spec.  "     << std::setw(10) << t3 csp "ms. [" << 100.0*t3/tTot << " %]" << std::endl;
+    std::cout << "Execution    "     << std::setw(10) << t4 csp "ms. [" << 100.0*t4/tTot << " %]" << std::endl;
+    std::cout << "Output spec. "     << std::setw(10) << t5 csp "ms. [" << 100.0*t5/tTot << " %]" << std::endl;
+    std::cout << std::scientific;
 
     // If selected, export grid as VTI
     if (ExportVTI) Solver->Create_vti();
@@ -253,7 +253,7 @@ void Test_Neumann_2D_IHBC(int NX, int NY, bool ExportVTI = false)
     // Define solver
     SailFFish::Poisson_Neumann_2D *Solver = new SailFFish::Poisson_Neumann_2D(SailFFish::REGULAR, SailFFish::FD2);
     Status = Solver->Setup(UnitX,UnitY,NX,NY);
-    if (Status!=SailFFish::NoError)   {cout << "Solver exiting." << endl; return;}
+    if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
     unsigned int t2 = stopwatch();  // Timer
 
     // Extract grid values
@@ -280,7 +280,7 @@ void Test_Neumann_2D_IHBC(int NX, int NY, bool ExportVTI = false)
         }
     }
     Status = Solver->Set_Input(Input);
-    if (Status!=SailFFish::NoError)   {cout << "Solver exiting." << endl; return;}
+    if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
     unsigned int t3 = stopwatch();  // Timer
 
     // Set BC
@@ -302,17 +302,17 @@ void Test_Neumann_2D_IHBC(int NX, int NY, bool ExportVTI = false)
     unsigned int t5 = stopwatch();
     Real tTot = Real(t2+t3+t4+t5);
 
-    cout << "Trial Calculation: Solution of the 2D Poisson equation with inhomogeneous Neumann boundary conditions." << endl;
-    cout << std::scientific;
-    cout << "The grid was resolved with [" << NX <<" , "<< NY <<" , "<< 1 <<"] cells. " << endl;
-    cout << "E_inf Error =" csp std::scientific << E_Inf(Output,Solution) << endl;
-    cout << std::fixed << std::setprecision(1);
-    cout << "Execution Time:" <<  endl;
-    cout << "Solver setup "     << std::setw(10) << t2 csp "ms. [" << 100.0*t2/tTot << " %]" << endl;
-    cout << "Input spec.  "     << std::setw(10) << t3 csp "ms. [" << 100.0*t3/tTot << " %]" << endl;
-    cout << "Execution    "     << std::setw(10) << t4 csp "ms. [" << 100.0*t4/tTot << " %]" << endl;
-    cout << "Output spec. "     << std::setw(10) << t5 csp "ms. [" << 100.0*t5/tTot << " %]" << endl;
-    cout << std::scientific;
+    std::cout << "Trial Calculation: Solution of the 2D Poisson equation with inhomogeneous Neumann boundary conditions." << std::endl;
+    std::cout << std::scientific;
+    std::cout << "The grid was resolved with [" << NX <<" , "<< NY <<" , "<< 1 <<"] cells. " << std::endl;
+    std::cout << "E_inf Error =" csp std::scientific << E_Inf(Output,Solution) << std::endl;
+    std::cout << std::fixed << std::setprecision(1);
+    std::cout << "Execution Time:" <<  std::endl;
+    std::cout << "Solver setup "     << std::setw(10) << t2 csp "ms. [" << 100.0*t2/tTot << " %]" << std::endl;
+    std::cout << "Input spec.  "     << std::setw(10) << t3 csp "ms. [" << 100.0*t3/tTot << " %]" << std::endl;
+    std::cout << "Execution    "     << std::setw(10) << t4 csp "ms. [" << 100.0*t4/tTot << " %]" << std::endl;
+    std::cout << "Output spec. "     << std::setw(10) << t5 csp "ms. [" << 100.0*t5/tTot << " %]" << std::endl;
+    std::cout << std::scientific;
 
     // If selected, export grid as VTI
     if (ExportVTI) Solver->Create_vti();
@@ -330,7 +330,7 @@ void Test_Periodic_2D(int NX, int NY, bool ExportVTI = false)
     // Define solver
     SailFFish::Poisson_Periodic_2D *Solver = new SailFFish::Poisson_Periodic_2D();
     Status = Solver->Setup(UnitX,UnitY,NX,NY);
-    if (Status!=SailFFish::NoError)   {cout << "Solver exiting." << endl; return;}
+    if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
     unsigned int t2 = stopwatch();  // Timer
 
     // Extract grid values
@@ -351,7 +351,7 @@ void Test_Periodic_2D(int NX, int NY, bool ExportVTI = false)
         }
     }
     Status = Solver->Set_Input(Input);
-    if (Status!=SailFFish::NoError)   {cout << "Solver exiting." << endl; return;}
+    if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
     unsigned int t3 = stopwatch();  // Timer
 
     // Carry out execution
@@ -365,19 +365,19 @@ void Test_Periodic_2D(int NX, int NY, bool ExportVTI = false)
     unsigned int t5 = stopwatch();
     Real tTot = Real(t2+t3+t4+t5);
 
-    cout << "Trial Calculation: Solution of the 2D Poisson equation with Periodic boundary conditions." << endl;
-    cout << std::scientific;
-    cout << "The grid was resolved with [" << NX <<" , "<< NY <<" , "<< 1 <<"] cells. " << endl;
-    cout << "E_inf Error =" csp std::scientific << E_Inf(Output,Solution) << endl;
-    cout << std::fixed << std::setprecision(1);
-    cout << "Execution Time:" <<  endl;
-    cout << "Solver setup "     << std::setw(10) << t2 csp "ms. [" << 100.0*t2/tTot << " %]" << endl;
-    cout << "Input spec.  "     << std::setw(10) << t3 csp "ms. [" << 100.0*t3/tTot << " %]" << endl;
-    cout << "Execution    "     << std::setw(10) << t4 csp "ms. [" << 100.0*t4/tTot << " %]" << endl;
-    cout << "Output spec. "     << std::setw(10) << t5 csp "ms. [" << 100.0*t5/tTot << " %]" << endl;
-    cout << std::scientific;
+    std::cout << "Trial Calculation: Solution of the 2D Poisson equation with Periodic boundary conditions." << std::endl;
+    std::cout << std::scientific;
+    std::cout << "The grid was resolved with [" << NX <<" , "<< NY <<" , "<< 1 <<"] cells. " << std::endl;
+    std::cout << "E_inf Error =" csp std::scientific << E_Inf(Output,Solution) << std::endl;
+    std::cout << std::fixed << std::setprecision(1);
+    std::cout << "Execution Time:" <<  std::endl;
+    std::cout << "Solver setup "     << std::setw(10) << t2 csp "ms. [" << 100.0*t2/tTot << " %]" << std::endl;
+    std::cout << "Input spec.  "     << std::setw(10) << t3 csp "ms. [" << 100.0*t3/tTot << " %]" << std::endl;
+    std::cout << "Execution    "     << std::setw(10) << t4 csp "ms. [" << 100.0*t4/tTot << " %]" << std::endl;
+    std::cout << "Output spec. "     << std::setw(10) << t5 csp "ms. [" << 100.0*t5/tTot << " %]" << std::endl;
+    std::cout << std::scientific;
 
-//    cout << NX csp std::scientific << E_Inf(Output,Solution) << endl;
+//    std::cout << NX csp std::scientific << E_Inf(Output,Solution) << std::endl;
 
     // If selected, export grid as VTI
     if (ExportVTI) Solver->Create_vti();
@@ -399,7 +399,7 @@ void Test_Unbounded_2D(int NX, int NY, bool ExportVTI = false)
     // Define solver
     SailFFish::Unbounded_Solver_2D *Solver = new SailFFish::Unbounded_Solver_2D();
     Status = Solver->Setup(UnitX,UnitY,NX,NY);
-    if (Status!=SailFFish::NoError)   {cout << "Solver exiting." << endl; return;}
+    if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
     unsigned int t2 = stopwatch();  // Timer
 
     // Extract grid values
@@ -421,7 +421,7 @@ void Test_Unbounded_2D(int NX, int NY, bool ExportVTI = false)
         }
     }
     Status = Solver->Set_Input_Unbounded_2D(Input);
-    if (Status!=SailFFish::NoError)   {cout << "Solver exiting." << endl; return;}
+    if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
     unsigned int t3 = stopwatch();  // Timer
 
     // Carry out execution
@@ -435,17 +435,17 @@ void Test_Unbounded_2D(int NX, int NY, bool ExportVTI = false)
     unsigned int t5 = stopwatch();
     Real tTot = Real(t2+t3+t4+t5);
 
-    cout << "Trial Calculation: Solution of the unbounded 2D Poisson equation." << endl;
-    cout << std::scientific;
-    cout << "The grid was resolved with [" << NX <<" , "<< NY <<" , "<< 1 <<"] cells. " << endl;
-    cout << "E_inf Error =" csp std::scientific << E_Inf(Output,Solution) << endl;
-    cout << std::fixed << std::setprecision(1);
-    cout << "Execution Time:" <<  endl;
-    cout << "Solver setup "     << std::setw(10) << t2 csp "ms. [" << 100.0*t2/tTot << " %]" << endl;
-    cout << "Input spec.  "     << std::setw(10) << t3 csp "ms. [" << 100.0*t3/tTot << " %]" << endl;
-    cout << "Execution    "     << std::setw(10) << t4 csp "ms. [" << 100.0*t4/tTot << " %]" << endl;
-    cout << "Output spec. "     << std::setw(10) << t5 csp "ms. [" << 100.0*t5/tTot << " %]" << endl;
-    cout << std::scientific;
+    std::cout << "Trial Calculation: Solution of the unbounded 2D Poisson equation." << std::endl;
+    std::cout << std::scientific;
+    std::cout << "The grid was resolved with [" << NX <<" , "<< NY <<" , "<< 1 <<"] cells. " << std::endl;
+    std::cout << "E_inf Error =" csp std::scientific << E_Inf(Output,Solution) << std::endl;
+    std::cout << std::fixed << std::setprecision(1);
+    std::cout << "Execution Time:" <<  std::endl;
+    std::cout << "Solver setup "     << std::setw(10) << t2 csp "ms. [" << 100.0*t2/tTot << " %]" << std::endl;
+    std::cout << "Input spec.  "     << std::setw(10) << t3 csp "ms. [" << 100.0*t3/tTot << " %]" << std::endl;
+    std::cout << "Execution    "     << std::setw(10) << t4 csp "ms. [" << 100.0*t4/tTot << " %]" << std::endl;
+    std::cout << "Output spec. "     << std::setw(10) << t5 csp "ms. [" << 100.0*t5/tTot << " %]" << std::endl;
+    std::cout << std::scientific;
 
     // If selected, export grid as VTI
     if (ExportVTI) Solver->Create_vti();
@@ -464,7 +464,7 @@ void Test_Unbounded_2D_Grad(int NX, int NY, bool ExportVTI = false)
     SailFFish::Unbounded_Solver_2D *Solver = new SailFFish::Unbounded_Solver_2D(SailFFish::STAGGERED, SailFFish::HEJ_S0);
     Solver->Specify_Operator(SailFFish::GRAD);
     Status = Solver->Setup(UnitX,UnitY,NX,NY);
-    if (Status!=SailFFish::NoError)   {cout << "Solver exiting." << endl; return;}
+    if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
     unsigned int t2 = stopwatch();  // Timer
 
     // Extract grid values
@@ -488,7 +488,7 @@ void Test_Unbounded_2D_Grad(int NX, int NY, bool ExportVTI = false)
         }
     }
     Status = Solver->Set_Input_Unbounded_2D(Input);
-    if (Status!=SailFFish::NoError)   {cout << "Solver exiting." << endl; return;}
+    if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
     unsigned int t3 = stopwatch();  // Timer
 
     // Carry out execution
@@ -503,18 +503,18 @@ void Test_Unbounded_2D_Grad(int NX, int NY, bool ExportVTI = false)
     unsigned int t5 = stopwatch();
     Real tTot = Real(t2+t3+t4+t5);
 
-    cout << "Trial Calculation: Solution of the unbounded 2D Poisson equation." << endl;
-    cout << std::scientific;
-    cout << "The grid was resolved with [" << NX <<" , "<< NY <<" , "<< 1 <<"] cells. " << endl;
-    cout << "E_inf Error X component =" csp std::scientific << E_Inf(Output1,Solution1) << endl;
-    cout << "E_inf Error X component =" csp std::scientific << E_Inf(Output2,Solution2) << endl;
-    cout << std::fixed << std::setprecision(1);
-    cout << "Execution Time:" <<  endl;
-    cout << "Solver setup "     << std::setw(10) << t2 csp "ms. [" << 100.0*t2/tTot << " %]" << endl;
-    cout << "Input spec.  "     << std::setw(10) << t3 csp "ms. [" << 100.0*t3/tTot << " %]" << endl;
-    cout << "Execution    "     << std::setw(10) << t4 csp "ms. [" << 100.0*t4/tTot << " %]" << endl;
-    cout << "Output spec. "     << std::setw(10) << t5 csp "ms. [" << 100.0*t5/tTot << " %]" << endl;
-    cout << std::scientific;
+    std::cout << "Trial Calculation: Solution of the unbounded 2D Poisson equation." << std::endl;
+    std::cout << std::scientific;
+    std::cout << "The grid was resolved with [" << NX <<" , "<< NY <<" , "<< 1 <<"] cells. " << std::endl;
+    std::cout << "E_inf Error X component =" csp std::scientific << E_Inf(Output1,Solution1) << std::endl;
+    std::cout << "E_inf Error X component =" csp std::scientific << E_Inf(Output2,Solution2) << std::endl;
+    std::cout << std::fixed << std::setprecision(1);
+    std::cout << "Execution Time:" <<  std::endl;
+    std::cout << "Solver setup "     << std::setw(10) << t2 csp "ms. [" << 100.0*t2/tTot << " %]" << std::endl;
+    std::cout << "Input spec.  "     << std::setw(10) << t3 csp "ms. [" << 100.0*t3/tTot << " %]" << std::endl;
+    std::cout << "Execution    "     << std::setw(10) << t4 csp "ms. [" << 100.0*t4/tTot << " %]" << std::endl;
+    std::cout << "Output spec. "     << std::setw(10) << t5 csp "ms. [" << 100.0*t5/tTot << " %]" << std::endl;
+    std::cout << std::scientific;
 
     // If selected, export grid as VTI
     if (ExportVTI) Solver->Create_vti();

@@ -102,7 +102,7 @@ void Poisson_Periodic_1D::Specify_Greens_Function()
 //    }
 //    Prep_Greens_Function();
 
-//    std::cout << "BFac = "<< BFac << endl;
+//    std::cout << "BFac = "<< BFac << std::endl;
 }
 
 void Poisson_Periodic_2D::Specify_Greens_Function()

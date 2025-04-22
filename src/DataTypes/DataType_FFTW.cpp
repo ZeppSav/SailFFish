@@ -20,7 +20,7 @@ void DataType_FFTW::Datatype_Setup()
     int j = fftwf_init_threads();
     int nt = omp_get_max_threads();
     fftwf_plan_with_nthreads(nt);
-    cout << "FFTW is being executed in OpenMP mode: NThreads = " << nt << "." <<  endl;
+    std::cout << "FFTW is being executed in OpenMP mode: NThreads = " << nt << "." <<  std::endl;
 }
 
 //--- Array allocation
@@ -148,7 +148,7 @@ SFStatus DataType_FFTW::Deallocate_Arrays()
     if (c_FGj)          FFTW_Free(c_FGj);
     if (c_FGk)          FFTW_Free(c_FGk);
 
-    cout << "DataType arrays have been successfuly cleared." << endl;
+    std::cout << "DataType arrays have been successfuly cleared." << std::endl;
 
     return NoError;
 }
@@ -287,7 +287,7 @@ SFStatus DataType_FFTW::Set_Input(RVector &I)
 {
     // This function takes the input vector and stores this in the appropriate input array for the FFT
     if (int(I.size())!=NT){
-        cout << "Input array has incorrect dimension." << endl;
+        std::cout << "Input array has incorrect dimension." << std::endl;
         return DimError;
     }
     if (r_in1)   std::memcpy(r_Input1, I.data(), NT*sizeof(Real));   // Just copy over
@@ -299,7 +299,7 @@ SFStatus DataType_FFTW::Set_Input(RVector &I1, RVector &I2, RVector &I3)
 {
     // This function takes the input vector and stores this in the appropriate input array for the FFT
     if (int(I1.size())!=NT || int(I2.size())!=NT || int(I3.size())!=NT){
-        cout << "Input array has incorrect dimension." << endl;
+        std::cout << "Input array has incorrect dimension." << std::endl;
         return DimError;
     }
 
@@ -316,9 +316,9 @@ SFStatus DataType_FFTW::Set_Input_Unbounded_1D(RVector &I)
 {
     // This function takes the input vector and stores this in the appropriate input array for the FFT
     int NXH = NX/2;
-    cout << NX csp NT csp NXM csp NTM csp NXH << endl;
+    std::cout << NX csp NT csp NXM csp NTM csp NXH << std::endl;
     if (int(I.size())!=NXH){
-        cout << "Input array has incorrect dimension." << endl;
+        std::cout << "Input array has incorrect dimension." << std::endl;
         return DimError;
     }
     if (r_in1) memset(r_Input1, 0, NT*sizeof(Real));   // Pad entire domain with zeros
@@ -336,7 +336,7 @@ SFStatus DataType_FFTW::Set_Input_Unbounded_2D(RVector &I)
     int NXH = NX/2;
     int NYH = NY/2;
     if (int(I.size())!=NXH*NYH){
-        cout << "Input array has incorrect dimension." << endl;
+        std::cout << "Input array has incorrect dimension." << std::endl;
         return DimError;
     }
     if (r_in1) memset(r_Input1, 0, NT*sizeof(Real));   // Pad entire domain with zeros
@@ -359,7 +359,7 @@ SFStatus DataType_FFTW::Set_Input_Unbounded_3D(RVector &I)
     int NYH = NY/2;
     int NZH = NZ/2;
     if (int(I.size())!=NXH*NYH*NZH){
-        cout << "Input array has incorrect dimension." << endl;
+        std::cout << "Input array has incorrect dimension." << std::endl;
         return DimError;
     }
     if (r_in1) memset(r_Input1, 0, NT*sizeof(Real));   // Pad entire domain with zeros
@@ -384,7 +384,7 @@ SFStatus DataType_FFTW::Set_Input_Unbounded_3D(RVector &I1, RVector &I2, RVector
     int NYH = NY/2;
     int NZH = NZ/2;
     if (int(I1.size())!=NXH*NYH*NZH || int(I2.size())!=NXH*NYH*NZH || int(I3.size())!=NXH*NYH*NZH){
-        cout << "Input array has incorrect dimension." << endl;
+        std::cout << "Input array has incorrect dimension." << std::endl;
         return DimError;
     }
     if (r_in1) memset(r_Input1, 0, NT*sizeof(Real));   // Pad entire domain with zeros
@@ -880,6 +880,45 @@ void DataType_FFTW::Spectral_Gradients_3DV_Nabla()
                 Multiply(c_FGj[j],c_FTOutput2[id],c_FTOutput2[id]);
                 Multiply(c_FGk[k],c_FTOutput3[id],c_FTOutput3[id]);
                 Multiply(c_FGk[k],c_FTOutput3[id],c_FTOutput3[id]);
+            }
+        }
+    }
+}
+
+void DataType_FFTW::Spectral_Gradients_3DV_Reprojection()
+{
+    // This operation is applied to ensure that the field satisfies (Nabla . f = 0)
+
+    OpenMPfor
+        for (int i=0; i<NXM; i++){
+        for (int j=0; j<NYM; j++){
+            for (int k=0; k<NZM; k++){
+
+                int id = i*NYM*NZM + j*NZM + k;
+
+                // Calculate the frequency space representations of the divergence
+                FFTWReal DivOmX, DivOmY, DivOmZ, DivOm, F;
+                Multiply(c_FGi[i],c_FTInput1[id],DivOmX);
+                Multiply(c_FGj[j],c_FTInput2[id],DivOmY);
+                Multiply(c_FGk[k],c_FTInput3[id],DivOmZ);
+                DivOm[0] = DivOmX[0] + DivOmY[0] + DivOmZ[0];
+                DivOm[1] = DivOmX[1] + DivOmY[1] + DivOmZ[1];
+                Multiply(c_FG[id],DivOm,F);         // F is the solution in the frequency domain to Nabla^2F = Nabla.omega
+
+                // We now carry out the reprojection in frequency space
+                FFTWReal dFdx, dFdy, dFdz;
+                Multiply(c_FGi[i],F,dFdx);
+                Multiply(c_FGj[j],F,dFdy);
+                Multiply(c_FGk[k],F,dFdz);
+
+                c_FTOutput1[id][0] = c_FTInput1[id][0]*BFac - dFdx[0];
+                c_FTOutput1[id][1] = c_FTInput1[id][1]*BFac - dFdx[1];
+                c_FTOutput2[id][0] = c_FTInput2[id][0]*BFac - dFdy[0];
+                c_FTOutput2[id][1] = c_FTInput2[id][1]*BFac - dFdy[1];
+                c_FTOutput3[id][0] = c_FTInput3[id][0]*BFac - dFdz[0];
+                c_FTOutput3[id][1] = c_FTInput3[id][1]*BFac - dFdz[1];
+
+                // Taking the inverse DFT of this should give us back the reprojected vorticity values on the grid.
             }
         }
     }

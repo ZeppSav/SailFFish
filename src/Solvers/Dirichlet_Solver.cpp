@@ -79,8 +79,8 @@ void Poisson_Dirichlet_1D::Set_BC(Real AX, Real BX)
 
     if (Spect_Kernel==PS)
     {
-        cout << "In order to specify (nonzero) boundary conditions for a bounded Poisson solver, the finite difference kernel (SailFFish::FD2) option be specified." << endl;
-        cout << "The solution shall be calculated assuming zero boundary conditions." << endl;
+        std::cout << "In order to specify (nonzero) boundary conditions for a bounded Poisson solver, the finite difference kernel (SailFFish::FD2) option be specified." << std::endl;
+        std::cout << "The solution shall be calculated assuming zero boundary conditions." << std::endl;
         return;
     }
 
@@ -100,8 +100,8 @@ void Poisson_Dirichlet_2D::Set_BC(RVector AX, RVector BX, RVector AY, RVector BY
 
     if (Spect_Kernel==PS)
     {
-        cout << "In order to specify (nonzero) boundary conditions for a bounded Poisson solver, the finite difference kernel (SailFFish::FD2) option be specified." << endl;
-        cout << "The solution shall be calculated assuming zero boundary conditions." << endl;
+        std::cout << "In order to specify (nonzero) boundary conditions for a bounded Poisson solver, the finite difference kernel (SailFFish::FD2) option be specified." << std::endl;
+        std::cout << "The solution shall be calculated assuming zero boundary conditions." << std::endl;
         return;
     }
 
@@ -137,8 +137,8 @@ void Poisson_Dirichlet_3D::Set_BC(RVector AX, RVector BX, RVector AY, RVector BY
 
     if (Spect_Kernel==PS)
     {
-        cout << "In order to specify (nonzero) boundary conditions for a bounded Poisson solver, the finite difference kernel (SailFFish::FD2) option be specified." << endl;
-        cout << "The solution shall be calculated assuming zero boundary conditions." << endl;
+        std::cout << "In order to specify (nonzero) boundary conditions for a bounded Poisson solver, the finite difference kernel (SailFFish::FD2) option be specified." << std::endl;
+        std::cout << "The solution shall be calculated assuming zero boundary conditions." << std::endl;
         return;
     }
 
@@ -193,8 +193,8 @@ void Poisson_Dirichlet_3DV::Set_BC( RVector AX1, RVector BX1, RVector AX2, RVect
 
     if (Spect_Kernel==PS)
     {
-        cout << "In order to specify (nonzero) boundary conditions for a bounded Poisson solver, the finite difference kernel (SailFFish::FD2) option be specified." << endl;
-        cout << "The solution shall be calculated assuming zero boundary conditions." << endl;
+        std::cout << "In order to specify (nonzero) boundary conditions for a bounded Poisson solver, the finite difference kernel (SailFFish::FD2) option be specified." << std::endl;
+        std::cout << "The solution shall be calculated assuming zero boundary conditions." << std::endl;
         return;
     }
 

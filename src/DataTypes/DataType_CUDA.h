@@ -117,6 +117,7 @@ public:
     SFStatus Set_Input_Unbounded_2D(RVector &I);
     SFStatus Set_Input_Unbounded_3D(RVector &I);
     SFStatus Set_Input_Unbounded_3D(RVector &I1, RVector &I2, RVector &I3);
+    SFStatus Transfer_Data_Device();
 
     //--- Prepare output array
     void Get_Output(RVector &I);

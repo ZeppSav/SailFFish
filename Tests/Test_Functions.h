@@ -27,6 +27,7 @@
 
 #include "../src/SailFFish_Math_Types.h"
 #include <chrono>
+
 //-----------------------------------
 //--- Helper defs
 //-----------------------------------
@@ -34,9 +35,9 @@
 static Real Ms2s = 1.0e-3;
 unsigned int stopwatch()
 {
-    static auto start_time  = chrono::steady_clock::now();
-    auto        end_time    = chrono::steady_clock::now();
-    auto        delta       = chrono::duration_cast<chrono::milliseconds>(end_time - start_time);
+    static auto start_time  = std::chrono::steady_clock::now();
+    auto        end_time    = std::chrono::steady_clock::now();
+    auto        delta       = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
     start_time = end_time;
     return delta.count();
 }
@@ -48,7 +49,7 @@ unsigned int stopwatch()
 Real Error_LInf(RVector &V, RVector &Sol, Real Fac)
 {
     if (V.size() != Sol.size()){
-        cout << "Error array inputs have non-matching sizes." << endl;
+        std::cout << "Error array inputs have non-matching sizes." << std::endl;
         return 0.0;
     }
     Real e = 0.0;
@@ -59,7 +60,7 @@ Real Error_LInf(RVector &V, RVector &Sol, Real Fac)
 Real E_Inf(RVector &V, RVector &Sol)
 {
     if (V.size() != Sol.size()){
-        cout << "Error array inputs have non-matching sizes." << endl;
+        std::cout << "Error array inputs have non-matching sizes." << std::endl;
         return 0.0;
     }
     Real e = 0.0;

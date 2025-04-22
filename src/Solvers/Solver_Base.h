@@ -34,17 +34,8 @@ namespace SailFFish
 {
 
 enum Grid_Type          {REGULAR, STAGGERED};
-enum Dim                {EX, EY, EZ};
 enum Bounded_Kernel     {PS, FD2};
 enum Unbounded_Kernel   {HEJ_S0, HEJ_G2, HEJ_G4, HEJ_G6, HEJ_G8, HEJ_G10};
-
-inline int GID(const int &i, const int &j, const int &NX, const int &NY)                                {return i*NY + j;}
-inline int GID(const int &i, const int &j, const int &k, const int &NX, const int &NY, const int &NZ)   {return i*NY*NZ + j*NZ + k;}
-inline int GID(const int &i, const int &j, const int &NX, const int &NY, const Dim &D1)
-{
-    if (D1==EX) return i*NY + j;    // Row-major
-    else        return j*NX + i;    // Column-major
-}
 
 #ifdef FFTW
     class Solver : public DataType_FFTW
@@ -67,13 +58,13 @@ protected:
     RVector fX, fY, fZ;         // X-Y values on FFT grid
     RVector gX, gY, gZ;         // X-Y values on solution grid
 
-    Dim D2D = EX;               // This provide a reference to extract the grid values based on how they are stored.
-    Dim D3D[2] = {EX, EY};      // This provide a reference to extract the grid values based on how they are stored.
-
     //--- Solver parameters
     Grid_Type Grid = REGULAR;
     Bounded_Kernel Spect_Kernel = FD2;
     Unbounded_Kernel Greens_Kernel = HEJ_S0;
+
+    //--- Output parameters
+    std::string OutputFolder;           // Where are results exported to?
 
 public:
 
@@ -121,6 +112,9 @@ class Solver_1D_Scalar : public Solver
 {
 protected:
 
+    // Default output name
+    std::string vti_Name = "Mesh_1D.vti";
+
 public:
 
     //--- Constructor
@@ -137,6 +131,9 @@ public:
 class Solver_2D_Scalar : public Solver
 {
 protected:
+
+    // Default output name
+    std::string vti_Name = "Mesh_2D.vti";
 
 public:
 
@@ -158,6 +155,9 @@ class Solver_3D_Scalar : public Solver
 {
 protected:
 
+    // Default output name
+    std::string vti_Name = "Mesh_3D.vti";
+
 public:
 
     //--- Constructor
@@ -177,6 +177,9 @@ public:
 class Solver_3D_Vector : public Solver
 {
 protected:
+
+    // Default output name
+    std::string vti_Name = "Mesh_3DV.vti";
 
 public:
 

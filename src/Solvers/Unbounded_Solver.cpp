@@ -235,7 +235,7 @@ void Unbounded_Solver_2D::Specify_Greens_Function()
             if (2*j<NY)     y = j*Hy;
             else            y = (NY-j)*Hy;
             Real r = sqrt(x*x + y*y);
-            r_FG[GID(i,j,NX,NY,D2D)] = ScaleFac*Gk(r,sigma);       // NY < NX
+            r_FG[GID(i,j,NX,NY)] = ScaleFac*Gk(r,sigma);       // NY < NX
         }
     }
 
@@ -286,7 +286,7 @@ void Unbounded_Solver_3D::Specify_Greens_Function()
                 if (2*k<NZ)     z = k*Hz;
                 else            z = (NZ-k)*Hz;
                 Real r = sqrt(x*x + y*y + z*z);
-                r_FG[GID(i,j,k,NX,NY,NZ)] = ScaleFac*Gk(r,sigma);
+                r_FG[GID(dim3(i,j,k),dim3(NX,NY,NZ))] = ScaleFac*Gk(r,sigma);
             }
         }
     }
@@ -338,7 +338,7 @@ void Unbounded_Solver_3DV::Specify_Greens_Function()
                 if (2*k<NZ)     z = k*Hz;
                 else            z = (NZ-k)*Hz;
                 Real r = sqrt(x*x + y*y + z*z);
-                r_FG[GID(i,j,k,NX,NY,NZ)] = ScaleFac*Gk(r,sigma);
+                r_FG[GID(dim3(i,j,k),dim3(NX,NY,NZ))] = ScaleFac*Gk(r,sigma);
             }
         }
     }

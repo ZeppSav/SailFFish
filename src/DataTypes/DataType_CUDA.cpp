@@ -3,7 +3,6 @@
 //-----------------------------------------------------------------------------
 
 #include "DataType_CUDA.h"
-#include <chrono>
 
 #ifdef CUFFT
 
@@ -17,7 +16,7 @@ void DataType_CUDA::Datatype_Setup()
     // How many cuda devices are available on this host?
     int count;
     cudaGetDeviceCount(&count);
-    cout << "N Cuda capable devices = " << count << endl;
+    std::cout << "N Cuda capable devices = " << count << std::endl;
 
     // Get device properties
     cudaDeviceProp deviceProp;
@@ -25,7 +24,7 @@ void DataType_CUDA::Datatype_Setup()
 
     if (deviceProp.major == 9999 && deviceProp.minor == 9999)
     {
-        cout << "No CUDA GPU has been detected" << endl;
+        std::cout << "No CUDA GPU has been detected" << std::endl;
         return;
     }
 
@@ -52,14 +51,14 @@ SFStatus DataType_CUDA::Allocate_Arrays()
     // Depending on the type of solver and the chosen operator/outputs, the arrays which must be allocated vary.
     // This is simply controlled here by specifying the necessary flags during solver initialization
 
-//    cout << "Allocating arrays: NT = " << NT << endl;
-//    if (r_in1) cout << "r_in1" << endl;
-//    if (r_in2) cout << "r_in2" << endl;
-//    if (r_in3) cout << "r_in3" << endl;
-//    if (c_in1) cout << "c_in1" << endl;
-//    if (c_in2) cout << "c_in2" << endl;
-//    if (c_in3) cout << "c_in3" << endl;
-//    if (c_fg) cout << "c_fg" << endl;
+//    std::cout << "Allocating arrays: NT = " << NT << std::endl;
+//    if (r_in1) std::cout << "r_in1" << std::endl;
+//    if (r_in2) std::cout << "r_in2" << std::endl;
+//    if (r_in3) std::cout << "r_in3" << std::endl;
+//    if (c_in1) std::cout << "c_in1" << std::endl;
+//    if (c_in2) std::cout << "c_in2" << std::endl;
+//    if (c_in3) std::cout << "c_in3" << std::endl;
+//    if (c_fg) std::cout << "c_fg" << std::endl;
 
     // Real-valued arrays
 
@@ -186,7 +185,7 @@ SFStatus DataType_CUDA::Specify_1D_Plan()
     // This specifies the forward and backward plans
     if (Transform==DCT1 || Transform==DCT2 || Transform==DST1 || Transform==DST2)
     {
-        cout << "DataType_CUDA::Specify_1D_Plan(): Real-to-real transforms is not supported by cuFFT. \n SailFFish must be linked with the FFTW library." << endl;
+        std::cout << "DataType_CUDA::Specify_1D_Plan(): Real-to-real transforms is not supported by cuFFT. \n SailFFish must be linked with the FFTW library." << std::endl;
         return SetupError;
     }
     if (Transform==DFT_C2C)
@@ -208,7 +207,7 @@ SFStatus DataType_CUDA::Specify_2D_Plan()
     // This specifies the forward and backward plans
     if (Transform==DCT1 || Transform==DCT2 || Transform==DST1 || Transform==DST2)
     {
-        cout << "DataType_CUDA::Specify_2D_Plan(): Real-to-real transforms is not supported by cuFFT. \n SailFFish must be linked with the FFTW library." << endl;
+        std::cout << "DataType_CUDA::Specify_2D_Plan(): Real-to-real transforms is not supported by cuFFT. \n SailFFish must be linked with the FFTW library." << std::endl;
         return SetupError;
     }
     if (Transform==DFT_C2C)
@@ -232,7 +231,7 @@ SFStatus DataType_CUDA::Specify_3D_Plan()
 
     if (Transform==DCT1 || Transform==DCT2 || Transform==DST1 || Transform==DST2)
     {
-        cout << "DataType_CUDA::Specify_3D_Plan(): Real-to-real transforms is not supported by cuFFT. \n SailFFish must be linked with the FFTW library." << endl;
+        std::cout << "DataType_CUDA::Specify_3D_Plan(): Real-to-real transforms is not supported by cuFFT. \n SailFFish must be linked with the FFTW library." << std::endl;
         return SetupError;
     }
     if (Transform==DFT_C2C)
@@ -393,13 +392,13 @@ void DataType_CUDA::Transfer_FTInOut_Comp()
 void DataType_CUDA::Spectral_Gradients_1D_Grad()
 {
     // Calculates gradient of 1D signal in spectral space. Done in-place.
-    cout << "DataType_CUDA::Spectral_Gradients_1D_Grad() Not yet implemented!!!!" << endl;
+    std::cout << "DataType_CUDA::Spectral_Gradients_1D_Grad() Not yet implemented!!!!" << std::endl;
 }
 
 void DataType_CUDA::Spectral_Gradients_1D_Nabla()
 {
     // Calculates nabla of 1D signal in spectral space. Done in-place.
-    cout << "DataType_CUDA::Spectral_Gradients_1D_Nabla() Not yet implemented!!!!" << endl;
+    std::cout << "DataType_CUDA::Spectral_Gradients_1D_Nabla() Not yet implemented!!!!" << std::endl;
 }
 
 //--- 2D spectral gradients
@@ -416,7 +415,7 @@ void DataType_CUDA::Spectral_Gradients_2D_Grad()
 
 void DataType_CUDA::Spectral_Gradients_2D_Div()
 {
-    cout << "DataType_CUDA::Spectral_Gradients_2D_Div() option untested!" << endl;
+    std::cout << "DataType_CUDA::Spectral_Gradients_2D_Div() option untested!" << std::endl;
 
     // Find gradients
     cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTOutput1, NTM, c_FGj, 1, c_FTOutput2, NTM);
@@ -434,7 +433,7 @@ void DataType_CUDA::Spectral_Gradients_2D_Curl()
 {
     // Calculates curl of 2D signal in spectral space. Done in-place.
 
-    cout << "DataType_CUDA::Spectral_Gradients_2D_Curl untested!" << endl;
+    std::cout << "DataType_CUDA::Spectral_Gradients_2D_Curl untested!" << std::endl;
 
     // Find gradients
     cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTOutput1, NTM, c_FGj, 1, c_FTOutput2, NTM);
@@ -454,7 +453,7 @@ void DataType_CUDA::Spectral_Gradients_2D_Nabla()
 {
     // Calculates nabla of 2D signal in spectral space. Done in-place.
 
-    cout << "DataType_CUDA::Spectral_Gradients_2D_Nabla untested!" << endl;
+    std::cout << "DataType_CUDA::Spectral_Gradients_2D_Nabla untested!" << std::endl;
 
     // Find gradients
     cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTOutput1, NTM, c_FGj, 1, c_FTOutput2, NTM);
@@ -473,7 +472,7 @@ void DataType_CUDA::Spectral_Gradients_3D_Div()
 {
     // Calculates div of 3D signal in spectral space. Done in-place.
 
-    cout << "DataType_CUDA::Spectral_Gradients_3D_Div() untested!" << endl;
+    std::cout << "DataType_CUDA::Spectral_Gradients_3D_Div() untested!" << std::endl;
 
     // Find gradients
     cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTOutput1, NTM, c_FGk, 1, c_FTOutput3, NTM);
@@ -508,7 +507,7 @@ void DataType_CUDA::Spectral_Gradients_3DV_Div()
 {
     // Calculates div of 3D signal in spectral space. Done in-place.
 
-    cout << "DataType_CUDA::Spectral_Gradients_3DV_Div() untested!" << endl;
+    std::cout << "DataType_CUDA::Spectral_Gradients_3DV_Div() untested!" << std::endl;
 
     // Find gradients
     cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTOutput1, NTM, c_FGi, 1, c_FTOutput1, NTM);
@@ -531,7 +530,7 @@ void DataType_CUDA::Spectral_Gradients_3DV_Grad()
     // Calculates grad of 3D signal in spectral space. Done in-place.
     // Require 9 elements!
 
-    cout << "DataType_CUDA::Spectral_Gradients_3DV_Grad() not yet implemented!!!!" << endl;
+    std::cout << "DataType_CUDA::Spectral_Gradients_3DV_Grad() not yet implemented!!!!" << std::endl;
 }
 
 void DataType_CUDA::Spectral_Gradients_3DV_Curl()
@@ -578,7 +577,7 @@ void DataType_CUDA::Spectral_Gradients_3DV_Nabla()
 {
     // Calculates nabla of 3D signal in spectral space. Done in-place.
 
-    cout << "DataType_CUDA::Spectral_Gradients_3DV_Nabla() untested!" << endl;
+    std::cout << "DataType_CUDA::Spectral_Gradients_3DV_Nabla() untested!" << std::endl;
 
     // Find gradients
     cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTOutput1, NTM, c_FGi, 1, c_FTOutput1, NTM);
@@ -603,7 +602,7 @@ SFStatus DataType_CUDA::Set_Input(RVector &I)
 {
     // Transfers input array to cuda device
     if (int(I.size())!=NT){
-        cout << "Input array has incorrect dimension." << endl;
+        std::cout << "Input array has incorrect dimension." << std::endl;
         return DimError;
     }
 
@@ -621,7 +620,7 @@ SFStatus DataType_CUDA::Set_Input(RVector &I1, RVector &I2, RVector &I3)
 {
     // Transfers input array to cuda device
     if (int(I1.size())!=NT || int(I2.size())!=NT || int(I3.size())!=NT){
-        cout << "Input arrays have incorrect dimension." << endl;
+        std::cout << "Input arrays have incorrect dimension." << std::endl;
         return DimError;
     }
 
@@ -654,7 +653,7 @@ SFStatus DataType_CUDA::Set_Input_Unbounded_1D(RVector &I)
     // This function takes the input vector and stores this in the appropriate cuda input array
     int NXH = NX/2;
     if (int(I.size())!=NXH){
-        cout << "Input array has incorrect dimension." << endl;
+        std::cout << "Input array has incorrect dimension." << std::endl;
         return DimError;
     }
 
@@ -681,7 +680,7 @@ SFStatus DataType_CUDA::Set_Input_Unbounded_2D(RVector &I)
     int NXH = NX/2;
     int NYH = NY/2;
     if (int(I.size())!=NXH*NYH){
-        cout << "Input array has incorrect dimension." << endl;
+        std::cout << "Input array has incorrect dimension." << std::endl;
         return DimError;
     }
 
@@ -716,7 +715,7 @@ SFStatus DataType_CUDA::Set_Input_Unbounded_3D(RVector &I)
     int NYH = NY/2;
     int NZH = NZ/2;
     if (int(I.size())!=NXH*NYH*NZH){
-        cout << "Input array has incorrect dimension." << endl;
+        std::cout << "Input array has incorrect dimension." << std::endl;
         return DimError;
     }
 
@@ -753,7 +752,7 @@ SFStatus DataType_CUDA::Set_Input_Unbounded_3D(RVector &I1, RVector &I2, RVector
     int NYH = NY/2;
     int NZH = NZ/2;
     if (int(I1.size())!=NXH*NYH*NZH || int(I2.size())!=NXH*NYH*NZH || int(I3.size())!=NXH*NYH*NZH){
-        cout << "Input array has incorrect dimension." << endl;
+        std::cout << "Input array has incorrect dimension." << std::endl;
         return DimError;
     }
 
@@ -791,6 +790,19 @@ SFStatus DataType_CUDA::Set_Input_Unbounded_3D(RVector &I1, RVector &I2, RVector
     if (c_in1) cudaMemcpy(c_Input1, C1.data(), NT*sizeof(CUDAComplex), cudaMemcpyHostToDevice);
     if (c_in2) cudaMemcpy(c_Input2, C2.data(), NT*sizeof(CUDAComplex), cudaMemcpyHostToDevice);
     if (c_in3) cudaMemcpy(c_Input3, C3.data(), NT*sizeof(CUDAComplex), cudaMemcpyHostToDevice);
+
+    return NoError;
+}
+
+SFStatus DataType_CUDA::Transfer_Data_Device()
+{
+    // Now transfer block arrays to cuda buffers
+    if (r_in1) cudaMemcpy(cuda_r_Input1, r_Input1, NT*sizeof(CUDAReal), cudaMemcpyHostToDevice);
+    if (r_in2) cudaMemcpy(cuda_r_Input2, r_Input2, NT*sizeof(CUDAReal), cudaMemcpyHostToDevice);
+    if (r_in3) cudaMemcpy(cuda_r_Input3, r_Input3, NT*sizeof(CUDAReal), cudaMemcpyHostToDevice);
+    if (c_in1) cudaMemcpy(c_Input1, c_Input1, NT*sizeof(CUDAComplex), cudaMemcpyHostToDevice);
+    if (c_in2) cudaMemcpy(c_Input2, c_Input2, NT*sizeof(CUDAComplex), cudaMemcpyHostToDevice);
+    if (c_in3) cudaMemcpy(c_Input3, c_Input3, NT*sizeof(CUDAComplex), cudaMemcpyHostToDevice);
 
     return NoError;
 }

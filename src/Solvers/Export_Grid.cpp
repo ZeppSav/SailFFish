@@ -22,7 +22,7 @@ void Solver_2D_Scalar::Create_vti()
     if (gNX>NX) CX = NX;
     if (gNY>NY) CY = NY;
 
-    cout << CX csp CY << endl;
+    std::cout << CX csp CY << std::endl;
 
     std::ostringstream str;
     std::string ifilename;
@@ -33,8 +33,9 @@ void Solver_2D_Scalar::Create_vti()
 
     //--- Create output director if not existing
     std::string OutputDirectory = "Output";
-    CreateDirectory(OutputDirectory);
-    std::string filename = "./Output/Mesh_2D.vti";
+    create_directory(std::filesystem::path(OutputDirectory));   // Generate directory
+    // create_directory(OutputDirectory.c_str());      // Old MinGW
+    std::string filename = "./Output/" + vti_Name;
     str.str(""); // clear str
     std::ofstream vtifile( filename.c_str() );
 //	vtifile.precision(16);
@@ -53,10 +54,10 @@ void Solver_2D_Scalar::Create_vti()
         minY += 0.5*Hy;
     }
     vtifile << "<?xml version='1.0'?>" << "\n";
-    vtifile << "<VTKFile type='ImageData' version='0.1' byte_order='LittleEndian'>" << endl;
+    vtifile << "<VTKFile type='ImageData' version='0.1' byte_order='LittleEndian'>" << std::endl;
     vtifile <<"  <ImageData WholeExtent='"  csp 0       csp CX-1    csp 0 csp CY-1  csp 0 csp 0
             <<"' Ghostlevel='0' Origin='"   csp minX    csp minY    csp 0
-            <<"' Spacing='"                 csp Hx      csp Hy      csp 0 << "'>" << endl;
+            <<"' Spacing='"                 csp Hx      csp Hy      csp 0 << "'>" << std::endl;
     vtifile << "    <Piece Extent='"        csp 0       csp CX-1    csp 0 csp CY-1  csp 0 csp 0 << "'>" << "\n";
 
     // Store point data
@@ -66,7 +67,7 @@ void Solver_2D_Scalar::Create_vti()
     vtifile << "        <DataArray type='Float64' Name='Omega' NumberOfComponents='1'  format='ascii'>" << "\n";
     for(int j=0; j<CY; j++)
     {
-        for(int i=0; i<CX; i++)    vtifile << std::scientific << std::setw(17) << r_Input1[GID(i,j,NX,NY,D2D)];
+        for(int i=0; i<CX; i++)    vtifile << std::scientific << std::setw(17) << r_Input1[GID(i,j,NX,NY)];
     }
     vtifile << "\n        </DataArray>" << "\n";
 
@@ -76,7 +77,7 @@ void Solver_2D_Scalar::Create_vti()
         vtifile << "        <DataArray type='Float64' Name='Phi' NumberOfComponents='1'  format='ascii'>" << "\n";
         for(int j=0; j<CY; j++)
         {
-            for(int i=0; i<CX; i++)    vtifile << std::scientific << std::setw(17) << r_Output1[GID(i,j,NX,NY,D2D)];
+            for(int i=0; i<CX; i++)    vtifile << std::scientific << std::setw(17) << r_Output1[GID(i,j,NX,NY)];
         }
         vtifile << "\n        </DataArray>" << "\n";
     }
@@ -86,14 +87,14 @@ void Solver_2D_Scalar::Create_vti()
         vtifile << "        <DataArray type='Float64' Name='dPhi_dx' NumberOfComponents='1'  format='ascii'>" << "\n";
         for(int j=0; j<CY; j++)
         {
-            for(int i=0; i<CX; i++)    vtifile << std::scientific << std::setw(17) << r_Output1[GID(i,j,NX,NY,D2D)];
+            for(int i=0; i<CX; i++)    vtifile << std::scientific << std::setw(17) << r_Output1[GID(i,j,NX,NY)];
         }
         vtifile << "\n        </DataArray>" << "\n";
 
         vtifile << "        <DataArray type='Float64' Name='dPhi_dy' NumberOfComponents='1'  format='ascii'>" << "\n";
         for(int j=0; j<CY; j++)
         {
-            for(int i=0; i<CX; i++)    vtifile << std::scientific << std::setw(17) << r_Output2[GID(i,j,NX,NY,D2D)];
+            for(int i=0; i<CX; i++)    vtifile << std::scientific << std::setw(17) << r_Output2[GID(i,j,NX,NY)];
         }
         vtifile << "\n        </DataArray>" << "\n";
     }
@@ -103,8 +104,8 @@ void Solver_2D_Scalar::Create_vti()
         vtifile << "        <DataArray type='Float64' Name='Velocity' NumberOfComponents='2'  format='ascii'>" << "\n";
         for(int j=0; j<CY; j++)
         {
-            for(int i=0; i<CX; i++)    vtifile << std::scientific  << std::setw(17) << r_Output1[GID(i,j,NX,NY,D2D)]
-                                                                    << std::setw(17) << r_Output2[GID(i,j,NX,NY,D2D)];
+            for(int i=0; i<CX; i++)    vtifile << std::scientific  << std::setw(17) << r_Output1[GID(i,j,NX,NY)]
+                                                                    << std::setw(17) << r_Output2[GID(i,j,NX,NY)];
         }
         vtifile << "\n        </DataArray>" << "\n";
     }
@@ -114,7 +115,7 @@ void Solver_2D_Scalar::Create_vti()
         vtifile << "        <DataArray type='Float64' Name='DivOmega' NumberOfComponents='1'  format='ascii'>" << "\n";
         for(int j=0; j<CY; j++)
         {
-            for(int i=0; i<CX; i++)    vtifile << std::scientific << std::setw(17) << r_Output1[GID(i,j,NX,NY,D2D)];
+            for(int i=0; i<CX; i++)    vtifile << std::scientific << std::setw(17) << r_Output1[GID(i,j,NX,NY)];
         }
         vtifile << "\n        </DataArray>" << "\n";
     }
@@ -124,14 +125,14 @@ void Solver_2D_Scalar::Create_vti()
         vtifile << "        <DataArray type='Float64' Name='dPhi2_dx2' NumberOfComponents='1'  format='ascii'>" << "\n";
         for(int j=0; j<CY; j++)
         {
-            for(int i=0; i<CX; i++)    vtifile << std::scientific << std::setw(17) << r_Output1[GID(i,j,NX,NY,D2D)];
+            for(int i=0; i<CX; i++)    vtifile << std::scientific << std::setw(17) << r_Output1[GID(i,j,NX,NY)];
         }
         vtifile << "\n        </DataArray>" << "\n";
 
         vtifile << "        <DataArray type='Float64' Name='dPhi2_dy2' NumberOfComponents='1'  format='ascii'>" << "\n";
         for(int j=0; j<CY; j++)
         {
-            for(int i=0; i<CX; i++)    vtifile << std::scientific << std::setw(17) << r_Output2[GID(i,j,NX,NY,D2D)];
+            for(int i=0; i<CX; i++)    vtifile << std::scientific << std::setw(17) << r_Output2[GID(i,j,NX,NY)];
         }
         vtifile << "\n        </DataArray>" << "\n";
     }
@@ -175,8 +176,9 @@ void Solver_3D_Scalar::Create_vti()
 
     //--- Create output director if not existing
     std::string OutputDirectory = "Output";
-    CreateDirectory(OutputDirectory);
-    std::string filename = "./Output/Mesh_3D.vti";
+    create_directory(std::filesystem::path(OutputDirectory));   // Generate directory
+    // create_directory(OutputDirectory.c_str());      // Old MinGW
+    std::string filename = "./Output/" + vti_Name;
     str.str(""); // clear str
     std::ofstream vtifile( filename.c_str() );
 //	vtifile.precision(16);
@@ -196,11 +198,11 @@ void Solver_3D_Scalar::Create_vti()
         minZ += 0.5*Hz;
     }
     vtifile << "<?xml version='1.0'?>" << "\n";
-    vtifile << "<VTKFile type='ImageData' version='0.1' byte_order='LittleEndian'>" << endl;
-    vtifile << "<VTKFile type='ImageData' version='0.1' byte_order='LittleEndian'>" << endl;
+    vtifile << "<VTKFile type='ImageData' version='0.1' byte_order='LittleEndian'>" << std::endl;
+    vtifile << "<VTKFile type='ImageData' version='0.1' byte_order='LittleEndian'>" << std::endl;
     vtifile <<"  <ImageData WholeExtent='"  csp 0       csp CX-1    csp 0   csp CY-1   csp 0 csp CZ-1
             <<"' Ghostlevel='0' Origin='"   csp minX    csp minY    csp minY
-            <<"' Spacing='"                 csp Hx      csp Hy      csp Hz << "'>" << endl;
+            <<"' Spacing='"                 csp Hx      csp Hy      csp Hz << "'>" << std::endl;
     vtifile << "    <Piece Extent='"        csp 0       csp CX-1    csp 0   csp CY-1   csp 0 csp CZ-1 << "'>" << "\n";
 
     // Store point data
@@ -304,8 +306,9 @@ void Solver_3D_Vector::Create_vti()
 
     //--- Create output director if not existing
     std::string OutputDirectory = "Output";
-    CreateDirectory(OutputDirectory);
-    std::string filename = "./Output/Mesh_3DV.vti";
+    create_directory(std::filesystem::path(OutputDirectory));   // Generate directory
+    // create_directory(OutputDirectory.c_str());      // Old MinGW
+    std::string filename = "./Output/" + vti_Name;
     str.str(""); // clear str
     std::ofstream vtifile( filename.c_str() );
 //	vtifile.precision(16);
@@ -325,10 +328,10 @@ void Solver_3D_Vector::Create_vti()
         minZ += 0.5*Hz;
     }
     vtifile << "<?xml version='1.0'?>" << "\n";
-    vtifile << "<VTKFile type='ImageData' version='0.1' byte_order='LittleEndian'>" << endl;
+    vtifile << "<VTKFile type='ImageData' version='0.1' byte_order='LittleEndian'>" << std::endl;
     vtifile <<"  <ImageData WholeExtent='"  csp 0       csp CX-1   csp 0 csp CY-1   csp 0 csp CZ-1
             <<"' Ghostlevel='0' Origin='"   csp minX    csp minY    csp minY
-            <<"' Spacing='"                 csp Hx      csp Hy      csp Hz << "'>" << endl;
+            <<"' Spacing='"                 csp Hx      csp Hy      csp Hz << "'>" << std::endl;
     vtifile << "    <Piece Extent='"        csp 0       csp CX-1   csp 0 csp CY-1   csp 0 csp CZ-1 << "'>" << "\n";
 
     // Store point data

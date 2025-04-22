@@ -83,8 +83,8 @@ void Poisson_Neumann_1D::Set_BC(Real AX, Real BX)
 
     if (Spect_Kernel==PS)
     {
-        cout << "In order to specify (nonzero) boundary conditions for a bounded Poisson solver, the finite difference kernel (SailFFish::FD2) option be specified." << endl;
-        cout << "The solution shall be calculated assuming zero boundary conditions." << endl;
+        std::cout << "In order to specify (nonzero) boundary conditions for a bounded Poisson solver, the finite difference kernel (SailFFish::FD2) option be specified." << std::endl;
+        std::cout << "The solution shall be calculated assuming zero boundary conditions." << std::endl;
         return;
     }
 
@@ -103,8 +103,8 @@ void Poisson_Neumann_2D::Set_BC(RVector AX, RVector BX, RVector AY, RVector BY)
 
     if (Spect_Kernel==PS)
     {
-        cout << "In order to specify (nonzero) boundary conditions for a bounded Poisson solver, the finite difference kernel (SailFFish::FD2) option be specified." << endl;
-        cout << "The solution shall be calculated assuming zero boundary conditions." << endl;
+        std::cout << "In order to specify (nonzero) boundary conditions for a bounded Poisson solver, the finite difference kernel (SailFFish::FD2) option be specified." << std::endl;
+        std::cout << "The solution shall be calculated assuming zero boundary conditions." << std::endl;
         return;
     }
 
@@ -140,8 +140,8 @@ void Poisson_Neumann_3D::Set_BC(RVector AX, RVector BX, RVector AY, RVector BY, 
 
     if (Spect_Kernel==PS)
     {
-        cout << "In order to specify (nonzero) boundary conditions for a bounded Poisson solver, the finite difference kernel (SailFFish::FD2) option be specified." << endl;
-        cout << "The solution shall be calculated assuming zero boundary conditions." << endl;
+        std::cout << "In order to specify (nonzero) boundary conditions for a bounded Poisson solver, the finite difference kernel (SailFFish::FD2) option be specified." << std::endl;
+        std::cout << "The solution shall be calculated assuming zero boundary conditions." << std::endl;
         return;
     }
 
@@ -196,8 +196,8 @@ void Poisson_Neumann_3DV::Set_BC(   RVector AX1, RVector BX1, RVector AX2, RVect
 
     if (Spect_Kernel==PS)
     {
-        cout << "In order to specify (nonzero) boundary conditions for a bounded Poisson solver, the finite difference kernel (SailFFish::FD2) option be specified." << endl;
-        cout << "The solution shall be calculated assuming zero boundary conditions." << endl;
+        std::cout << "In order to specify (nonzero) boundary conditions for a bounded Poisson solver, the finite difference kernel (SailFFish::FD2) option be specified." << std::endl;
+        std::cout << "The solution shall be calculated assuming zero boundary conditions." << std::endl;
         return;
     }
 
@@ -324,8 +324,8 @@ void Poisson_Neumann_2D::Specify_Greens_Function()
     for (int i=0; i<NX; i++){
         for (int j=0; j<NY; j++)
         {
-            if ((i+j)>0)    r_FG[GID(i,j,NX,NY,D2D)] = BFac/(fx[i]+fy[j]);
-            else            r_FG[GID(i,j,NX,NY,D2D)] = 0.0;
+            if ((i+j)>0)    r_FG[GID(i,j,NX,NY)] = BFac/(fx[i]+fy[j]);
+            else            r_FG[GID(i,j,NX,NY)] = 0.0;
         }
     }
 }

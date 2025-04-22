@@ -1,5 +1,5 @@
 TEMPLATE = app
-CONFIG += console c++11
+CONFIG += console c++20
 CONFIG -= app_bundle
 CONFIG -= qt
 
@@ -14,9 +14,7 @@ DEFINES += SinglePrec
 # Configuration flags
 #----------------------------------------------
 
-CONFIG += c++17
-
-# The following define makes your compiler emit warnings if you use
+# The following define makes your compiler emit warnings if you useA
 # any feature of Qt which as been marked as deprecated (the exact warnings
 # depend on your compiler). Please consult the documentation of the
 # deprecated API in order to know how to port your code away from it.
@@ -24,7 +22,6 @@ DEFINES += QT_DEPRECATED_WARNINGS
 
 #---Optimise flags
 
-QMAKE_CXXFLAGS += -std=gnu++11
 QMAKE_CXXFLAGS += -O3               # Optimisations for eigen
 QMAKE_CXXFLAGS += -march=native     # Activate all optimisation flags
 
@@ -68,9 +65,14 @@ LIBS += -L$$PWD/../FFTW/fftw-3.3.5-dll64/ -llibfftw3f-3
 #LIBS += -lcublas64_11
 ##----------------------------------------------
 
-#------------------------
-# Source and header files
-#------------------------
+#----------------------------------------------
+# Eigen support
+#----------------------------------------------
+INCLUDEPATH += ..\Eigen
+
+#-----------------------------------
+# Source and header files SailFFish
+#-----------------------------------
 
 SOURCES += \
     main.cpp \
@@ -97,5 +99,15 @@ HEADERS += \
     src/Solvers/Periodic_Solver.h \
     src/Solvers/Solver_Base.h \
     src/Solvers/Solvers.h \
-    src/Solvers/Unbounded_Solver.h
+    src/Solvers/Unbounded_Solver.h \
+    src/VPM_Solver/VPM3D_kernels_cpu.h \
+    src/VPM_Solver/VPM_Solver.h
 
+# #------------------------------------------
+# # Source and header files VPM Solver - FFTW
+# #------------------------------------------
+
+# SOURCES += src/VPM_Solver/VPM3D_cpu.cpp \
+#     src/VPM_Solver/VPM_Solver.cpp
+
+# HEADERS += src/VPM_Solver/VPM3D_cpu.h

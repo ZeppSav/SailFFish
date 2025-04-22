@@ -137,11 +137,17 @@ An ArXiv preprint has been prepared which contains an overview of the solver, da
 This can be found at the [following link](https://arxiv.org/abs/2301.01145).
 
 ## Compilation
+The only dependency of SailFFish is the [eigen](https://eigen.tuxfamily.org) lineary algebra library. 
 The compilation of SailFFish has been tested with GCC (v7.3).
 Two options are available for compiling:
 - qmake: SailFFish was prepared with the cross-platform development environment [Qt Creator](https://www.qt.io/product/development-tools). 
 The .pro file required for compiling with qmake has been provided. 
 - CMake: The `CMakeLists.txt` file has been provided. Note: This is not thoroughly tested!
+You simply need to include the path to the eigen directory on your device.
+For example:
+```
+INCLUDEPATH += -L$$PWD/../eigen/
+```
 ### Floating point precision	
 SailFFish can be compiled to use either single or double floating point precision. 
 Simply specify with the appropriate compiler flags: `SinglePrec` or `DoublePrec`

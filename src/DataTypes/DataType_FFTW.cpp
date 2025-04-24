@@ -105,7 +105,6 @@ SFStatus DataType_FFTW::Deallocate_Arrays()
     // Depending on the type of solver and the chosen operator/outputs, the arrays which must be allocated vary.
     // This is simply controlled here by specifying the necessary flags during solver initialization
 
-    // Real-valued arrays
     if (r_Input1)       free(r_Input1);
     if (r_Input2)       free(r_Input2);
     if (r_Input3)       free(r_Input3);
@@ -149,6 +148,48 @@ SFStatus DataType_FFTW::Deallocate_Arrays()
     if (c_FGk)          FFTW_Free(c_FGk);
 
     std::cout << "DataType arrays have been successfuly cleared." << std::endl;
+
+    // // Safe deallocations
+    // try{
+    //     if (r_Input1)       free(r_Input1);
+    //     if (r_Input2)       free(r_Input2);
+    //     if (r_Input3)       free(r_Input3);
+    // }
+    // catch (std::bad_alloc& ex){
+    //     std::cout << "DataType_FFTW::Deallocate_Arrays(): r_Input deallocation crash." << std::endl;
+    //     // return MemError;
+    // }
+
+    // try{
+    //     if (r_Output1)      free(r_Output1);
+    //     if (r_Output2)      free(r_Output2);
+    //     if (r_Output3)      free(r_Output3);
+    // }
+    // catch (std::bad_alloc& ex){
+    //     std::cout << "DataType_FFTW::Deallocate_Arrays(): r_Output1 deallocation crash." << std::endl;
+    //     // return MemError;
+    // }
+
+    // try{
+    //     if (c_FTInput1)     FFTW_Free(c_FTInput1);
+    //     if (c_FTInput2)     FFTW_Free(c_FTInput2);
+    //     if (c_FTInput3)     FFTW_Free(c_FTInput3);
+    // }
+    // catch (std::bad_alloc& ex){
+    //     std::cout << "DataType_FFTW::Deallocate_Arrays(): c_FTInput1 deallocation crash." << std::endl;
+    //     // return MemError;
+    // }
+
+    // try{
+    //     if (c_FG)           FFTW_Free(c_FG);
+    //     if (c_FGi)          FFTW_Free(c_FGi);
+    //     if (c_FGj)          FFTW_Free(c_FGj);
+    //     if (c_FGk)          FFTW_Free(c_FGk);
+    // }
+    // catch (std::bad_alloc& ex){
+    //     std::cout << "DataType_FFTW::Deallocate_Arrays(): c_FGx deallocation crash." << std::endl;
+    //     // return MemError;
+    // }
 
     return NoError;
 }
@@ -937,8 +978,8 @@ DataType_FFTW::~DataType_FFTW()
     FFTW_Destroy_Plan(Forward_Plan);
     FFTW_Destroy_Plan(Backward_Plan);
 
-//    fftw_cleanup_threads();
-//    fftw_cleanup();
+   fftw_cleanup_threads();
+   fftw_cleanup();
 }
 
 }

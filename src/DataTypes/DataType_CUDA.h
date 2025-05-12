@@ -67,10 +67,28 @@ namespace SailFFish
     #define cublas_axpy         cublasZaxpy_v2
 #endif
 
+
+//--- Dimension & index structs & functions
+
+typedef unsigned uint;
+struct dim3s {int x, y, z; dim3s(int x_ = 1, int y_ = 1, int z_ = 1) : x(x_), y(y_), z(z_) {}};
+inline uint GID(const uint &i, const uint &j, const uint &NX, const uint &NY)                                   {return i*NY + j;}
+inline uint GID(const uint &i, const uint &j, const uint &k, const uint &NX, const uint &NY, const uint &NZ)    {return i*NY*NZ + j*NZ + k;}
+inline uint GID(const uint &i, const uint &j, const uint &k, const dim3 &D)                                     {return i*D.y*D.z + j*D.z + k;}
+inline uint GID(const dim3 &P, const dim3 &D)                                                                   {return P.x*D.y*D.z + P.y*D.z + P.z;}
+inline uint GID(const uint &i, const uint &j, const uint &NX, const uint &NY, const Dim &D1)
+{
+    if (D1==EX) return i*NY + j;    // Row-major
+    else        return j*NX + i;    // Column-major
+}
+
 class DataType_CUDA : public DataType
 {
 
 protected:
+
+    //--- Grid dimension
+    dim3 GridDim;
 
     //--- Plan
     cufftHandle FFT_Plan;
@@ -80,19 +98,23 @@ protected:
     //--- Handles for cuBLAS
     cublasHandle_t cublashandle;
 
-    //--- Memory objects (Complex)
-    CUDAComplex *c_Input1, *c_FTInput1, *c_FTOutput1, *c_Output1;
-    CUDAComplex *c_Input2, *c_FTInput2, *c_FTOutput2, *c_Output2;
-    CUDAComplex *c_Input3, *c_FTInput3, *c_FTOutput3, *c_Output3;
+    //--- Memory objects (cpu)
+    Real *r_Input1, *r_Output1;
+    Real *r_Input2, *r_Output2;
+    Real *r_Input3, *r_Output3;
+
+    //--- Memory objects (gpu)
+    // In reality these are actually stored on the GPU, we shall use these simply as interfacing arrays.
+    CUDAReal *cuda_r_Input1, *cuda_r_Output1;
+    CUDAReal *cuda_r_Input2, *cuda_r_Output2;
+    CUDAReal *cuda_r_Input3, *cuda_r_Output3;
+
+    CUDAComplex *c_Input1, *c_FTInput1, *c_FTOutput1, *c_Output1, *c_FTVel1;
+    CUDAComplex *c_Input2, *c_FTInput2, *c_FTOutput2, *c_Output2, *c_FTVel2;
+    CUDAComplex *c_Input3, *c_FTInput3, *c_FTOutput3, *c_Output3, *c_FTVel3;
     CUDAComplex *c_DummyBuffer1, *c_DummyBuffer2, *c_DummyBuffer3;
     CUDAComplex *c_DummyBuffer4, *c_DummyBuffer5, *c_DummyBuffer6;
     CUDAComplex *c_FG, *c_FGi, *c_FGj, *c_FGk;
-
-    //--- Memory objects (Real)
-    // In reality these are actually stored on the GPU, we shall use these simply as interfacing arrays.
-    CUDAReal *r_Input1, *r_FTInput1, *r_Output1;
-    CUDAReal *r_Input2, *r_FTInput2, *r_Output2;
-    CUDAReal *r_Input3, *r_FTInput3, *r_Output3;
 
 public:
 

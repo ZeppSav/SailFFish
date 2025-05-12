@@ -37,6 +37,8 @@ namespace SailFFish
 enum SFStatus       {NoError, DimError, MemError, SetupError, ExecError, GridError};
 enum FTType         {DCT1, DCT2, DST1, DST2, DFT_C2C, DFT_R2C};
 enum OperatorType   {NONE, DIV, CURL, GRAD, NABLA};
+enum Component      {XComp, YComp, ZComp};
+enum Dim            {EX, EY, EZ};
 
 class DataType
 {

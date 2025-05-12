@@ -47,21 +47,18 @@ unix: LIBS += -lfftw3f -lfftw3f_threads -lfftw3 -lfftw3_threads
 ##----------------------------------------------
 
 
-##----------------------------------------------
-## DataType cuFFT
-##----------------------------------------------
-#DEFINES += CUFFT
-##----------------------------------------------
-## include path to cuda & cuda Libraries
-##----------------------------------------------
-#INCLUDEPATH += "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.8\include"       #Laptop
-#CUDAPFAD = "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.8"
-#LIBS += -L$$CUDAPFAD\bin
-#LIBS += -lcudart64_110
-#LIBS += -lcufft64_10
-#LIBS += -lcufftw64_10
-#LIBS += -lcublas64_11
-##----------------------------------------------
+# #----------------------------------------------
+# # DataType cuFFT
+# #----------------------------------------------
+# DEFINES += CUFFT
+# #----------------------------------------------
+# # include path to cuda & cuda Libraries
+# #----------------------------------------------
+# INCLUDEPATH += "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.8\include"
+# CUDAPFAD = "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.8"
+# win32: LIBS += -L$$CUDAPFAD\bin -lcudart64_110 -lcufft64_10 -lcufftw64_10 -lcublas64_11
+# unix: LIBS += -L$$CUDAPFAD\bin -lcudart64_110 -lcufft64_10 -lcufftw64_10 -lcublas64_11
+# #----------------------------------------------
 
 #----------------------------------------------
 # Eigen support

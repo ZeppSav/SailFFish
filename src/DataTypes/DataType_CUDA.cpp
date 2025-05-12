@@ -66,9 +66,21 @@ SFStatus DataType_CUDA::Allocate_Arrays()
     if (r_in2)      cudaMalloc((void**)&r_Input2, sizeof(CUDAReal)*NT);
     if (r_in3)      cudaMalloc((void**)&r_Input3, sizeof(CUDAReal)*NT);
 
-    if (r_ft_in1)   cudaMalloc((void**)&r_FTInput1, sizeof(CUDAReal)*NT);
-    if (r_ft_in2)   cudaMalloc((void**)&r_FTInput2, sizeof(CUDAReal)*NT);
-    if (r_ft_in3)   cudaMalloc((void**)&r_FTInput3, sizeof(CUDAReal)*NT);
+    // Allocate local arrays: ensure pinned
+    if (r_in1)      cudaMalloc((void**)&cuda_r_Input1, sizeof(CUDAReal)*NT);
+    if (r_in2)      cudaMalloc((void**)&cuda_r_Input2, sizeof(CUDAReal)*NT);
+    if (r_in3)      cudaMalloc((void**)&cuda_r_Input3, sizeof(CUDAReal)*NT);
+
+    if (InPlace){
+        if (r_out_1)    cuda_r_Output1 = cuda_r_Input1;
+        if (r_out_2)    cuda_r_Output2 = cuda_r_Input2;
+        if (r_out_3)    cuda_r_Output3 = cuda_r_Input3;
+    }
+    else{
+        if (r_out_1)    cudaMalloc((void**)&cuda_r_Output1, sizeof(CUDAReal)*NT);
+        if (r_out_2)    cudaMalloc((void**)&cuda_r_Output2, sizeof(CUDAReal)*NT);
+        if (r_out_3)    cudaMalloc((void**)&cuda_r_Output3, sizeof(CUDAReal)*NT);
+    }
 
     if (r_out_1)    cudaMalloc((void**)&r_Output1, sizeof(CUDAReal)*NT);
     if (r_out_2)    cudaMalloc((void**)&r_Output2, sizeof(CUDAReal)*NT);
@@ -262,11 +274,11 @@ void DataType_CUDA::Convolution_Complex3()
     // The multiplication will be carried out by using a modified cuBLAS tier-2 routine
 
     cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTInput1, NTM, c_FG, 1, c_FTOutput1, NTM);
-    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Convolution_Complex 1 Failed \n");  return;}
+    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Convolution_Complex 3 Failed \n");  return;}
     cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTInput2, NTM, c_FG, 1, c_FTOutput2, NTM);
-    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Convolution_Complex 1 Failed \n");  return;}
+    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Convolution_Complex 3 Failed \n");  return;}
     cublas_dgmm(cublashandle, CUBLAS_SIDE_LEFT, NTM, 1, c_FTInput3, NTM, c_FG, 1, c_FTOutput3, NTM);
-    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Convolution_Complex 1 Failed \n");  return;}
+    if (cudaGetLastError() != cudaSuccess){ fprintf(stderr, "DataType_CUDA::Convolution_Complex 3 Failed \n");  return;}
 }
 
 //--- Greens functions prep

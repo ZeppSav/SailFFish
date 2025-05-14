@@ -80,7 +80,9 @@ SOURCES += \
     src/Solvers/Neumann_Solver.cpp \
     src/Solvers/Periodic_Solver.cpp \
     src/Solvers/Solver_Base.cpp \
-    src/Solvers/Unbounded_Solver.cpp
+    src/Solvers/Unbounded_Solver.cpp \
+    src/VPM_Solver/VPM3D_cpu.cpp \
+    src/VPM_Solver/VPM_Solver.cpp
 
 HEADERS += \
     src/DataTypes/DataType_Base.h \
@@ -95,7 +97,10 @@ HEADERS += \
     src/Solvers/Solver_Base.h \
     src/Solvers/Solvers.h \
     src/Solvers/Unbounded_Solver.h \
+    src/VPM_Solver/VPM3D_cpu.h \
     src/VPM_Solver/VPM3D_kernels_cpu.h \
+    src/VPM_Solver/VPM3D_kernels_cpu.h \
+    src/VPM_Solver/VPM_Solver.h \
     src/VPM_Solver/VPM_Solver.h
 
 # #------------------------------------------

@@ -1,8 +1,8 @@
-#include "Tests/Test_1D.h"
-#include "Tests/Test_2D.h"
-#include "Tests/Test_3D.h"
+// #include "Tests/Test_1D.h"
+// #include "Tests/Test_2D.h"
+// #include "Tests/Test_3D.h"
 #include "Tests/Test_3DV.h"
-// #include "Tests/Test_VPM.h"
+// #include "Tests/Test_Vortex_Rings.h"
 
 static const bool Export_VTI = true;
 

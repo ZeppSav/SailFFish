@@ -124,7 +124,7 @@ void Vortex_Ring_Evolution_Test()
     // I.MagFiltFac = 0;                   // Magnitude filtering factor
     // I.DivFilt = true;                   // Is divergence filtering being carried out?
     // I.Turb = SailFFish::RVM2;           // Turbulence model
-    // I.C_smag = 2.5e-2;                  // Smagorisnky parameter
+    // I.C_smag = pow(0.3,3)*1.39;         // Smagorisnky parameter
     // I.KinVisc = 1.0;                    // Kinematic viscosity of fluid
     // I.Rho = 1.0;                        // Density of fluid
     // I.Integrator = SailFFish::LSRK4;    // Time integration scheme

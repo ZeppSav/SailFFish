@@ -1,8 +1,8 @@
 // #include "Tests/Test_1D.h"
 // #include "Tests/Test_2D.h"
 // #include "Tests/Test_3D.h"
-#include "Tests/Test_3DV.h"
-// #include "Tests/Test_Vortex_Rings.h"
+// #include "Tests/Test_3DV.h"
+#include "Tests/Test_Vortex_Rings.h"
 
 static const bool Export_VTI = true;
 
@@ -40,10 +40,10 @@ int main()
    // Test_Dirichlet_3DV(nx,ny,nz);
    // Test_Neumann_3DV(nx,ny,nz);
    // Test_Periodic_3DV(nx,ny,nz);
-   Test_Unbounded_3DV_Curl(nx,ny,nz);
+   // Test_Unbounded_3DV_Curl(nx,ny,nz);
 
     //--- VPM tests
-    // Vortex_Ring_Evolution_Test();
+    Vortex_Ring_Evolution_Test();
 
     return 0;
 }

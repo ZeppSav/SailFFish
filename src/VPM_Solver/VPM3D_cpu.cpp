@@ -354,7 +354,7 @@ void VPM3D_cpu::Advance_Particle_Set()
     if (DivFilt && Remeshing && NStep%NReproject==0)   Reproject_Particle_Set_Spectral();   // Reproject vorticity field
     Update_Particle_Field();                                            // Update vorticity field
     // Filter_Boundary();
-    if (NExp>0 && NStep%NExp==0 && NStep>0) Generate_VTI();                 // Export grid if desired
+    if (NExp>0 && NStep%NExp==0 && NStep>0) Generate_VTI();             // Export grid if desired
     Increment_Time();
 }
 

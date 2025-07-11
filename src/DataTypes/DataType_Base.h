@@ -100,22 +100,22 @@ public:
     virtual SFStatus Setup_3D(int NX, int NY, int NZ);
 
     //--- Specify Plan
-    virtual SFStatus Specify_1D_Plan()      {}
-    virtual SFStatus Specify_2D_Plan()      {}
-    virtual SFStatus Specify_3D_Plan()      {}
+    virtual SFStatus Specify_1D_Plan()      {return NoError;}
+    virtual SFStatus Specify_2D_Plan()      {return NoError;}
+    virtual SFStatus Specify_3D_Plan()      {return NoError;}
 
     //--- Array allocation
-    virtual SFStatus Allocate_Arrays()      {}
-    virtual SFStatus Deallocate_Arrays()    {}
+    virtual SFStatus Allocate_Arrays()      {return NoError;}
+    virtual SFStatus Deallocate_Arrays()    {return NoError;}
 
     //--- Specify Input
-    virtual SFStatus Set_Input(RVector &I)                                          {}
-    virtual SFStatus Set_Input(RVector &I1, RVector &I2, RVector &I3)               {}
-    virtual SFStatus Set_Input_Unbounded_1D(RVector &I)                             {}
-    virtual SFStatus Set_Input_Unbounded_2D(RVector &I)                             {}
-    virtual SFStatus Set_Input_Unbounded_3D(RVector &I)                             {}
-    virtual SFStatus Set_Input_Unbounded_3D(RVector &I1, RVector &I2, RVector &I3)  {}
-    virtual SFStatus Transfer_Data_Device()                                         {}
+    virtual SFStatus Set_Input(RVector &I)                                          {return NoError;}
+    virtual SFStatus Set_Input(RVector &I1, RVector &I2, RVector &I3)               {return NoError;}
+    virtual SFStatus Set_Input_Unbounded_1D(RVector &I)                             {return NoError;}
+    virtual SFStatus Set_Input_Unbounded_2D(RVector &I)                             {return NoError;}
+    virtual SFStatus Set_Input_Unbounded_3D(RVector &I)                             {return NoError;}
+    virtual SFStatus Set_Input_Unbounded_3D(RVector &I1, RVector &I2, RVector &I3)  {return NoError;}
+    virtual SFStatus Transfer_Data_Device()                                         {return NoError;}
 
     //--- Retrieve output array
     virtual void Get_Output(RVector &I)                                             {}

@@ -483,6 +483,7 @@ public:
     virtual void Grid_Shear_Stresses()              {}
     virtual void Grid_Turb_Shear_Stresses()         {}
     virtual void Add_Freestream_Velocity()          {}
+    virtual void Solve_Velocity()                   {}
     virtual void Calc_Grid_SpectralRatesof_Change() {}
     virtual void Calc_Grid_FDRatesof_Change()       {}
     virtual void Increment_Time()                   {NStep++; T += dT;}

@@ -77,6 +77,11 @@ static Real const  R2D          =  180/M_PI;
 static Real const  RPMtoOmega   = M_PI/30.0;
 static Real const  OmegatoRPM   = 1.0/RPMtoOmega;
 
+//-------- Std::vector helper functions
+
+template <class T>          // Hack to avoid using insert everytime
+static void StdAppend(std::vector<T>& lhs, const std::vector<T>& rhs)       {lhs.insert(lhs.end(),rhs.begin(), rhs.end());}
+
 //--- Create directory
 
 #include <sys/types.h>  // required for stat.h

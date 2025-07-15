@@ -1108,7 +1108,7 @@ void VPM3D_cpu::Generate_VTI(const RVector &A1, const RVector &A2, const RVector
     }
 
     // Specify current filename.
-    vti_Name = vti_Prefix + std::to_string(NStep) + ".vtk";
+    vti_Name = vti_Prefix + std::to_string(NStep) + ".vti";
 
     Create_vti();
 }

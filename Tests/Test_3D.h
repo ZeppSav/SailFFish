@@ -32,7 +32,7 @@
 //--- Bounded solvers
 //---------------------
 
-void Test_Dirichlet_3D(int NX, int NY, int NZ, bool ExportVTI = false)
+void Test_Dirichlet_3D(int NX, int NY, int NZ, bool ExportVTK = false)
 {
     // Test case for 3D bounded Poisson solver with Dirichlet BCs
 
@@ -95,13 +95,13 @@ void Test_Dirichlet_3D(int NX, int NY, int NZ, bool ExportVTI = false)
     std::cout << "Output spec. "     << std::setw(10) << t5 csp "ms. [" << 100.0*t5/tTot << " %]" << std::endl;
     std::cout << std::scientific;
 
-    // If selected, export grid as VTI
-    if (ExportVTI) Solver->Create_vti();
+    // If selected, export grid as VTK
+    if (ExportVTK) Solver->Create_vtk();
 
     delete Solver;
 }
 
-void Test_Dirichlet_3D_IHBC(int NX, int NY, int NZ, bool ExportVTI = false)
+void Test_Dirichlet_3D_IHBC(int NX, int NY, int NZ, bool ExportVTK = false)
 {
     // Test case for 3D bounded Poisson solver with Dirichlet BCs
     // IHBC: Inhomogeneous boundary conditions
@@ -186,13 +186,13 @@ void Test_Dirichlet_3D_IHBC(int NX, int NY, int NZ, bool ExportVTI = false)
     std::cout << "Output spec. "     << std::setw(10) << t5 csp "ms. [" << 100.0*t5/tTot << " %]" << std::endl;
     std::cout << std::scientific;
 
-    // If selected, export grid as VTI
-    if (ExportVTI) Solver->Create_vti();
+    // If selected, export grid as VTK
+    if (ExportVTK) Solver->Create_vtk();
 
     delete Solver;
 }
 
-void Test_Neumann_3D(int NX, int NY, int NZ, bool ExportVTI = false)
+void Test_Neumann_3D(int NX, int NY, int NZ, bool ExportVTK = false)
 {
     // Test case for 3D bounded Poisson solver with Neumann BCs
 
@@ -252,13 +252,13 @@ void Test_Neumann_3D(int NX, int NY, int NZ, bool ExportVTI = false)
     std::cout << "Output spec. "     << std::setw(10) << t5 csp "ms. [" << 100.0*t5/tTot << " %]" << std::endl;
     std::cout << std::scientific;
 
-    // If selected, export grid as VTI
-    if (ExportVTI) Solver->Create_vti();
+    // If selected, export grid as VTK
+    if (ExportVTK) Solver->Create_vtk();
 
     delete Solver;
 }
 
-void Test_Neumann_3D_IHBC(int NX, int NY, int NZ, bool ExportVTI = false)
+void Test_Neumann_3D_IHBC(int NX, int NY, int NZ, bool ExportVTK = false)
 {
     // Test case for 3D bounded Poisson solver with Neumann BCs
 
@@ -347,13 +347,13 @@ void Test_Neumann_3D_IHBC(int NX, int NY, int NZ, bool ExportVTI = false)
     std::cout << "Output spec. "     << std::setw(10) << t5 csp "ms. [" << 100.0*t5/tTot << " %]" << std::endl;
     std::cout << std::scientific;
 
-    // If selected, export grid as VTI
-    if (ExportVTI) Solver->Create_vti();
+    // If selected, export grid as VTK
+    if (ExportVTK) Solver->Create_vtk();
 
     delete Solver;
 }
 
-void Test_Periodic_3D(int NX, int NY, int NZ, bool ExportVTI = false)
+void Test_Periodic_3D(int NX, int NY, int NZ, bool ExportVTK = false)
 {
     // Test case for 3D bounded Poisson solver with periodic BCs
 
@@ -414,8 +414,8 @@ void Test_Periodic_3D(int NX, int NY, int NZ, bool ExportVTI = false)
     std::cout << "Output spec. "     << std::setw(10) << t5 csp "ms. [" << 100.0*t5/tTot << " %]" << std::endl;
     std::cout << std::scientific;
 
-    // If selected, export grid as VTI
-    if (ExportVTI) Solver->Create_vti();
+    // If selected, export grid as VTK
+    if (ExportVTK) Solver->Create_vtk();
 
     delete Solver;
 }
@@ -448,22 +448,25 @@ void Test_Unbounded_3D(int NX, int NY, int NZ, bool ExportVTI = false)
     Solver->Get_Grid_Res(Hx, Hy, Hz);
 
     // Generate Input & solution arrays
-    RVector Input, Output, Solution;
     // If this is a grid-boundary solve, we have 1 extra grid point
     int NXM = NX, NYM = NY, NZM = NZ;
     if (Solver->Get_Grid_Type()==SailFFish::REGULAR) {NXM++; NYM++; NZM++;}
+    int NT = NXM*NYM*NZM;
+    RVector Input = RVector(NT,0);
+    RVector Output = RVector(NT,0);
+    RVector Solution = RVector(NT,0);
+    OpenMPfor
     for (int i=0; i<NXM; i++){
         for (int j=0; j<NYM; j++){
             for (int k=0; k<NZM; k++){
-                RVector Inp = UTest_Omega_Hejlesen(XGrid[i],YGrid[j],ZGrid[k],0.5);
-                RVector Sol = UTest_Phi_Hejlesen(XGrid[i],YGrid[j],ZGrid[k],0.5);
-                Input.push_back(    Inp[1]);   // Y Vorticity
-                Solution.push_back( Sol[1]);   // Y Solution Field (Phi)
-//                Input.push_back(    Inp[2]);   // Z Vorticity
-//                Solution.push_back( Sol[2]);   // Z Solution Field (Phi)
+                int id = i*NYM*NZM + j*NZM + k;
+                Real d1, d2;
+                UTest_Omega_Hejlesen(   XGrid[i],YGrid[j],ZGrid[k],0.5, d1, Input[id], d2);
+                UTest_Phi_Hejlesen(     XGrid[i],YGrid[j],ZGrid[k],0.5, d1, Solution[id], d2);
             }
         }
     }
+
     Status = Solver->Set_Input_Unbounded_3D(Input);
     if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
     unsigned int t3 = stopwatch();  // Timer
@@ -491,9 +494,9 @@ void Test_Unbounded_3D(int NX, int NY, int NZ, bool ExportVTI = false)
     std::cout << "Output spec. "     << std::setw(10) << t5 csp "ms. [" << 100.0*t5/tTot << " %]" << std::endl;
     std::cout << std::scientific;
 
-//    std::cout << NX csp std::scientific << E_Inf(Output,Solution) << std::endl;
+    //    std::cout << NX csp std::scientific << E_Inf(Output,Solution) << std::endl;
 
-//    Solver->Create_vti();
+    //    Solver->Create_vti();
 
     delete Solver;
 }

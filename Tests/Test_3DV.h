@@ -32,7 +32,7 @@
 //--- Bounded solvers
 //---------------------
 
-void Test_Dirichlet_3DV(int NX, int NY, int NZ, bool ExportVTI = false)
+void Test_Dirichlet_3DV(int NX, int NY, int NZ, bool ExportVTK = false)
 {
     // Test case for 3D (vector field) bounded Poisson solver with Dirichlet BCs
 
@@ -120,13 +120,13 @@ void Test_Dirichlet_3DV(int NX, int NY, int NZ, bool ExportVTI = false)
     std::cout << "Output spec. "     << std::setw(10) << t5 csp "ms. [" << 100.0*t5/tTot << " %]" << std::endl;
     std::cout << std::scientific;
 
-    // If selected, export grid as VTI
-    if (ExportVTI) Solver->Create_vti();
+    // If selected, export grid as VTK
+    if (ExportVTK) Solver->Create_vtk();
 
     delete Solver;
 }
 
-void Test_Neumann_3DV(int NX, int NY, int NZ, bool ExportVTI = false)
+void Test_Neumann_3DV(int NX, int NY, int NZ, bool ExportVTK = false)
 {
     // Test case for 3D (vector field) bounded Poisson solver with Neumann BCs
 
@@ -204,13 +204,13 @@ void Test_Neumann_3DV(int NX, int NY, int NZ, bool ExportVTI = false)
     std::cout << "Output spec. "     << std::setw(10) << t5 csp "ms. [" << 100.0*t5/tTot << " %]" << std::endl;
     std::cout << std::scientific;
 
-    // If selected, export grid as VTI
-    if (ExportVTI) Solver->Create_vti();
+    // If selected, export grid as VTK
+    if (ExportVTK) Solver->Create_vtk();
 
     delete Solver;
 }
 
-void Test_Periodic_3DV(int NX, int NY, int NZ, bool ExportVTI = false)
+void Test_Periodic_3DV(int NX, int NY, int NZ, bool ExportVTK = false)
 {
     // Test case for 3D (vector field) bounded Poisson solver with periodic BCs
 
@@ -281,8 +281,8 @@ void Test_Periodic_3DV(int NX, int NY, int NZ, bool ExportVTI = false)
     std::cout << "Output spec. "     << std::setw(10) << t5 csp "ms. [" << 100.0*t5/tTot << " %]" << std::endl;
     std::cout << std::scientific;
 
-    // If selected, export grid as VTI
-    if (ExportVTI) Solver->Create_vti();
+    // If selected, export grid as VTK
+    if (ExportVTK) Solver->Create_vtk();
 
     delete Solver;
 }
@@ -290,6 +290,94 @@ void Test_Periodic_3DV(int NX, int NY, int NZ, bool ExportVTI = false)
 //---------------------
 //--- Unbounded solvers
 //---------------------
+
+void Test_Unbounded_3DV(int NX, int NY, int NZ, bool ExportVTI = false)
+{
+    // Test case for 2D unbounded Poisson solver
+
+    SailFFish::SFStatus Status = SailFFish::NoError;    // Status of execution
+    stopwatch();                                        // Begin timer for profiling
+
+    // Define solver
+    SailFFish::Unbounded_Solver_3DV *Solver = new SailFFish::Unbounded_Solver_3DV();
+    // Solver->Specify_Operator(SailFFish::CURL);
+    Status = Solver->Setup(UnitX,UnitY,UnitZ,NX,NY,NZ);
+    if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
+    unsigned int t2 = stopwatch();  // Timer
+
+    // Extract grid values
+    RVector XGrid, YGrid, ZGrid;
+    Real Lx, Ly, Lz;
+    Real Hx, Hy, Hz;
+    Solver->Get_XGrid(XGrid);
+    Solver->Get_YGrid(YGrid);
+    Solver->Get_ZGrid(ZGrid);
+    Solver->Get_Grid_Dims(Lx, Ly, Lz);
+    Solver->Get_Grid_Res(Hx, Hy, Hz);
+
+    // If this is a grid-boundary solve, we have 1 extra grid point
+    int NXM = NX, NYM = NY, NZM = NZ;
+    if (Solver->Get_Grid_Type()==SailFFish::REGULAR) {NXM++; NYM++; NZM++;}
+
+    // Generate Input & solution arrays
+    int NT = NXM*NYM*NZM;
+    RVector Input1 = RVector(NT,0);
+    RVector Input2 = RVector(NT,0);
+    RVector Input3 = RVector(NT,0);
+    RVector Output1 = RVector(NT,0);
+    RVector Output2 = RVector(NT,0);
+    RVector Output3 = RVector(NT,0);
+    RVector Solution1 = RVector(NT,0);
+    RVector Solution2 = RVector(NT,0);
+    RVector Solution3 = RVector(NT,0);
+
+    OpenMPfor
+    for (int i=0; i<NXM; i++){
+        for (int j=0; j<NYM; j++){
+            for (int k=0; k<NZM; k++){
+                int id = i*NYM*NZM + j*NZM + k;
+                UTest_Omega_Hejlesen(   XGrid[i],YGrid[j],ZGrid[k],0.5, Input1[id], Input2[id], Input3[id]);
+                UTest_Phi_Hejlesen(     XGrid[i],YGrid[j],ZGrid[k],0.5, Solution1[id], Solution2[id], Solution3[id]);
+            }
+        }
+    }
+    Status = Solver->Set_Input_Unbounded_3D(Input1,Input2,Input3);
+    Status = Solver->Transfer_Data_Device();
+    if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
+    unsigned int t3 = stopwatch();  // Timer
+
+    // Carry out execution
+    Solver->Forward_Transform();
+    Solver->Convolution();
+    // Solver->Spectral_Gradients_3DV_Curl();
+    Solver->Backward_Transform();
+    unsigned int t4 = stopwatch();
+
+    // Retrieve solution & collect final timings
+    Solver->Get_Output_Unbounded_3D(Output1,Output2,Output3);
+    unsigned int t5 = stopwatch();
+    Real tTot = Real(t2+t3+t4+t5);
+
+    std::cout << "Trial Calculation: Solution of the unbounded 3D Poisson equation (vector field)." << std::endl;
+    std::cout << std::scientific;
+    std::cout << "The grid was resolved with [" << NX <<" , "<< NY <<" , "<< NZ <<"] cells. " << std::endl;
+    std::cout << "E_inf Error (x component) =" csp std::scientific << E_Inf(Output1,Solution1) << std::endl;
+    std::cout << "E_inf Error (y component) =" csp std::scientific << E_Inf(Output2,Solution2) << std::endl;
+    std::cout << "E_inf Error (z component) =" csp std::scientific << E_Inf(Output3,Solution3) << std::endl;
+    std::cout << std::fixed << std::setprecision(1);
+    std::cout << "Execution Time:" <<  std::endl;
+    std::cout << "Solver setup "     << std::setw(10) << t2 csp "ms. [" << 100.0*t2/tTot << " %]" << std::endl;
+    std::cout << "Input spec.  "     << std::setw(10) << t3 csp "ms. [" << 100.0*t3/tTot << " %]" << std::endl;
+    std::cout << "Execution    "     << std::setw(10) << t4 csp "ms. [" << 100.0*t4/tTot << " %]" << std::endl;
+    std::cout << "Output spec. "     << std::setw(10) << t5 csp "ms. [" << 100.0*t5/tTot << " %]" << std::endl;
+    std::cout << std::scientific;
+
+    // If selected, export grid as VTI
+    if (ExportVTI) Solver->Create_vtk();
+
+    delete Solver;
+}
+
 
 void Test_Unbounded_3DV_Curl(int NX, int NY, int NZ, bool ExportVTI = false)
 {
@@ -332,24 +420,19 @@ void Test_Unbounded_3DV_Curl(int NX, int NY, int NZ, bool ExportVTI = false)
     RVector Solution3 = RVector(NT,0);
 
     OpenMPfor
-    for (int i=0; i<NXM; i++){
+        for (int i=0; i<NXM; i++){
         for (int j=0; j<NYM; j++){
             for (int k=0; k<NZM; k++){
                 int id = i*NYM*NZM + j*NZM + k;
-                RVector Inp = UTest_Omega_Hejlesen(     XGrid[i],YGrid[j],ZGrid[k],0.5);
-                RVector Sol = UTest_Velocity_Hejlesen(  XGrid[i],YGrid[j],ZGrid[k],0.5);
-                Input1[id] = Inp[0];        // X Vorticity
-                Input2[id] = Inp[1];        // Y Vorticity
-                Input3[id] = Inp[2];        // Z Vorticity
-                Solution1[id] = Sol[0];     // X Velocity
-                Solution2[id] = Sol[1];     // Y Velocity
-                Solution3[id] = Sol[2];     // Z Velocity
+                UTest_Omega_Hejlesen(     XGrid[i],YGrid[j],ZGrid[k],0.5, Input1[id], Input2[id], Input3[id]);
+                UTest_Velocity_Hejlesen(  XGrid[i],YGrid[j],ZGrid[k],0.5, Solution1[id], Solution2[id], Solution3[id]);
             }
         }
     }
     Status = Solver->Set_Input_Unbounded_3D(Input1,Input2,Input3);
+    Status = Solver->Transfer_Data_Device();
     if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
-    unsigned int t3 = stopwatch();  // Timer
+    unsigned int t3 = stopwatch();
 
     // Carry out execution
     Solver->Forward_Transform();
@@ -377,10 +460,10 @@ void Test_Unbounded_3DV_Curl(int NX, int NY, int NZ, bool ExportVTI = false)
     std::cout << "Output spec. "     << std::setw(10) << t5 csp "ms. [" << 100.0*t5/tTot << " %]" << std::endl;
     std::cout << std::scientific;
 
-    // If selected, export grid as VTI
-    if (ExportVTI) Solver->Create_vti();
+    // // If selected, export grid as VTI
+    if (ExportVTI) Solver->Create_vtk();
 
-    delete Solver;
+    // delete Solver;
 }
 
 void Test_Unbounded_3DV_Nabla(int NX, int NY, int NZ, bool ExportVTI = false)
@@ -400,12 +483,12 @@ void Test_Unbounded_3DV_Nabla(int NX, int NY, int NZ, bool ExportVTI = false)
     // Extract grid values
     RVector XGrid, YGrid, ZGrid;
     Real Lx, Ly, Lz;
-//    Real Hx, Hy, Hz;
+    //    Real Hx, Hy, Hz;
     Solver->Get_XGrid(XGrid);
     Solver->Get_YGrid(YGrid);
     Solver->Get_ZGrid(ZGrid);
     Solver->Get_Grid_Dims(Lx, Ly, Lz);
-//    Solver->Get_Grid_Res(Hx, Hy, Hz);
+    //    Solver->Get_Grid_Res(Hx, Hy, Hz);
 
     // If this is a grid-boundary solve, we have 1 extra grid point
     int NXM = NX, NYM = NY, NZM = NZ;
@@ -419,44 +502,55 @@ void Test_Unbounded_3DV_Nabla(int NX, int NY, int NZ, bool ExportVTI = false)
     RVector Output1 = RVector(NT,0);
     RVector Output2 = RVector(NT,0);
     RVector Output3 = RVector(NT,0);
-//    RVector Solution1 = RVector(NT,0);
-//    RVector Solution2 = RVector(NT,0);
-//    RVector Solution3 = RVector(NT,0);
+    RVector Solution1 = RVector(NT,0);
+    RVector Solution2 = RVector(NT,0);
+    RVector Solution3 = RVector(NT,0);
 
     OpenMPfor
-    for (int i=0; i<NXM; i++){
+        for (int i=0; i<NXM; i++){
         for (int j=0; j<NYM; j++){
             for (int k=0; k<NZM; k++){
                 int id = i*NYM*NZM + j*NZM + k;
-                RVector Inp = UTest_Omega_Hejlesen(     XGrid[i],YGrid[j],ZGrid[k],0.5);
-                RVector Sol = UTest_Velocity_Hejlesen(  XGrid[i],YGrid[j],ZGrid[k],0.5);
-                Input1[id] = Inp[0];        // X Vorticity
-                Input2[id] = Inp[1];        // Y Vorticity
-                Input3[id] = Inp[2];        // Z Vorticity
-//                Solution1[id] = Sol[0];     // X Velocity
-//                Solution2[id] = Sol[1];     // Y Velocity
-//                Solution3[id] = Sol[2];     // Z Velocity
+                UTest_Phi_Hejlesen(       XGrid[i],YGrid[j],ZGrid[k],0.5, Input1[id], Input2[id], Input3[id]);
+                UTest_Omega_Hejlesen(     XGrid[i],YGrid[j],ZGrid[k],0.5, Solution1[id], Solution2[id], Solution3[id]);
             }
         }
     }
     Status = Solver->Set_Input_Unbounded_3D(Input1,Input2,Input3);
+    Status = Solver->Transfer_Data_Device();
     if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
     unsigned int t3 = stopwatch();  // Timer
 
     // Carry out execution
     Solver->Forward_Transform();
-//    Solver->Convolution();
-    Solver->Transfer_FTInOut_Comp();    // This is necessary to extract the chosen arrays
+    Solver->Transfer_FTInOut_Comp();        // Transfer input to output array
     Solver->Spectral_Gradients_3DV_Nabla();
-
     Solver->Backward_Transform();
     unsigned int t4 = stopwatch();
 
+    // Retrieve solution & collect final timings
+    Solver->Get_Output_Unbounded_3D(Output1,Output2,Output3);
+    unsigned int t5 = stopwatch();
+    Real tTot = Real(t2+t3+t4+t5);
+
+    std::cout << "Trial Calculation: Solution of the unbounded 3D Poisson equation - nabla type (vector field)." << std::endl;
+    std::cout << std::scientific;
+    std::cout << "The grid was resolved with [" << NX <<" , "<< NY <<" , "<< NZ <<"] cells. " << std::endl;
+    std::cout << "E_inf Error (x component) =" csp std::scientific << E_Inf(Output1,Solution1) << std::endl;
+    std::cout << "E_inf Error (y component) =" csp std::scientific << E_Inf(Output2,Solution2) << std::endl;
+    std::cout << "E_inf Error (z component) =" csp std::scientific << E_Inf(Output3,Solution3) << std::endl;
+    std::cout << std::fixed << std::setprecision(1);
+    std::cout << "Execution Time:" <<  std::endl;
+    std::cout << "Solver setup "     << std::setw(10) << t2 csp "ms. [" << 100.0*t2/tTot << " %]" << std::endl;
+    std::cout << "Input spec.  "     << std::setw(10) << t3 csp "ms. [" << 100.0*t3/tTot << " %]" << std::endl;
+    std::cout << "Execution    "     << std::setw(10) << t4 csp "ms. [" << 100.0*t4/tTot << " %]" << std::endl;
+    std::cout << "Output spec. "     << std::setw(10) << t5 csp "ms. [" << 100.0*t5/tTot << " %]" << std::endl;
+    std::cout << std::scientific;
+
     // If selected, export grid as VTI
-    if (ExportVTI) Solver->Create_vti();
+    if (ExportVTI) Solver->Create_vtk();
 
     delete Solver;
 }
-
 
 #endif // TEST_3DV_H

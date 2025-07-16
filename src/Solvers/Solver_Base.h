@@ -93,7 +93,7 @@ public:
     virtual void Specify_Greens_Function()      {}
 
     //--- Grid visualisation
-    virtual void Create_vti()                   {}
+    virtual void Create_vtk()                   {}
 
     //--- Extract grid positions
     void Get_XGrid(RVector &X)      {for (int i=0; i<gNX; i++) X.push_back(gX[i]);}
@@ -113,7 +113,7 @@ class Solver_1D_Scalar : public Solver
 protected:
 
     // Default output name
-    std::string vti_Name = "Mesh_1D.vti";
+    std::string vtk_Name = "Mesh_1D.vtk";
 
 public:
 
@@ -133,7 +133,7 @@ class Solver_2D_Scalar : public Solver
 protected:
 
     // Default output name
-    std::string vti_Name = "Mesh_2D.vti";
+    std::string vtk_Name = "Mesh_2D.vtk";
 
 public:
 
@@ -147,7 +147,7 @@ public:
     virtual void Input_Test_function()      {}
 
     //--- Grid visualisation
-    virtual void Create_vti();
+    virtual void Create_vtk();
 };
 
 //--- 3D Scalar solver
@@ -156,7 +156,7 @@ class Solver_3D_Scalar : public Solver
 protected:
 
     // Default output name
-    std::string vti_Name = "Mesh_3D.vti";
+    std::string vtk_Name = "Mesh_3D.vtk";
 
 public:
 
@@ -170,7 +170,7 @@ public:
     virtual void Input_Test_function()      {}
 
     //--- Grid visualisation
-    virtual void Create_vti();
+    virtual void Create_vtk();
 };
 
 //--- 3D Vector solver
@@ -179,7 +179,7 @@ class Solver_3D_Vector : public Solver
 protected:
 
     // Default output name
-    std::string vti_Name = "Mesh_3DV.vti";
+    std::string vtk_Name = "Mesh_3DV.vtk";
 
 public:
 
@@ -193,7 +193,7 @@ public:
     virtual void Input_Test_function()      {}
 
     //--- Grid visualisation
-    virtual void Create_vti();
+    virtual void Create_vtk();
 };
 
 }

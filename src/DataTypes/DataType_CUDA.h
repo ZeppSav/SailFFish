@@ -33,40 +33,42 @@
 #ifdef CUFFT
 
 #include "DataType_Base.h"
+#include <cuda.h>
 #include <cuda_runtime.h>
 #include <cufft.h>
 #include <cublas_v2.h>
 #include <cuda_runtime_api.h>
-#include <cuda_runtime.h>
+#include <vector_types.h>
 
 namespace SailFFish
 {
 
 #ifdef SinglePrec
-    typedef float               CUDAReal;
-    typedef cuComplex           CUDAComplex;
-    static const cufftType_t    cufft_C2C = CUFFT_C2C;
-    static const cufftType_t    cufft_R2C = CUFFT_R2C;
-    static const cufftType_t    cufft_C2R = CUFFT_C2R;
-    #define cufft_Execute_C2C   cufftExecC2C
-    #define cufft_Execute_R2C   cufftExecR2C
-    #define cufft_Execute_C2R   cufftExecC2R
-    #define cublas_dgmm         cublasCdgmm
-    #define cublas_axpy         cublasCaxpy_v2
+typedef float               CUDAReal;
+typedef cuComplex           CUDAComplex;
+static const cufftType_t    cufft_C2C = CUFFT_C2C;
+static const cufftType_t    cufft_R2C = CUFFT_R2C;
+static const cufftType_t    cufft_C2R = CUFFT_C2R;
+#define cufft_Execute_C2C   cufftExecC2C
+#define cufft_Execute_R2C   cufftExecR2C
+#define cufft_Execute_C2R   cufftExecC2R
+#define cublas_dgmm         cublasCdgmm
+#define cublas_axpy         cublasCaxpy
+#define cublas_dot          cublasCdotu
 #endif
 #ifdef DoublePrec
-    typedef double              CUDAReal;
-    typedef cuDoubleComplex     CUDAComplex;
-    static const cufftType_t    cufft_C2C = CUFFT_Z2Z;
-    static const cufftType_t    cufft_R2C = CUFFT_D2Z;
-    static const cufftType_t    cufft_C2R = CUFFT_Z2D;
-    #define cufft_Execute_C2C   cufftExecZ2Z
-    #define cufft_Execute_R2C   cufftExecD2Z
-    #define cufft_Execute_C2R   cufftExecZ2D
-    #define cublas_dgmm         cublasZdgmm
-    #define cublas_axpy         cublasZaxpy_v2
+typedef double              CUDAReal;
+typedef cuDoubleComplex     CUDAComplex;
+static const cufftType_t    cufft_C2C = CUFFT_Z2Z;
+static const cufftType_t    cufft_R2C = CUFFT_D2Z;
+static const cufftType_t    cufft_C2R = CUFFT_Z2D;
+#define cufft_Execute_C2C   cufftExecZ2Z
+#define cufft_Execute_R2C   cufftExecD2Z
+#define cufft_Execute_C2R   cufftExecZ2D
+#define cublas_dgmm         cublasZdgmm
+#define cublas_axpy         cublasZaxpy
+#define cublas_dot          cublasZdotu
 #endif
-
 
 //--- Dimension & index structs & functions
 
@@ -166,6 +168,8 @@ public:
     void Prepare_Dif_Operators_3D(Real Hx, Real Hy, Real Hz);
 
     //--- Convolution
+    void Convolute(CUDAComplex *A, CUDAComplex *B, CUDAComplex *Result, int N);
+    void Increment(CUDAComplex *A, CUDAComplex *B, Real Fac, int N);
     void Convolution_Real()                     {}
     void Convolution_Real3()                    {}
     void Convolution_Complex();
@@ -182,9 +186,10 @@ public:
     void Spectral_Gradients_3D_Div();
     void Spectral_Gradients_3D_Grad();
     void Spectral_Gradients_3DV_Div();
-    void Spectral_Gradients_3DV_Grad();
+    void Spectral_Gradients_3DV_Grad(Component I);
     void Spectral_Gradients_3DV_Curl();
     void Spectral_Gradients_3DV_Nabla();
+    void Spectral_Gradients_3DV_Reprojection();
 
     //--- Destructor
     ~DataType_CUDA();

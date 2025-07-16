@@ -4,7 +4,7 @@
 // #include "Tests/Test_3DV.h"
 #include "Tests/Test_Vortex_Rings.h"
 
-static const bool Export_VTI = true;
+static const bool Export_VTK = true;
 
 int main()
 {
@@ -37,12 +37,13 @@ int main()
     // Test_Unbounded_3D(nx,ny,nz);
 
     //--- 3D vector solver tests
-   // Test_Dirichlet_3DV(nx,ny,nz);
-   // Test_Neumann_3DV(nx,ny,nz);
-   // Test_Periodic_3DV(nx,ny,nz);
-   // Test_Unbounded_3DV_Curl(nx,ny,nz);
+    // Test_Dirichlet_3DV(nx,ny,nz);
+    // Test_Neumann_3DV(nx,ny,nz);
+    // Test_Periodic_3DV(nx,ny,nz);
+    // Test_Unbounded_3DV(nx,ny,nz);
+    // Test_Unbounded_3DV_Curl(nx,ny,nz);
 
-    //--- VPM tests
+    // --- VPM tests
     Vortex_Ring_Evolution_Test();
 
     return 0;

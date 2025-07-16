@@ -453,8 +453,8 @@ protected:
     bool Log = false;                       // Are we writing the diagnostics to a log file?
     std::chrono::steady_clock::time_point Sim_begin, Sim_end;   // Start/stop time of sims--- total timing
 
-    //--- Output vti/k names
-    std::string vti_Prefix = "Mesh_3DV_";
+    //--- Output vtk names
+    std::string vtk_Prefix = "Mesh_3DV_";
 
 public:
 
@@ -533,8 +533,8 @@ public:
     virtual void Generate_Plane(RVector &U)        {}
 
     // //--- Output grid
-    virtual void Generate_VTI()                     {}
-    void Set_VTI_Prefix(std::string S)              {vti_Prefix = S;}
+    virtual void Generate_VTK()                     {}
+    void Set_VTK_Prefix(std::string S)              {vtk_Prefix = S;}
     virtual void Generate_Traverse(int XP, RVector &U, RVector &V, RVector &W)      {}
 
     // //--- Output summary

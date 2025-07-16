@@ -161,15 +161,15 @@ void Vortex_Ring_Evolution_Test()
     VPM->Set_Input_Arrays(Ox,Oy,Oz);
 
     //--- Generate initial volume grid
-    VPM->Generate_VTI();
+    VPM->Generate_VTK();
 
     //--- Execute simulation
-    int NStep = 1000;
+    int NStep = 100;
     for (int i=0; i<NStep; i++) VPM->Advance_Particle_Set();
 
     //--- Finalise simulation
     VPM->Generate_Summary_End();
-    VPM->Generate_VTI();
+    VPM->Generate_VTK();
 }
 
 #endif // TEST_RINGS_H

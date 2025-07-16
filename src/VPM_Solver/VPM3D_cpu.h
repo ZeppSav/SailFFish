@@ -97,8 +97,8 @@ public:
     void Set_Laplacian(RVector &xo, RVector &yo, RVector &zo);
     void Get_Stretching(RVector &dgidx, RVector &dgidy, RVector &dgidz, RVector &dgjdx, RVector &dgjdy, RVector &dgjdz,RVector &dgkdx, RVector &dgkdy, RVector &dgkdz);
     void Set_Stretching(RVector &dgidx, RVector &dgidy, RVector &dgidz, RVector &dgjdx, RVector &dgjdy, RVector &dgjdz,RVector &dgkdx, RVector &dgkdy, RVector &dgkdz);
-    void Generate_VTI() override;
-    void Generate_VTI(const RVector &A1, const RVector &A2, const RVector &A3, const RVector &B1, const RVector &B2, const RVector &B3);
+    void Generate_VTK() override;
+    void Generate_VTK(const RVector &A1, const RVector &A2, const RVector &A3, const RVector &B1, const RVector &B2, const RVector &B3);
     void Generate_Plane(RVector &Uvoid) override;
 
     //--- Destructor

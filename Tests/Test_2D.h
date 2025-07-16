@@ -37,7 +37,7 @@
 //--- Bounded solvers
 //---------------------
 
-void Test_Dirichlet_2D(int NX, int NY, bool ExportVTI = false)
+void Test_Dirichlet_2D(int NX, int NY, bool ExportVTK = false)
 {
     // Test case for 2D bounded Poisson solver with Dirichlet BCs
 
@@ -95,13 +95,13 @@ void Test_Dirichlet_2D(int NX, int NY, bool ExportVTI = false)
     std::cout << "Output spec. "     << std::setw(10) << t5 csp "ms. [" << 100.0*t5/tTot << " %]" << std::endl;
     std::cout << std::scientific;
 
-    // If selected, export grid as VTI
-    if (ExportVTI) Solver->Create_vti();
+    // If selected, export grid as VTK
+    if (ExportVTK) Solver->Create_vtk();
 
     delete Solver;
 }
 
-void Test_Dirichlet_2D_IHBC(int NX, int NY, bool ExportVTI = false)
+void Test_Dirichlet_2D_IHBC(int NX, int NY, bool ExportVTK = false)
 {
     // Test case for 2D bounded Poisson solver with Dirichlet BCs
 
@@ -172,13 +172,13 @@ void Test_Dirichlet_2D_IHBC(int NX, int NY, bool ExportVTI = false)
     std::cout << "Output spec. "     << std::setw(10) << t5 csp "ms. [" << 100.0*t5/tTot << " %]" << std::endl;
     std::cout << std::scientific;
 
-    // If selected, export grid as VTI
-    if (ExportVTI) Solver->Create_vti();
+    // If selected, export grid as VTK
+    if (ExportVTK) Solver->Create_vtk();
 
     delete Solver;
 }
 
-void Test_Neumann_2D(int NX, int NY, bool ExportVTI = false)
+void Test_Neumann_2D(int NX, int NY, bool ExportVTK = false)
 {
     // Test case for 2D bounded Poisson solver with Neumann BCs
 
@@ -237,13 +237,13 @@ void Test_Neumann_2D(int NX, int NY, bool ExportVTI = false)
     std::cout << "Output spec. "     << std::setw(10) << t5 csp "ms. [" << 100.0*t5/tTot << " %]" << std::endl;
     std::cout << std::scientific;
 
-    // If selected, export grid as VTI
-    if (ExportVTI) Solver->Create_vti();
+    // If selected, export grid as VTK
+    if (ExportVTK) Solver->Create_vtk();
 
     delete Solver;
 }
 
-void Test_Neumann_2D_IHBC(int NX, int NY, bool ExportVTI = false)
+void Test_Neumann_2D_IHBC(int NX, int NY, bool ExportVTK = false)
 {
     // Test case for 2D bounded Poisson solver with Neumann BCs
 
@@ -314,13 +314,13 @@ void Test_Neumann_2D_IHBC(int NX, int NY, bool ExportVTI = false)
     std::cout << "Output spec. "     << std::setw(10) << t5 csp "ms. [" << 100.0*t5/tTot << " %]" << std::endl;
     std::cout << std::scientific;
 
-    // If selected, export grid as VTI
-    if (ExportVTI) Solver->Create_vti();
+    // If selected, export grid as VTK
+    if (ExportVTK) Solver->Create_vtk();
 
     delete Solver;
 }
 
-void Test_Periodic_2D(int NX, int NY, bool ExportVTI = false)
+void Test_Periodic_2D(int NX, int NY, bool ExportVTK = false)
 {
     // Test case for 2D bounded Poisson solver with periodic BCs
 
@@ -379,8 +379,8 @@ void Test_Periodic_2D(int NX, int NY, bool ExportVTI = false)
 
 //    std::cout << NX csp std::scientific << E_Inf(Output,Solution) << std::endl;
 
-    // If selected, export grid as VTI
-    if (ExportVTI) Solver->Create_vti();
+    // If selected, export grid as VTK
+    if (ExportVTK) Solver->Create_vtk();
 
     delete Solver;
 }
@@ -389,7 +389,7 @@ void Test_Periodic_2D(int NX, int NY, bool ExportVTI = false)
 //--- Unbounded solvers
 //---------------------
 
-void Test_Unbounded_2D(int NX, int NY, bool ExportVTI = false)
+void Test_Unbounded_2D(int NX, int NY, bool ExportVTK = false)
 {
     // Test case for 2D unbounded Poisson solver
 
@@ -447,13 +447,13 @@ void Test_Unbounded_2D(int NX, int NY, bool ExportVTI = false)
     std::cout << "Output spec. "     << std::setw(10) << t5 csp "ms. [" << 100.0*t5/tTot << " %]" << std::endl;
     std::cout << std::scientific;
 
-    // If selected, export grid as VTI
-    if (ExportVTI) Solver->Create_vti();
+    // If selected, export grid as VTK
+    if (ExportVTK) Solver->Create_vtk();
 
     delete Solver;
 }
 
-void Test_Unbounded_2D_Grad(int NX, int NY, bool ExportVTI = false)
+void Test_Unbounded_2D_Grad(int NX, int NY, bool ExportVTK = false)
 {
     // Test case for 2D unbounded Poisson solver
 
@@ -516,8 +516,8 @@ void Test_Unbounded_2D_Grad(int NX, int NY, bool ExportVTI = false)
     std::cout << "Output spec. "     << std::setw(10) << t5 csp "ms. [" << 100.0*t5/tTot << " %]" << std::endl;
     std::cout << std::scientific;
 
-    // If selected, export grid as VTI
-    if (ExportVTI) Solver->Create_vti();
+    // If selected, export grid as VTK
+    if (ExportVTK) Solver->Create_vtk();
 
     delete Solver;
 }

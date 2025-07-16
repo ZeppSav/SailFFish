@@ -354,7 +354,7 @@ void VPM3D_cpu::Advance_Particle_Set()
     if (DivFilt && Remeshing && NStep%NReproject==0)   Reproject_Particle_Set_Spectral();   // Reproject vorticity field
     Update_Particle_Field();                                            // Update vorticity field
     // Filter_Boundary();
-    if (NExp>0 && NStep%NExp==0 && NStep>0) Generate_VTI();             // Export grid if desired
+    if (NExp>0 && NStep%NExp==0 && NStep>0) Generate_VTK();             // Export grid if desired
     Increment_Time();
 }
 
@@ -588,7 +588,7 @@ void VPM3D_cpu::Grid_Shear_Stresses()
         default:    {std::cout << "VPM3D_cpu::Grid_Shear_Stresses(). FDOrder undefined.";   return;}
     }
 
-    // Generate_VTI(g_Array[0], g_Array[1], g_Array[2], dgdt_Array[3],dgdt_Array[4],dgdt_Array[5]);        // Omega, velocity on Eulerian grid
+    // Generate_VTK(g_Array[0], g_Array[1], g_Array[2], dgdt_Array[3],dgdt_Array[4],dgdt_Array[5]);        // Omega, velocity on Eulerian grid
 }
 
 void VPM3D_cpu::Grid_Turb_Shear_Stresses()
@@ -1081,15 +1081,15 @@ void VPM3D_cpu::Set_Stretching( RVector &dgidx, RVector &dgidy, RVector &dgidz,
     }
 }
 
-void VPM3D_cpu::Generate_VTI()
+void VPM3D_cpu::Generate_VTK()
 {
-    // Specifies a specific output and then produces a vti file for this
-    Generate_VTI(eu_o[0], eu_o[1], eu_o[2], eu_dddt[0],eu_dddt[1],eu_dddt[2]);        // Omega, velocity on Eulerian grid
+    // Specifies a specific output and then produces a vtk file for this
+    Generate_VTK(eu_o[0], eu_o[1], eu_o[2], eu_dddt[0],eu_dddt[1],eu_dddt[2]);        // Omega, velocity on Eulerian grid
 }
 
-void VPM3D_cpu::Generate_VTI(const RVector &A1, const RVector &A2, const RVector &A3, const RVector &B1, const RVector &B2, const RVector &B3)
+void VPM3D_cpu::Generate_VTK(const RVector &A1, const RVector &A2, const RVector &A3, const RVector &B1, const RVector &B2, const RVector &B3)
 {
-    // Specifies a specific output and then produces a vti file for this
+    // Specifies a specific output and then produces a vtk file for this
 
     // std::cout << dom_size.x csp dom_size.y csp dom_size.z << std::endl;
     // std::cout << padded_dom_size.x csp padded_dom_size.y csp padded_dom_size.z << std::endl;
@@ -1108,14 +1108,14 @@ void VPM3D_cpu::Generate_VTI(const RVector &A1, const RVector &A2, const RVector
     }
 
     // Specify current filename.
-    vti_Name = vti_Prefix + std::to_string(NStep) + ".vti";
+    vtk_Name = vtk_Prefix + std::to_string(NStep) + ".vtk";
 
-    Create_vti();
+    Create_vtk();
 }
 
 void VPM3D_cpu::Generate_Plane(RVector &Uvoid)
 {
-    // Specifies a specific output and then produces a vti file for this
+    // Specifies a specific output and then produces a vtk file for this
 
     // I specify the y-value which shall be taken.
     int Y = NY/4;

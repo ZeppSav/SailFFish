@@ -168,6 +168,8 @@ inline Real CTest_Phi(Real x, Real Lx, Real y, Real Ly, Real z, Real Lz)    {ret
 
 static Real Cbf = 10.0;
 
+//--- 2D cases
+
 inline Real UTest_Omega(Real x)
 {
     if (fabs(x)<1.0)
@@ -177,14 +179,16 @@ inline Real UTest_Omega(Real x)
     }
     else    return 0.0;
 }
+
 inline Real UTest_Phi(Real x)
 {
     Real d = 1.0/(1-x*x);
     if (fabs(x)<1.0)    return exp(-Cbf*d);
     else                return 0.0;
 }
-//inline Real UTest_Omega(Real x, Real y)    {return UTest_Omega(sqrt(x*x + y*y));}
+
 inline Real UTest_Phi(Real x, Real y)      {return UTest_Phi(sqrt(x*x + y*y));}
+
 inline Real UTest_Omega_Hejlesen(Real x, Real y, Real r0)
 {
     // Function taken directly from Hejlesen solver input
@@ -193,13 +197,14 @@ inline Real UTest_Omega_Hejlesen(Real x, Real y, Real r0)
     if( r < r0 )
     {
         Omega = 4.0 * Cbf * pow(r0,2)
-               * exp(- Cbf * pow(r0,2)/(pow(r0,2) - pow(x,2) - pow(y,2)))
-               * ( pow(r0,4) - pow(x,4) - pow(y,4) - 2.0*pow(x,2)*pow(y,2)- Cbf*pow(x,2)*pow(r0,2)- Cbf*pow(y,2)*pow(r0,2) )
-               * pow(pow(r0,2) - pow(x,2) - pow(y,2),-4);
-//				Bx[ij] = pow(1.0 - r*r, m);
+                * exp(- Cbf * pow(r0,2)/(pow(r0,2) - pow(x,2) - pow(y,2)))
+                * ( pow(r0,4) - pow(x,4) - pow(y,4) - 2.0*pow(x,2)*pow(y,2)- Cbf*pow(x,2)*pow(r0,2)- Cbf*pow(y,2)*pow(r0,2) )
+                * pow(pow(r0,2) - pow(x,2) - pow(y,2),-4);
+        //				Bx[ij] = pow(1.0 - r*r, m);
     }
     return Omega;
 }
+
 inline Real UTest_XGrad_Hejlesen(Real x, Real y, Real r0)
 {
     // This is the analytical solution to the velocity field of the bump funtion in 2D.
@@ -208,12 +213,13 @@ inline Real UTest_XGrad_Hejlesen(Real x, Real y, Real r0)
     if (r<=r0)
     {
         sol = - 2.0 * Cbf * pow(r0,2) * x
-                 * exp( -Cbf * pow(r0,2)/(pow(r0,2) - pow(x,2) - pow(y,2)))
-                 * pow(pow(r0,2) - pow(x,2) - pow(y,2), -2);
+              * exp( -Cbf * pow(r0,2)/(pow(r0,2) - pow(x,2) - pow(y,2)))
+              * pow(pow(r0,2) - pow(x,2) - pow(y,2), -2);
     }
 
     return sol;
 }
+
 inline Real UTest_YGrad_Hejlesen(Real x, Real y, Real r0)
 {
     // This is the analytical solution to the velocity field of the bump funtion in 2D.
@@ -222,119 +228,211 @@ inline Real UTest_YGrad_Hejlesen(Real x, Real y, Real r0)
     if (r<=r0)
     {
         sol = - 2.0 * Cbf * pow(r0,2) * y
-                 * exp( -Cbf * pow(r0,2)/(pow(r0,2) - pow(x,2) - pow(y,2)))
-                 * pow(pow(r0,2) - pow(x,2) - pow(y,2), -2);
+              * exp( -Cbf * pow(r0,2)/(pow(r0,2) - pow(x,2) - pow(y,2)))
+              * pow(pow(r0,2) - pow(x,2) - pow(y,2), -2);
     }
 
     return sol;
-//    return solY;
+    //    return solY;
 }
-inline RVector UTest_Omega_Hejlesen(Real x, Real y, Real z, Real r0)
+
+//--- 3D cases
+
+inline void UTest_Omega_Hejlesen(Real x, Real y, Real z, Real r0, Real &ox, Real &oy, Real &oz)
 {
     // 3D vortex ring bump function
 
     Real rho   = sqrt(z*z + y*y);
     Real phi   = sqrt( pow(rho - r0,2) + pow(x,2) );
     Real theta = atan2(z,y);
-    Real Bx = 0.0, By = 0.0, Bz = 0.0;
+    // Real Bx = 0.0, By = 0.0, Bz = 0.0;
 
     if( phi < r0)
     {
         Real Bmag = -exp(- Cbf*pow(r0,2)/(2.0*r0*rho - pow(rho,2) - pow(x,2))) *
-                 ( 4.0*pow(Cbf,2)*pow(r0,4)*pow(x,2)*pow(rho,2)
-                 - 16.0*pow(r0,4)*pow(rho,4)
-                 + 32.0*pow(r0,3)*pow(rho,5)
-                 - 24.0*pow(r0,2)*pow(rho,6)
-                 + 8.0*r0*pow(rho,7)
-                 - 4.0*pow(rho,6)*pow(x,2)
-                 - 6.0*pow(rho,4)*pow(x,4)
-                 - 4.0*pow(rho,2)*pow(x,6)
-                 - 8.0*Cbf*pow(r0,5)*pow(rho,3)
-                 + 8.0*Cbf*pow(r0,4)*pow(rho,4)
-                 - 6.0*Cbf*pow(r0,3)*pow(rho,5)
-                 + 4.0*pow(Cbf,2)*pow(r0,6)*pow(rho,2)
-                 - 8.0*pow(Cbf,2)*pow(r0,5)*pow(rho,3)
-                 + 4.0*pow(Cbf,2)*pow(r0,4)*pow(rho,4)
-                 + 2.0*Cbf*pow(r0,2)*pow(rho,6)
-                 + 32.0*pow(r0,3)*pow(rho,3)*pow(x,2)
-                 - 48.0*pow(r0,2)*pow(rho,4)*pow(x,2)
-                 - 24.0*pow(r0,2)*pow(rho,2)*pow(x,4)
-                 + 24.0*r0*pow(rho,5)*pow(x,2)
-                 + 24.0*r0*pow(rho,3)*pow(x,4)
-                 + 8.0*r0*rho*pow(x,6)
-                 + 2.0*Cbf*pow(r0,3)*rho*pow(x,4)
-                 + 2.0*Cbf*pow(r0,2)*pow(rho,2)*pow(x,4)
-                 - 4.0*Cbf*pow(r0,3)*pow(rho,3)*pow(x,2)
-                 + 4.0*Cbf*pow(r0,2)*pow(rho,4)*pow(x,2)
-                 - pow(rho,8) - pow(x,8))
-                 * pow(2.0*r0*rho - pow(rho,2) - pow(x,2),-4) * pow(rho,-2);
+                    ( 4.0*pow(Cbf,2)*pow(r0,4)*pow(x,2)*pow(rho,2)
+                     - 16.0*pow(r0,4)*pow(rho,4)
+                     + 32.0*pow(r0,3)*pow(rho,5)
+                     - 24.0*pow(r0,2)*pow(rho,6)
+                     + 8.0*r0*pow(rho,7)
+                     - 4.0*pow(rho,6)*pow(x,2)
+                     - 6.0*pow(rho,4)*pow(x,4)
+                     - 4.0*pow(rho,2)*pow(x,6)
+                     - 8.0*Cbf*pow(r0,5)*pow(rho,3)
+                     + 8.0*Cbf*pow(r0,4)*pow(rho,4)
+                     - 6.0*Cbf*pow(r0,3)*pow(rho,5)
+                     + 4.0*pow(Cbf,2)*pow(r0,6)*pow(rho,2)
+                     - 8.0*pow(Cbf,2)*pow(r0,5)*pow(rho,3)
+                     + 4.0*pow(Cbf,2)*pow(r0,4)*pow(rho,4)
+                     + 2.0*Cbf*pow(r0,2)*pow(rho,6)
+                     + 32.0*pow(r0,3)*pow(rho,3)*pow(x,2)
+                     - 48.0*pow(r0,2)*pow(rho,4)*pow(x,2)
+                     - 24.0*pow(r0,2)*pow(rho,2)*pow(x,4)
+                     + 24.0*r0*pow(rho,5)*pow(x,2)
+                     + 24.0*r0*pow(rho,3)*pow(x,4)
+                     + 8.0*r0*rho*pow(x,6)
+                     + 2.0*Cbf*pow(r0,3)*rho*pow(x,4)
+                     + 2.0*Cbf*pow(r0,2)*pow(rho,2)*pow(x,4)
+                     - 4.0*Cbf*pow(r0,3)*pow(rho,3)*pow(x,2)
+                     + 4.0*Cbf*pow(r0,2)*pow(rho,4)*pow(x,2)
+                     - pow(rho,8) - pow(x,8))
+                    * pow(2.0*r0*rho - pow(rho,2) - pow(x,2),-4) * pow(rho,-2);
 
-        Bx =   0.0;
-        By = - sin(theta)*Bmag;
-        Bz =   cos(theta)*Bmag;
+        // Bx =   0.0;
+        // By = - sin(theta)*Bmag;
+        // Bz =   cos(theta)*Bmag;
+        ox =   0.0;
+        oy = - sin(theta)*Bmag;
+        oz =   cos(theta)*Bmag;
     }
-
-    RVector V;
-    V.push_back(Bx);
-    V.push_back(By);
-    V.push_back(Bz);
-    return V;
 }
-inline RVector UTest_Phi_Hejlesen(Real x, Real y, Real z, Real r0)
+
+inline void UTest_Phi_Hejlesen(Real x, Real y, Real z, Real r0, Real &px, Real &py, Real &pz)
 {
-    // 3D vortex ring bump function. Velocity components
+    // 3D vortex ring bump function. Potential components
 
-    Real rho   = sqrt(z*z + y*y);
-    Real phi   = sqrt( pow(rho - r0,2) + pow(x,2) );
+    // Approach 2
+    Real ryz = sqrt(z*z + y*y);
+    Real d = (ryz-r0)*(ryz-r0) + x*x;
+    Real a = sqrt(d)/r0;
+    Real u = -Cbf/(1.0-a*a);                // Scale this to avoid extremely small values
     Real theta = atan2(z,y);
-    Real phiX = 0.0, phiY = 0.0, phiZ = 0.0;
-
-    if( phi < r0 )
+    if( a < 1.0 )
     {
-        Real Amag = exp(-Cbf*pow(r0,2)/(2.0*r0*rho - pow(rho,2) - pow(x,2)));
-        phiX = 0.0;
-        phiY = sin(theta)*Amag;
-        phiZ = -cos(theta)*Amag;
+        px = 0.0;
+        py = sin(theta)*exp(u);
+        pz = -cos(theta)*exp(u);
     }
-
-    RVector V;
-    V.push_back(phiX);
-    V.push_back(phiY);
-    V.push_back(phiZ);
-    return V;
+    else
+    {
+        px = 0.0;
+        py = 0.0;
+        pz = 0.0;
+    }
 }
-inline RVector UTest_Velocity_Hejlesen(Real x, Real y, Real z, Real r0)
+
+inline void UTest_Velocity_Hejlesen(Real x, Real y, Real z, Real r0, Real &ux, Real &uy, Real &uz)
 {
     // 3D vortex ring bump function. Velocity components
 
     Real rho   = sqrt(z*z + y*y);
     Real phi   = sqrt( pow(rho - r0,2) + pow(x,2) );
     Real theta = atan2(z,y);
-    Real solX = 0.0, solY = 0.0, solZ = 0.0;
+    // Real solX = 0.0, solY = 0.0, solZ = 0.0;
 
     if( phi < r0 )
     {
         Real Amag = 2.0 * Cbf * pow(r0,2) * x
-             * exp(-Cbf*pow(r0,2)/(2.0*r0*rho - pow(rho,2) - pow(x,2)))
-             * pow(2.0*r0*rho - pow(rho,2) - pow(x,2),-2);
+                    * exp(-Cbf*pow(r0,2)/(2.0*r0*rho - pow(rho,2) - pow(x,2)))
+                    * pow(2.0*r0*rho - pow(rho,2) - pow(x,2),-2);
 
-        solX = exp( -Cbf * pow(r0,2)/(2.0 * r0 * rho - pow(rho,2) - pow(x,2)))
-                  * ( 4.0*pow(r0,2) *pow(rho,2)
-                    - 4.0*r0*pow(rho,3)
-                    - 4.0*r0*rho*pow(x,2)
-                    + pow(rho,4) + 2.0*pow(rho,2)*pow(x,2)
-                    + pow(x,4) + 2.0*Cbf*pow(r0,3)*rho
-                    - 2.0*Cbf*pow(r0,2)*pow(rho,2) )
-                  * pow(2.0*r0*rho - pow(rho,2) - pow(x,2),-2)*pow(rho,-1);
-        solY = cos(theta)*Amag;
-        solZ = sin(theta)*Amag;
+        // solX = exp( -Cbf * pow(r0,2)/(2.0 * r0 * rho - pow(rho,2) - pow(x,2)))
+        //           * ( 4.0*pow(r0,2) *pow(rho,2)
+        //             - 4.0*r0*pow(rho,3)
+        //             - 4.0*r0*rho*pow(x,2)
+        //             + pow(rho,4) + 2.0*pow(rho,2)*pow(x,2)
+        //             + pow(x,4) + 2.0*Cbf*pow(r0,3)*rho
+        //             - 2.0*Cbf*pow(r0,2)*pow(rho,2) )
+        //           * pow(2.0*r0*rho - pow(rho,2) - pow(x,2),-2)*pow(rho,-1);
+        // solY = cos(theta)*Amag;
+        // solZ = sin(theta)*Amag;
+
+        ux = exp( -Cbf * pow(r0,2)/(2.0 * r0 * rho - pow(rho,2) - pow(x,2)))
+             * ( 4.0*pow(r0,2) *pow(rho,2)
+                - 4.0*r0*pow(rho,3)
+                - 4.0*r0*rho*pow(x,2)
+                + pow(rho,4) + 2.0*pow(rho,2)*pow(x,2)
+                + pow(x,4) + 2.0*Cbf*pow(r0,3)*rho
+                - 2.0*Cbf*pow(r0,2)*pow(rho,2) )
+             * pow(2.0*r0*rho - pow(rho,2) - pow(x,2),-2)*pow(rho,-1);
+        uy = cos(theta)*Amag;
+        uz = sin(theta)*Amag;
     }
+}
 
-    RVector V;
-    V.push_back(solX);
-    V.push_back(solY);
-    V.push_back(solZ);
-    return V;
+inline void UTest_Gradient_Hejlesen(    Real x, Real y, Real z, Real r0,
+                                    Real &dfidx, Real &dfidy, Real &dfidz,
+                                    Real &dfjdx, Real &dfjdy, Real &dfjdz,
+                                    Real &dfkdx, Real &dfkdy, Real &dfkdz)
+{
+    // This function calculates the gradients of the bump function. Useful for testing finite differences.
+    Real ryz = sqrt(z*z + y*y);
+    Real d = (ryz-r0)*(ryz-r0) + x*x;
+    Real a = sqrt(d)/r0;
+    if( a < 1.0 )
+    {
+        Real u = -Cbf/(1.0-a*a);
+        Real f = exp(u);
+        Real dfda = -Cbf*2.0*a/pow(1-a*a,2.0)*exp(u);       // (df/du)*(du/da)
+        Real theta = atan2(z,y);
+        Real r2 = ryz*ryz;
+
+        // Gradient terms
+        Real dadx = x*a/d;
+        Real dady = y*(ryz-r0)/ryz*a/d;
+        Real dadz = z*(ryz-r0)/ryz*a/d;
+        Real dsindy = cos(theta)*-z/r2;
+        Real dsindz = cos(theta)*y/r2;
+        Real dcosdy = -sin(theta)*-z/r2;
+        Real dcosdz = -sin(theta)*y/r2;
+        dfidx = 0;
+        dfidy = 0;
+        dfidz = 0;
+        dfjdx = (dfda)*(dadx)*sin(theta);
+        dfjdy = (dfda)*(dady)*sin(theta) + f*dsindy;
+        dfjdz = (dfda)*(dadz)*sin(theta) + f*dsindz;
+        dfkdx = (dfda)*(dadx)*-cos(theta);
+        dfkdy = (dfda)*(dady)*-cos(theta) + -f*dcosdy;
+        dfkdz = (dfda)*(dadz)*-cos(theta) + -f*dcosdz;
+    }
+    else
+    {
+        dfidx = 0;
+        dfidy = 0;
+        dfidz = 0;
+        dfjdx = 0;
+        dfjdy = 0;
+        dfjdz = 0;
+        dfkdx = 0;
+        dfkdy = 0;
+        dfkdz = 0;
+    }
+}
+
+inline void UTest_Nabla_Hejlesen(Real x, Real y, Real z, Real r0, Real &nablaPsi)
+{
+    // This function calculates the gradients of the bump function. Useful for testing finite differences.
+    Real ryz = sqrt(z*z + y*y);
+    Real d = (ryz-r0)*(ryz-r0) + x*x;
+    Real a = sqrt(d)/r0;
+    if( a < 1.0 )
+    {
+        Real u = -Cbf/(1.0-a*a);
+        Real f = exp(u);
+        Real dfda = -Cbf*2.0*a/pow(1-a*a,2.0)*exp(u);       // (df/du)*(du/da)
+        Real theta = atan2(z,y);
+        Real r2 = ryz*ryz;
+
+        // Gradient terms
+        Real dadx = x*a/d;
+        Real dady = y*(ryz-r0)/ryz*a/d;
+        Real dadz = z*(ryz-r0)/ryz*a/d;
+        Real dsindy = cos(theta)*-z/r2;
+        Real dsindz = cos(theta)*y/r2;
+        Real dcosdy = -sin(theta)*-z/r2;
+        Real dcosdz = -sin(theta)*y/r2;
+
+        Real dfidx = 0;
+        Real dfjdy = (dfda)*(dady)*sin(theta) + f*dsindy;
+        // Real dfjdy = 0;
+        Real dfkdz = (dfda)*(dadz)*-cos(theta) + -f*dcosdz;
+        // Real dfkdz = 0;
+        nablaPsi = dfidx + dfjdy + dfkdz;
+    }
+    else
+    {
+        nablaPsi = 0;
+    }
 }
 
 #endif // TEST_FUNCTIONS_H

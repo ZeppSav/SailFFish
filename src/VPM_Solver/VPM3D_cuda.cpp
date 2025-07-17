@@ -1,4 +1,5 @@
 #include "VPM3D_cuda.h"
+#include "VPM3D_kernels_cuda.h"
 
 #ifdef CUFFT
 
@@ -629,30 +630,14 @@ SFStatus VPM3D_cuda::Initialize_Kernels()
 
     try{
 
-        // Utilities for compiling
-        using jitify::reflection::type_of;
+        // Generate full source code
         std::string Source = "my_program\n";
-
-        if (std::is_same<Real,float>::value){
-            Source.append("typedef float Real; \n");
-            Source.append("__device__   float  fastma(const float &a, const float &b, const float &c)    {return fmaf(a,b,c);}   \n");
-            Source.append("__device__   float  fab(const float &a)   {return fabs(a);}                  \n");
-            Source.append("__device__   float  mymax(float a, float b)   {return fmaxf(a,b);}           \n");
-        }
-        if (std::is_same<Real,double>::value){
-            Source.append("typedef double Real; \n");
-            Source.append("__device__ double fastma(const double &a, const double &b, const double &c) {return fma(a,b,c);}   \n");
-            Source.append("__device__ double fab(const double &a)  {return abs(a);}                     \n");
-            Source.append("__device__ double mymax(double a, double b)  {return max(a,b);}               \n");
-        }
-
-        // Add body of Kernel
-        std::string cudasources  = "../../SailFFish/src/VPM_Solver/VPM3D_kernels_cuda.cuh";
-        std::ifstream istream(cudasources.c_str());
-        std::string s(std::istreambuf_iterator<char>(istream), {});
-        Source.append(s);
+        if (std::is_same<Real,float>::value)    Source.append(VPM3D_cuda_kernels_float);
+        if (std::is_same<Real,double>::value)   Source.append(VPM3D_cuda_kernels_double);
+        Source.append(VPM3D_cuda_kernels_source);
 
         // Compile kernels
+        using jitify::reflection::type_of;
         CUDAComplex ComplexType = CUDAComplex(0,0);
         cuda_VPM_convolution = new cudaKernel(Source,"vpm_convolution",KID, type_of(ComplexType));
         cuda_VPM_reprojection = new cudaKernel(Source,"vpm_reprojection",KID, type_of(ComplexType));
@@ -674,10 +659,10 @@ SFStatus VPM3D_cuda::Initialize_Kernels()
         cuda_updateRK3 = new cudaKernel(Source,"updateRK3",KID);
         cuda_updateRK4 = new cudaKernel(Source,"updateRK4",KID);
         cuda_updateRKLS = new cudaKernel(Source,"updateRK_LS",KID);
-        cuda_stretch_FD2 = new cudaKernel(Source,"Shear_Stress",KID,1 ,2,(BX+2)*(BY+2)*(BZ+2));
-        cuda_stretch_FD4 = new cudaKernel(Source,"Shear_Stress",KID,2 ,4,(BX+4)*(BY+4)*(BZ+4));
-        cuda_stretch_FD6 = new cudaKernel(Source,"Shear_Stress",KID,3 ,6,(BX+6)*(BY+6)*(BZ+6));
-        cuda_stretch_FD8 = new cudaKernel(Source,"Shear_Stress",KID,4 ,8,(BX+8)*(BY+8)*(BZ+8));
+        cuda_stretch_FD2 = new cudaKernel(Source,"Shear_Stress",KID, 1 ,2,(BX+2)*(BY+2)*(BZ+2));
+        cuda_stretch_FD4 = new cudaKernel(Source,"Shear_Stress",KID, 2 ,4,(BX+4)*(BY+4)*(BZ+4));
+        cuda_stretch_FD6 = new cudaKernel(Source,"Shear_Stress",KID, 3 ,6,(BX+6)*(BY+6)*(BZ+6));
+        cuda_stretch_FD8 = new cudaKernel(Source,"Shear_Stress",KID, 4 ,8,(BX+8)*(BY+8)*(BZ+8));
         cuda_Diagnostics = new cudaKernel(Source,"DiagnosticsKernel",KID,BT);
         cuda_MagFilt1 = new cudaKernel(Source,"MagnitudeFiltering_Step1",KID,BT);
         cuda_MagFilt2 = new cudaKernel(Source,"MagnitudeFiltering_Step2",KID,BT);

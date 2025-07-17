@@ -57,6 +57,8 @@ INCLUDEPATH += "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.8\include
 CUDAPFAD = "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.8"
 win32: LIBS += -L$$CUDAPFAD\bin -lcudart64_110 -lcufft64_10 -lcufftw64_10 -lcublas64_11
 win32: LIBS += -L$$CUDAPFAD\lib\x64 -lcuda -lnvrtc
+# win32: LIBS += -L$$CUDAPFAD\bin -lcudart64_12 -lcufft64_11 -lcufftw64_11 -lcublas64_12
+# win32: LIBS += -L$$CUDAPFAD\lib\x64 -lcuda -lnvrtc
 unix: LIBS += -L$$CUDAPFAD\bin -lcudart64_110 -lcufft64_10 -lcufftw64_10 -lcublas64_11
 unix: LIBS += -L$$CUDAPFAD\lib\x64 -lcuda -lnvrtc
 #----------------------------------------------
@@ -118,4 +120,5 @@ HEADERS += src/VPM_Solver/VPM_Solver.h \
 
 INCLUDEPATH += $$PWD/../jitify      #Add Jitify path for custom kernels
 SOURCES += src/VPM_Solver/VPM3D_cuda.cpp
-HEADERS += src/VPM_Solver/VPM3D_cuda.h
+HEADERS += src/VPM_Solver/VPM3D_cuda.h \
+    src/VPM_Solver/VPM3D_kernels_cuda.h

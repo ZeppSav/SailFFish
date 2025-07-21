@@ -26,7 +26,6 @@
 
 *****************************************************************************/
 
-
 #ifndef DATATYPE_CUDA_H
 #define DATATYPE_CUDA_H
 
@@ -161,19 +160,19 @@ public:
     void Backward_FFT_C2R();
 
     //--- Greens functions prep
-    void Prep_Greens_Function_C2C();
-    void Prep_Greens_Function_R2C();
-    void Prepare_Dif_Operators_1D(Real Hx);
-    void Prepare_Dif_Operators_2D(Real Hx, Real Hy);
-    void Prepare_Dif_Operators_3D(Real Hx, Real Hy, Real Hz);
+    void Prep_Greens_Function_C2C()         override;
+    void Prep_Greens_Function_R2C()         override;
+    void Prepare_Dif_Operators_1D(Real Hx)  override;
+    void Prepare_Dif_Operators_2D(Real Hx, Real Hy) override;
+    void Prepare_Dif_Operators_3D(Real Hx, Real Hy, Real Hz)    override;
 
     //--- Convolution
     void Convolute(CUDAComplex *A, CUDAComplex *B, CUDAComplex *Result, int N);
     void Increment(CUDAComplex *A, CUDAComplex *B, Real Fac, int N);
-    void Convolution_Real()                     {}
-    void Convolution_Real3()                    {}
-    void Convolution_Complex();
-    void Convolution_Complex3();
+    void Convolution_Real()     override        {}
+    void Convolution_Real3()    override        {}
+    void Convolution_Complex()  override;
+    void Convolution_Complex3() override;
 
     //--- Spectral Gradients
     void Transfer_FTInOut_Comp();

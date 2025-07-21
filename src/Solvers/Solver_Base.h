@@ -29,6 +29,7 @@
 
 #include "../DataTypes/DataType_FFTW.h"
 #include "../DataTypes/DataType_CUDA.h"
+#include "../DataTypes/DataType_VkFFT.h"
 
 namespace SailFFish
 {
@@ -41,6 +42,8 @@ enum Unbounded_Kernel   {HEJ_S0, HEJ_G2, HEJ_G4, HEJ_G6, HEJ_G8, HEJ_G10};
     class Solver : public DataType_FFTW
 #elif CUFFT
     class Solver : public DataType_CUDA
+#elif VKFFT
+    class Solver : public DataType_VkFFT
 #endif
 {
 protected:

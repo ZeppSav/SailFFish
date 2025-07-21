@@ -1,6 +1,6 @@
 /****************************************************************************
     SailFFish Library
-    Copyright (C) 2022 Joseph Saverin j.saverin@tu-berlin.de
+    Copyright (C) 2022-present Joseph Saverin j.saverin@tu-berlin.de
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -161,13 +161,13 @@ public:
     void Get_Output_Unbounded_3D(RVector &I1, RVector &I2, RVector &I3);
 
     //--- Fourier transforms
-    void Forward_FFT_R2R()
+    void Forward_FFT_R2R()  override
     {
         if (r_in1 && r_ft_in1)      FFTW_Execute_R2R(Forward_Plan,r_Input1,r_FTInput1);
         if (r_in2 && r_ft_in2)      FFTW_Execute_R2R(Forward_Plan,r_Input2,r_FTInput2);
         if (r_in3 && r_ft_in3)      FFTW_Execute_R2R(Forward_Plan,r_Input3,r_FTInput3);
     }
-    void Backward_FFT_R2R()
+    void Backward_FFT_R2R() override
     {
 //        if (r_out_1 && r_ft_in1)    FFTW_Execute_R2R(Backward_Plan,r_FTInput1,r_Output1);
 //        if (r_out_2 && r_ft_in2)    FFTW_Execute_R2R(Backward_Plan,r_FTInput2,r_Output2);
@@ -177,13 +177,13 @@ public:
         if (r_out_3 && r_ft_out3)    FFTW_Execute_R2R(Backward_Plan,r_FTOutput3,r_Output3);
     }    
 
-    void Forward_FFT_DFT()
+    void Forward_FFT_DFT()  override
     {
         if (c_in1 && c_ft_in1)      FFTW_Execute_DFT(Forward_Plan,c_Input1,c_FTInput1);
         if (c_in2 && c_ft_in2)      FFTW_Execute_DFT(Forward_Plan,c_Input2,c_FTInput2);
         if (c_in3 && c_ft_in3)      FFTW_Execute_DFT(Forward_Plan,c_Input3,c_FTInput3);
     } 
-    void Backward_FFT_DFT()
+    void Backward_FFT_DFT() override
     {
 //        if (c_out_1 && c_ft_in1)    FFTW_Execute_DFT(Backward_Plan,c_FTInput1,c_Output1);
 //        if (c_out_2 && c_ft_in2)    FFTW_Execute_DFT(Backward_Plan,c_FTInput2,c_Output2);
@@ -193,13 +193,13 @@ public:
         if (c_out_3 && c_ft_out3)    FFTW_Execute_DFT(Backward_Plan,c_FTOutput3,c_Output3);
     }   
 
-    void Forward_FFT_R2C()
+    void Forward_FFT_R2C()  override
     {
         if (r_in1 && c_ft_in1)      FFTW_Execute_R2C(Forward_Plan,r_Input1,c_FTInput1);
         if (r_in2 && c_ft_in2)      FFTW_Execute_R2C(Forward_Plan,r_Input2,c_FTInput2);
         if (r_in3 && c_ft_in3)      FFTW_Execute_R2C(Forward_Plan,r_Input3,c_FTInput3);
     }
-    void Backward_FFT_C2R()
+    void Backward_FFT_C2R() override
     {
 //        if (r_out_1 && c_ft_in1)    FFTW_Execute_C2R(Backward_Plan,c_FTInput1,r_Output1);
 //        if (r_out_2 && c_ft_in2)    FFTW_Execute_C2R(Backward_Plan,c_FTInput2,r_Output2);
@@ -210,11 +210,11 @@ public:
     }
 
     //--- Greens functions prep
-    void Prep_Greens_Function_C2C();
-    void Prep_Greens_Function_R2C();
-    void Prepare_Dif_Operators_1D(Real Hx);
-    void Prepare_Dif_Operators_2D(Real Hx, Real Hy);
-    void Prepare_Dif_Operators_3D(Real Hx, Real Hy, Real Hz);
+    void Prep_Greens_Function_C2C()     override;
+    void Prep_Greens_Function_R2C()     override;
+    void Prepare_Dif_Operators_1D(Real Hx)  override;
+    void Prepare_Dif_Operators_2D(Real Hx, Real Hy) override;
+    void Prepare_Dif_Operators_3D(Real Hx, Real Hy, Real Hz) override;
 
     //--- Convolution
     void Convolution_Real();

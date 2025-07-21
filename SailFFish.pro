@@ -63,6 +63,26 @@ unix: LIBS += -L$$CUDAPFAD\bin -lcudart64_110 -lcufft64_10 -lcufftw64_10 -lcubla
 unix: LIBS += -L$$CUDAPFAD\lib\x64 -lcuda -lnvrtc
 #----------------------------------------------
 
+# #----------------------------------------------
+# # DataType VkFFT
+# #----------------------------------------------
+# DEFINES += VKFFT
+# #----------------------------------------------
+# # include path to OpenCL headers & VkFFT
+# #----------------------------------------------
+# INCLUDEPATH += $$PWD/..     # Add path for CL headers
+# INCLUDEPATH += $$PWD/../VkFFT           # Add path for vkFFT library
+# INCLUDEPATH += $$PWD/../VkFFT/VkFFT     # Add path for vkFFT library
+# INCLUDEPATH += $$PWD/../VkFFT/half_lib  # Add path for half precision library
+# INCLUDEPATH += $$PWD/../VkFFT/benchmark_scripts/
+# INCLUDEPATH += $$PWD/../VkFFT/benchmark_scripts/vkFFT_scripts
+# INCLUDEPATH += $$PWD/../VkFFT/benchmark_scripts/vkFFT_scripts/include  # Add path for tests and utilities
+# INCLUDEPATH += $$PWD/../VkFFT/benchmark_scripts/vkFFT_scripts/src      # Add path for tests and utilities sources
+# #--- Include OpenCL lib
+# win32: LIBS += -L$$PWD/libswin64 -lOpenCL
+# DEFINES += VKFFT_BACKEND=3
+# #----------------------------------------------
+
 #----------------------------------------------
 # Eigen support
 #----------------------------------------------
@@ -78,6 +98,7 @@ SOURCES += \
     src/DataTypes/DataType_CUDA.cpp \
     src/DataTypes/DataType_FFTW.cpp \
     src/DataTypes/DataType_MKL.cpp \
+    src/DataTypes/DataType_VkFFT.cpp \
     src/Solvers/Dirichlet_Solver.cpp \
     src/Solvers/Export_Grid.cpp \
     src/Solvers/Neumann_Solver.cpp \
@@ -90,6 +111,7 @@ HEADERS += \
     src/DataTypes/DataType_CUDA.h \
     src/DataTypes/DataType_FFTW.h \
     src/DataTypes/DataType_MKL.h \
+    src/DataTypes/DataType_VkFFT.h \
     src/SailFFish.h \
     src/Solvers/Dirichlet_Solver.h \
     src/Solvers/Greens_Functions.h \

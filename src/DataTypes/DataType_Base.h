@@ -126,6 +126,27 @@ public:
     virtual void Get_Output_Unbounded_3D(RVector &I)                                {}
     virtual void Get_Output_Unbounded_3D(RVector &I1, RVector &I2, RVector &I3)     {}
 
+    //--- Greens functions prep
+    virtual void Prep_Greens_Function_C2C()                             {}
+    virtual void Prep_Greens_Function_R2C()                             {}
+    virtual void Prepare_Dif_Operators_1D(Real Hx)                      {}
+    virtual void Prepare_Dif_Operators_2D(Real Hx, Real Hy)             {}
+    virtual void Prepare_Dif_Operators_3D(Real Hx, Real Hy, Real Hz)    {}
+
+    //--- Fourier transforms
+    virtual void Forward_FFT_R2R()      {}
+    virtual void Backward_FFT_R2R()     {}
+    virtual void Forward_FFT_DFT()      {}
+    virtual void Backward_FFT_DFT()     {}
+    virtual void Forward_FFT_R2C()      {}
+    virtual void Backward_FFT_C2R()     {}
+
+    //--- Convolution
+    virtual void Convolution_Real()     {}
+    virtual void Convolution_Real3()    {}
+    virtual void Convolution_Complex()  {}
+    virtual void Convolution_Complex3() {}
+
 
     //--- Spectral gradients
     virtual void Spectral_Gradients_3DV_Reprojection()                              {}

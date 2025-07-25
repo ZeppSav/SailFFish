@@ -34,7 +34,7 @@ namespace SailFFish
 
 //--- Status messages
 
-enum SFStatus       {NoError, DimError, MemError, SetupError, ExecError, GridError};
+enum SFStatus       {NoError, DimError, MemError, SetupError, InputError, ExecError, GridError};
 enum FTType         {DCT1, DCT2, DST1, DST2, DFT_C2C, DFT_R2C};
 enum OperatorType   {NONE, DIV, CURL, GRAD, NABLA};
 enum Component      {XComp, YComp, ZComp};
@@ -52,10 +52,22 @@ protected:
     OperatorType Operator = NONE;
 
     //--- Grid vars
-    int NT = 0, NTM = 0;
-    int NX = 0, NXM = 0;
-    int NY = 0, NYM = 0;
-    int NZ = 0, NZM = 0;
+    int NT = 0, NTM = 0;        // Number of grid nodes in _ direction
+    int NX = 0, NXM = 0;        // Number of grid nodes in _ direction
+    int NY = 0, NYM = 0;        // Number of grid nodes in _ direction
+    int NZ = 0, NZM = 0;        // Number of grid nodes in _ direction
+
+    int gNT = 0;
+    int NCX=0, NCY=0, NCZ=0;    // Number of cells
+    int gNX=0, gNY=0, gNZ=0;    // Number of grid nodes
+
+    Real Xl, Xu;                // X Limits
+    Real Yl, Yu;                // Y Limits
+    Real Zl, Zu;                // Z Limits
+    Real Lx, Ly, Lz;            // Domain widths
+    Real Hx, Hy, Hz;            // Cell widths
+    RVector fX, fY, fZ;         // X-Y values on FFT grid
+    RVector gX, gY, gZ;         // X-Y values on solution grid
 
     //--- Scaling factors
     Real FFac = 1.0, BFac = 1.0;
@@ -127,6 +139,7 @@ public:
     virtual void Get_Output_Unbounded_3D(RVector &I1, RVector &I2, RVector &I3)     {}
 
     //--- Greens functions prep
+    virtual void Prep_Greens_Function_R2R()                             {}
     virtual void Prep_Greens_Function_C2C()                             {}
     virtual void Prep_Greens_Function_R2C()                             {}
     virtual void Prepare_Dif_Operators_1D(Real Hx)                      {}

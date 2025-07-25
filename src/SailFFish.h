@@ -26,6 +26,7 @@
 #ifndef SAILFFISH_H
 #define SAILFFISH_H
 
+#include "SailFFish_Math_Types.h"
 #include "Solvers/Periodic_Solver.h"
 #include "Solvers/Dirichlet_Solver.h"
 #include "Solvers/Neumann_Solver.h"

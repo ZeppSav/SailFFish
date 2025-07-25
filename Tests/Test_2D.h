@@ -365,6 +365,8 @@ void Test_Periodic_2D(int NX, int NY, bool ExportVTK = false)
     unsigned int t5 = stopwatch();
     Real tTot = Real(t2+t3+t4+t5);
 
+    // for (int i=0; i<100; i++) std::cout << XGrid[i] csp Input[i] csp Output[i] csp Solution[i] csp Output[i]/Input[i] << std::endl;  // Output do we return the correct result FFt+iFFT
+
     std::cout << "Trial Calculation: Solution of the 2D Poisson equation with Periodic boundary conditions." << std::endl;
     std::cout << std::scientific;
     std::cout << "The grid was resolved with [" << NX <<" , "<< NY <<" , "<< 1 <<"] cells. " << std::endl;

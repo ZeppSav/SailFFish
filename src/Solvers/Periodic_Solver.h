@@ -43,7 +43,7 @@ public:
     SFStatus FFT_Data_Setup()
     {
         SFStatus Stat = SetupError;
-        if (Grid==REGULAR)      Stat =  Setup_1D(gNX-1);
+        if (Grid==REGULAR)      Stat = Setup_1D(gNX-1);
         if (Grid==STAGGERED)    Stat = Setup_1D(gNX);
         return Stat;
     }

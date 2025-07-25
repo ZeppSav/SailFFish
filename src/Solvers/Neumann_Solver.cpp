@@ -287,6 +287,9 @@ void Poisson_Neumann_1D::Specify_Greens_Function()
         if (i>0)  r_FG[i] = BFac/fx[i];
         else      r_FG[i] = 0.0;
     }
+
+    // Datatype-specific prep for the convolution
+    Prep_Greens_Function_R2R();
 }
 
 void Poisson_Neumann_2D::Specify_Greens_Function()
@@ -328,6 +331,9 @@ void Poisson_Neumann_2D::Specify_Greens_Function()
             else            r_FG[GID(i,j,NX,NY)] = 0.0;
         }
     }
+
+    // Datatype-specific prep for the convolution
+    Prep_Greens_Function_R2R();
 }
 
 void Poisson_Neumann_3D::Specify_Greens_Function()
@@ -374,6 +380,9 @@ void Poisson_Neumann_3D::Specify_Greens_Function()
             }
         }
     }
+
+    // Datatype-specific prep for the convolution
+    Prep_Greens_Function_R2R();
 }
 
 void Poisson_Neumann_3DV::Specify_Greens_Function()
@@ -417,6 +426,9 @@ void Poisson_Neumann_3DV::Specify_Greens_Function()
             }
         }
     }
+
+    // Datatype-specific prep for the convolution
+    Prep_Greens_Function_R2R();
 }
 
 }

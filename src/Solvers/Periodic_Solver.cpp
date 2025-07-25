@@ -86,23 +86,14 @@ void Poisson_Periodic_1D::Specify_Greens_Function()
     }
     if (Spect_Kernel==PS){
             for (int i=0; i<NX; i++)    fx.push_back(EV_PS_Reg_Periodic(i,NX,Lx));
+        // for (int i=0; i<NX; i++)    fx.push_back(EV_PS_Reg_Periodic(i,NX,2.0*Lx));
     }
 
     OpenMPfor
     for (int i=0; i<NX; i++) r_FG[i] = BFac/(fx[i]);
     r_FG[0] = 0.0;
 
-
     Prep_Greens_Function_C2C();
-
-//    OpenMPfor
-//    for (int i=0; i<NX; i++){
-//        if (i>0)    r_FG[i] = BFac/(fx[i]);
-//        else        r_FG[i] = 0.0;
-//    }
-//    Prep_Greens_Function();
-
-//    std::cout << "BFac = "<< BFac << std::endl;
 }
 
 void Poisson_Periodic_2D::Specify_Greens_Function()

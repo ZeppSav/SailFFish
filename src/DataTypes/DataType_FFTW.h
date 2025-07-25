@@ -210,6 +210,7 @@ public:
     }
 
     //--- Greens functions prep
+    // void Prep_Greens_Function_R2R()  // Nothing to do here. Green's function is defined in frequency space.
     void Prep_Greens_Function_C2C()     override;
     void Prep_Greens_Function_R2C()     override;
     void Prepare_Dif_Operators_1D(Real Hx)  override;

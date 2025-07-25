@@ -48,19 +48,6 @@ enum Unbounded_Kernel   {HEJ_S0, HEJ_G2, HEJ_G4, HEJ_G6, HEJ_G8, HEJ_G10};
 {
 protected:
 
-    //--- Grid vars
-    int gNT = 0;
-    int NCX=0, NCY=0, NCZ=0;    // Number of cells
-    int gNX=0, gNY=0, gNZ=0;    // Number of grid nodes
-
-    Real Xl, Xu;                // X Limits
-    Real Yl, Yu;                // Y Limits
-    Real Zl, Zu;                // Z Limits
-    Real Lx, Ly, Lz;            // Domain widths
-    Real Hx, Hy, Hz;            // Cell widths
-    RVector fX, fY, fZ;         // X-Y values on FFT grid
-    RVector gX, gY, gZ;         // X-Y values on solution grid
-
     //--- Solver parameters
     Grid_Type Grid = REGULAR;
     Bounded_Kernel Spect_Kernel = FD2;

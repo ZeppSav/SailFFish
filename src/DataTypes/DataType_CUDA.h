@@ -152,8 +152,8 @@ public:
     void Get_Output_Unbounded_3D(RVector &I1, RVector &I2, RVector &I3);
 
     //--- Fourier transforms
-    void Forward_FFT_R2R()      {}      // Not available in CUDA
-    void Backward_FFT_R2R()     {}      // Not available in CUDA
+    // void Forward_FFT_R2R()      {}      // Not available in CUDA
+    // void Backward_FFT_R2R()     {}      // Not available in CUDA
     void Forward_FFT_DFT();
     void Backward_FFT_DFT();
     void Forward_FFT_R2C();

@@ -266,6 +266,14 @@ void Test_Periodic_1D(int NX)
     unsigned int t5 = stopwatch();
     Real tTot = Real(t2+t3+t4+t5);
 
+    // for (int i=0; i<10; i++) std::cout << Solution[i] <<" , "<< Output[i] << std::endl;
+    // for (int i=0; i<NX; i++) std::cout << XGrid[i] csp Input[i] csp Output[i] csp Solution[i] csp Output[i]/Solution[i] << std::endl; // Accuracy of the solution.
+    // for (int i=0; i<NX; i++) std::cout << XGrid[i] csp Input[i] csp Output[i] csp Solution[i] csp Output[i]/Input[i] << std::endl;  // Output do we return the correct result FFt+iFFT
+
+    // for (int i=0; i<NX; i++) std::cout << Output[i] << std::endl;
+    // std::cout << NX csp 2.0/NX csp Output[10]/Solution[10] << std::endl;
+    // std::cout << NX csp 2.0/NX csp Solution[10]/Output[10] << std::endl;
+
     std::cout << "Trial Calculation: Solution of the 1D Poisson equation with Periodic boundary conditions." << std::endl;
     std::cout << std::scientific;
     std::cout << "The grid was resolved with [" << NX <<" , "<< 1 <<" , "<< 1 <<"] cells. " << std::endl;

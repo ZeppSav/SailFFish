@@ -115,6 +115,7 @@ HEADERS += \
     src/DataTypes/DataType_FFTW.h \
     src/DataTypes/DataType_MKL.h \
     src/DataTypes/DataType_VkFFT.h \
+    src/DataTypes/DataType_VkFFT_kernels.h \
     src/SailFFish.h \
     src/Solvers/Dirichlet_Solver.h \
     src/Solvers/Greens_Functions.h \

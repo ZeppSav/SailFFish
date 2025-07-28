@@ -167,6 +167,42 @@ inline uint GID(const uint &i, const uint &j, const uint &NX, const uint &NY, co
     else        return j*NX + i;    // Column-major
 }
 
+//--- OpenCL kernels for convolution
+
+const std::string ocl_kernels_float = R"CLC(
+typedef float Real;
+typedef float2 Complex;
+)CLC";
+
+const std::string ocl_kernels_double = R"CLC(
+typedef double Real;
+typedef double2 Complex;
+)CLC";
+
+const std::string ocl_multiply = R"CLC(
+__kernel void multiply_in_place(__global Real* A, __global const Real* B) {
+    int i = get_global_id(0);
+    Real a_real = A[i];
+    Real b_real = B[i];
+    Real result = a_real * b_real;
+    A[i] = result;
+}
+)CLC";
+
+const std::string ocl_complexmultiply = R"CLC(
+__kernel void complex_multiply_in_place(__global Complex* A, __global Complex* B) {
+    int i = get_global_id(0);
+    // int ig = get_global_size(0);
+    // if (i<ig){
+        Complex a = A[i];
+        Complex b = B[i];
+        Real res_re = a.x * b.x - a.y * b.y;
+        Real res_im = a.x * b.y + a.y * b.x;
+        A[i] = (Complex){res_re,res_im};
+    // }
+}
+)CLC";
+
 class DataType_VkFFT : public DataType
 {
 
@@ -193,6 +229,7 @@ protected:
     cl_mem c_DummyBuffer1, c_DummyBuffer2, c_DummyBuffer3;
     cl_mem c_DummyBuffer4, c_DummyBuffer5, c_DummyBuffer6;
     cl_mem c_FG, c_FGi, c_FGj, c_FGk;
+    cl_mem InputBuffer;
 
     //--- VkFFT Objects
     int FFTDim = 1;
@@ -200,11 +237,17 @@ protected:
     VkGPU *vkGPU;
     uint64_t bufferSizeX = 0, bufferSizeY = 0, bufferSizeZ = 0, bufferSizeNT = 0, bufferSizeNTM = 0;
     uint64_t c_bufferSizeX = 0, c_bufferSizeY = 0, c_bufferSizeZ = 0, c_bufferSizeNT = 0, c_bufferSizeNTM = 0;
+    uint64_t InputbufferSize = 0;
 
     //--- VkFFT Kernel objects (standard FFT + kernel config)
     VkFFTConfiguration configuration = {}, kernel_configuration = {};
     VkFFTApplication app = {}, kernel_app = {};
     VkFFTLaunchParams launchParams = {}, kernel_launchParams = {};
+
+    //--- Convolution kernels (if not using fused CL kernels)
+    cl_program conv_program;
+    cl_kernel conv_kernel;
+    // void Build_complex_Kernel()
 
     //--- Memory management
     SFStatus Allocate_Buffer(cl_mem &buffer, uint64_t bufsize);
@@ -254,8 +297,9 @@ public:
     // virtual void Get_Output_Unbounded_3D(RVector &I1, RVector &I2, RVector &I3)     {}
 
     //--- Greens functions prep
-    // void Prep_Greens_Function_R2R()                             {}
-    void Prep_Greens_Function_C2C()                  override;
+    void Prep_Greens_Function(bool RealVals);
+    void Prep_Greens_Function_R2R()                  override       {Prep_Greens_Function(true);};
+    void Prep_Greens_Function_C2C()                  override       {Prep_Greens_Function(false);};
     // void Prep_Greens_Function_R2C()                             {}
     // void Prepare_Dif_Operators_1D(Real Hx)                      {}
     // void Prepare_Dif_Operators_2D(Real Hx, Real Hy)             {}
@@ -272,9 +316,10 @@ public:
     //--- Convolution
     // We can completely avoid the convolution step if we are using a VkFFT backend, as we will exploit the
     // convolution feature of the VkFFT to carry out the convolution in one single step.
-    // void Convolution_Real()     {}
+    void Convolution();
+    void Convolution_Real()     override    {Convolution();}
     // void Convolution_Real3()    {}
-    void Convolution_Complex()  override;
+    void Convolution_Complex()  override    {Convolution();}
     // void Convolution_Complex3() override;
 
     //--- Sp

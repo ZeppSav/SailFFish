@@ -402,6 +402,9 @@ void Test_Periodic_3D(int NX, int NY, int NZ, bool ExportVTK = false)
     unsigned int t5 = stopwatch();
     Real tTot = Real(t2+t3+t4+t5);
 
+    // for (int i=0; i<NX; i++) std::cout << XGrid[i] csp Input[i] csp Output[i] csp Solution[i] csp Output[i]/Input[i] << std::endl;  // Output do we return the correct result FFt+iFFT
+    // for (int i=0; i<NX; i++) std::cout << XGrid[i] csp Input[i] csp Output[i] csp Solution[i] csp Output[i]/Solution[i] << std::endl;  // Output do we return the correct result FFt+iFFT
+
     std::cout << "Trial Calculation: Solution of the 3D Poisson equation with periodic boundary conditions." << std::endl;
     std::cout << std::scientific;
     std::cout << "The grid was resolved with [" << NX <<","<< NY <<","<< NZ <<"] cells." << std::endl;

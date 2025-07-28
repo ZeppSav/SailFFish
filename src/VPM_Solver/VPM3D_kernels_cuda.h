@@ -6,7 +6,8 @@
 
 #include "../SailFFish_Math_Types.h"
 
-namespace SailFFish {
+namespace SailFFish
+{
 
 const std::string VPM3D_cuda_kernels_float = R"CLC(
 typedef float Real;

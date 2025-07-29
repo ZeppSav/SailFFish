@@ -361,6 +361,8 @@ void Poisson_Dirichlet_3D::Specify_Greens_Function()
     for (int i=0; i<NX; i++){
         for (int j=0; j<NY; j++){
             for (int k=0; k<NZ; k++) r_FG[GID(i,j,k,NX,NY,NZ)] = BFac/(fx[i]+fy[j]+fz[k]);
+            // int vk = i + j*NX
+            // for (int k=0; k<NZ; k++) r_FG[GID(k,j,i,NZ,NY,NX)] = BFac/(fx[i]+fy[j]+fz[k]);
         }
     }
 

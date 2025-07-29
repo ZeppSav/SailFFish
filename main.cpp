@@ -19,11 +19,11 @@ int main()
     // int nx = 16384*2;
 
     //--- 1D solver tests
-    Test_Dirichlet_1D(nx);
+    // Test_Dirichlet_1D(nx);
     // Test_Dirichlet_1D_IHBC(nx);
     // Test_Neumann_1D(nx);
     // Test_Periodic_1D(nx);
-    // Test_Unbounded_1D(nx);
+    Test_Unbounded_1D(nx);
 
     //--- 2D scalar solver tests
     // Test_Dirichlet_2D(nx,ny);

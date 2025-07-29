@@ -182,10 +182,13 @@ typedef double2 Complex;
 const std::string ocl_multiply = R"CLC(
 __kernel void multiply_in_place(__global Real* A, __global const Real* B) {
     int i = get_global_id(0);
+    // int ig = get_global_size(0);
+    // if (i<ig){
     Real a_real = A[i];
     Real b_real = B[i];
     Real result = a_real * b_real;
     A[i] = result;
+    // }
 }
 )CLC";
 
@@ -279,9 +282,11 @@ public:
     SFStatus Deallocate_Arrays()    override;
 
     //--- Specify Input
+    VkFFTResult ConvertArray_R2C(RVector &I, void* input_buffer, size_t N);
+    VkFFTResult ConvertArray_C2R(RVector &I, void* input_buffer, size_t N);
     SFStatus Set_Input(RVector &I) override;
-    // virtual SFStatus Set_Input(RVector &I1, RVector &I2, RVector &I3)               override;
-    // virtual SFStatus Set_Input_Unbounded_1D(RVector &I)                             override;
+    SFStatus Set_Input(RVector &I1, RVector &I2, RVector &I3)   override;
+    SFStatus Set_Input_Unbounded_1D(RVector &I)                 override;
     // virtual SFStatus Set_Input_Unbounded_2D(RVector &I)                             override;
     // virtual SFStatus Set_Input_Unbounded_3D(RVector &I)                             override;
     // virtual SFStatus Set_Input_Unbounded_3D(RVector &I1, RVector &I2, RVector &I3)  override;
@@ -289,41 +294,45 @@ public:
 
     //--- Retrieve output array
     void Get_Output(RVector &I)         override;
-    // virtual void Get_Output(RVector &I1, RVector &I2, RVector &I3)                  {}
-    // virtual void Get_Output_Unbounded_1D(RVector &I)                                {}
+    void Get_Output(RVector &I1, RVector &I2, RVector &I3)  override;
+    void Get_Output_Unbounded_1D(RVector &I)                override;
     // virtual void Get_Output_Unbounded_2D(RVector &I)                                {}
     // virtual void Get_Output_Unbounded_2D(RVector &I1, RVector &I2)                  {}
     // virtual void Get_Output_Unbounded_3D(RVector &I)                                {}
     // virtual void Get_Output_Unbounded_3D(RVector &I1, RVector &I2, RVector &I3)     {}
 
     //--- Greens functions prep
-    void Prep_Greens_Function(bool RealVals);
-    void Prep_Greens_Function_R2R()                  override       {Prep_Greens_Function(true);};
-    void Prep_Greens_Function_C2C()                  override       {Prep_Greens_Function(false);};
-    // void Prep_Greens_Function_R2C()                             {}
+    void Prep_Greens_Function(FTType TF);
+    void Prep_Greens_Function_R2R()     override    {Prep_Greens_Function(DFT_R2R);};
+    void Prep_Greens_Function_C2C()     override    {Prep_Greens_Function(DFT_C2C);};
+    void Prep_Greens_Function_R2C()     override    ;
     // void Prepare_Dif_Operators_1D(Real Hx)                      {}
     // void Prepare_Dif_Operators_2D(Real Hx, Real Hy)             {}
     // void Prepare_Dif_Operators_3D(Real Hx, Real Hy, Real Hz)    {}
 
-    //--- Fourier transforms
-    // void Forward_FFT_R2R()      {}
-    // void Backward_FFT_R2R()     {}
-    void Forward_FFT_DFT()  override;
-    void Backward_FFT_DFT() override;
-    // void Forward_FFT_R2C()      {}
-    // void Backward_FFT_C2R()     {}
+    //--- Fourier transforms (Note: Backward FFT/iFFT should not be called if Fused Kernel most employed!)
+    VkFFTResult FFT_DFT(bool Forward);
+    void Forward_FFT_R2R()  override;//    {FFT_DFT(true);}
+    void Backward_FFT_R2R() override;//    {if (!FusedKernel) FFT_DFT(false);}
+    void Forward_FFT_DFT()  override;//    {FFT_DFT(true);}
+    void Backward_FFT_DFT() override;//    {if (!FusedKernel) FFT_DFT(false);}
+    // void Forward_FFT_R2C()  override    {FFT_DFT(true);}
+    // void Backward_FFT_C2R() override    {if (!FusedKernel) FFT_DFT(false);}
 
     //--- Convolution
     // We can completely avoid the convolution step if we are using a VkFFT backend, as we will exploit the
     // convolution feature of the VkFFT to carry out the convolution in one single step.
-    void Convolution();
+    cl_int Convolution();
     void Convolution_Real()     override    {Convolution();}
-    // void Convolution_Real3()    {}
+    void Convolution_Real3()    override;
     void Convolution_Complex()  override    {Convolution();}
-    // void Convolution_Complex3() override;
+    void Convolution_Complex3() override;
 
-    //--- Sp
+    //--- Spectral gradients- these are dummies for now
     void Spectral_Gradients_2D_Grad()       {}
+    void Spectral_Gradients_3DV_Curl()      {}
+    void Spectral_Gradients_3DV_Nabla()     {}
+    void Transfer_FTInOut_Comp()            {}
 
 };
 

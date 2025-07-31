@@ -677,6 +677,8 @@ SFStatus VPM3D_cuda::Initialize_Kernels()
         cuda_map_to_AuxiliaryVPM = new cudaKernel(Source,"MaptoAuxiliaryVPMGrid",KID,SAX,SAY,SAZ,NBAX,NBAY,NBAZ);
         cuda_map_from_AuxiliaryVPM = new cudaKernel(Source,"MapFromAuxiliaryVPMGrid",KID,SAX,SAY,SAZ,NBAX,NBAY,NBAZ);
         cuda_map_aux_toUnboundedVPM = new cudaKernel(Source,"MapFromAuxiliaryGridVPM_toUnbounded",KID,SAX,SAY,SAZ,NBAX,NBAY,NBAZ);
+        Map_Ext = new cudaKernel(Source,"Map_Ext_Bounded",KID);
+        Map_Ext_Unbounded = new cudaKernel(Source,"Map_Ext_Unbounded",KID);
 
         cuda_ExtractPlaneX = new cudaKernel(Source,"ExtractPlaneX",KID);
         cuda_ExtractPlaneY = new cudaKernel(Source,"ExtractPlaneY",KID);
@@ -685,6 +687,11 @@ SFStatus VPM3D_cuda::Initialize_Kernels()
         cuda_interpM4_block = new cudaKernel(Source,"Interp_Block",KID,2,4,(BX+4)*(BY+4)*(BZ+4));
         cuda_interpM4D_block = new cudaKernel(Source,"Interp_Block",KID,2,42,(BX+4)*(BY+4)*(BZ+4));
         cuda_interpM6D_block = new cudaKernel(Source,"Interp_Block",KID,3,6,(BX+6)*(BY+6)*(BZ+6));
+
+        cuda_interpM2_block2 = new cudaKernel(Source,"Interp_Block2",KID,1,2,(BX+2)*(BY+2)*(BZ+2));
+        cuda_interpM4_block2 = new cudaKernel(Source,"Interp_Block2",KID,2,4,(BX+4)*(BY+4)*(BZ+4));
+        cuda_interpM4D_block2 = new cudaKernel(Source,"Interp_Block2",KID,2,42,(BX+4)*(BY+4)*(BZ+4));
+        cuda_interpM6D_block2 = new cudaKernel(Source,"Interp_Block2",KID,3,6,(BX+6)*(BY+6)*(BZ+6));
 
         // Turbulence kernels
         cuda_Laplacian_FD2 = new cudaKernel(Source,"Laplacian_Operator",KID,1,2,(BX+2)*(BY+2)*(BZ+2));
@@ -740,6 +747,11 @@ SFStatus VPM3D_cuda::Initialize_Kernels()
         Set_Kernel_Constants(cuda_interpM4D_block->Get_Instance(), 2);
         Set_Kernel_Constants(cuda_interpM6D_block->Get_Instance(), 3);
 
+        Set_Kernel_Constants(cuda_interpM2_block2->Get_Instance(), 1);
+        Set_Kernel_Constants(cuda_interpM4_block2->Get_Instance(), 2);
+        Set_Kernel_Constants(cuda_interpM4D_block2->Get_Instance(), 2);
+        Set_Kernel_Constants(cuda_interpM6D_block2->Get_Instance(), 3);
+
         // Auxiliary grid operations
         Set_Kernel_Constants(cuda_interp_auxM2->Get_Instance(), 1);
         Set_Kernel_Constants(cuda_interp_auxM4->Get_Instance(), 2);
@@ -748,6 +760,8 @@ SFStatus VPM3D_cuda::Initialize_Kernels()
         Set_Kernel_Constants(cuda_map_to_AuxiliaryVPM->Get_Instance(), 0);
         Set_Kernel_Constants(cuda_map_from_AuxiliaryVPM->Get_Instance(), 0);
         Set_Kernel_Constants(cuda_map_aux_toUnboundedVPM->Get_Instance(), 0);
+        Set_Kernel_Constants(Map_Ext_Unbounded->Get_Instance(), 0);
+        Set_Kernel_Constants(Map_Ext->Get_Instance(), 0);
 
         Set_Kernel_Constants(cuda_ExtractPlaneX->Get_Instance(), 0);
         Set_Kernel_Constants(cuda_ExtractPlaneY->Get_Instance(), 0);
@@ -1201,7 +1215,8 @@ void VPM3D_cuda::Calc_Grid_FDRatesof_Change()
 
     // Specify input arrays for FFT solver
     cuda_map_toUnbounded->Execute(eu_o, cuda_r_Input1, cuda_r_Input2, cuda_r_Input3);
-    if (AuxGrid) cuda_map_aux_toUnboundedVPM->Execute(AuxGrid->Get_Vort_Array(), cuda_r_Input1, cuda_r_Input2, cuda_r_Input3);
+    // if (AuxGrid) cuda_map_aux_toUnboundedVPM->Execute(AuxGrid->Get_Vort_Array(), cuda_r_Input1, cuda_r_Input2, cuda_r_Input3);
+    Map_from_Auxiliary_Grid();
     Forward_Transform();
     cuda_VPM_convolution->Execute(c_FTInput1, c_FTInput2, c_FTInput3, c_FG, c_FGi, c_FGj, c_FGk, c_FTOutput1, c_FTOutput2, c_FTOutput3);
     Backward_Transform();
@@ -1762,17 +1777,182 @@ void VPM3D_cuda::Interpolate_Ext_Sources(Mapping M)
     // In order to ensure the strengths are mapped to the current particle positions, an interpolation of the vorticity on
     // the auxiliary grid to the lagrangian positions has to take place.
 
-    // Map auxiliary vorticity grid to eu_o
-    cudaMemset(eu_o, 0, 3*NNT*sizeof(Real));
-    cuda_map_from_AuxiliaryVPM->Execute(AuxGrid->Get_Vort_Array(), eu_o);
+    // // Map auxiliary vorticity grid to eu_o
+    // cudaMemset(eu_o, 0, 3*NNT*sizeof(Real));
+    // cuda_map_from_AuxiliaryVPM->Execute(AuxGrid->Get_Vort_Array(), eu_o);
+    // switch (M)
+    // {
+    // case (M2):      {cuda_interp_auxM2->Execute(eu_o, lg_d,  Halo1data, lg_o);  break;}
+    // case (M4):      {cuda_interp_auxM4->Execute(eu_o, lg_d,  Halo2data, lg_o);  break;}
+    // case (M4D):     {cuda_interp_auxM4D->Execute(eu_o, lg_d, Halo2data, lg_o);  break;}
+    // case (M6D):     {cuda_interp_auxM6D->Execute(eu_o, lg_d, Halo3data, lg_o);  break;}
+    // default:        {std::cout << "VPM3D_cuda::Interpolate_Ext_Sources. Interpolation undefined."; return;}
+    // }
+
+    // New approach: The sources are already define in blocks in ExtVortX,ExtVortY,ExtVortZ,blX,blY,blZ,
+    // carry out block-wise interpolation to the given current node positions
+
+    // We map the new grid to an intermediate (full) grid which has been zeroed.
+    if (NBExt==0) return;
+
+    // Map to full grid with Map_Ext kernel.
+    dim3 Ext_block_extent = dim3(NBExt,1,1);
+    Map_Ext->Instantiate(Ext_block_extent, blockarch_block);
+    cudaMemset(eu_dddt, 0, 3*NNT*sizeof(Real));                 // Dummy grid (currently unused)
+    Map_Ext->Execute(ExtVortX,ExtVortY,ExtVortZ,blX,blY,blZ,eu_dddt);
+
+    // Now execute interp block on new grid
+
+    // Instantiate size
     switch (M)
     {
-    case (M2):      {cuda_interp_auxM2->Execute(eu_o, lg_d,  Halo1data, lg_o);  break;}
-    case (M4):      {cuda_interp_auxM4->Execute(eu_o, lg_d,  Halo2data, lg_o);  break;}
-    case (M4D):     {cuda_interp_auxM4D->Execute(eu_o, lg_d, Halo2data, lg_o);  break;}
-    case (M6D):     {cuda_interp_auxM6D->Execute(eu_o, lg_d, Halo3data, lg_o);  break;}
-    default:        {std::cout << "VPM3D_cuda::Interpolate_Ext_Sources. Interpolation undefined."; return;}
+    case (M2):      {cuda_interpM2_block2->Instantiate(Ext_block_extent,blockarch_block);   break;}
+    case (M4):      {cuda_interpM4_block2->Instantiate(Ext_block_extent,blockarch_block);   break;}
+    case (M4D):     {cuda_interpM4D_block2->Instantiate(Ext_block_extent,blockarch_block);  break;}
+    case (M6D):     {cuda_interpM6D_block2->Instantiate(Ext_block_extent,blockarch_block);  break;}
+    default:        {std::cout << "VPM3D_cuda::Extract Field: Mapping undefined."; return;}
     }
+
+    // Execute kernel
+    switch (M)
+    {
+    case (M2):      {cuda_interpM2_block2->Execute(eu_dddt,blX,blY,blZ,lg_d,Halo1data,lg_o);    break;}
+    case (M4):      {cuda_interpM4_block2->Execute(eu_dddt,blX,blY,blZ,lg_d,Halo2data,lg_o);    break;}
+    case (M4D):     {cuda_interpM4D_block2->Execute(eu_dddt,blX,blY,blZ,lg_d,Halo2data,lg_o);    break;}
+    case (M6D):     {cuda_interpM6D_block2->Execute(eu_dddt,blX,blY,blZ,lg_d,Halo3data,lg_o);    break;}
+    default:        {std::cout << "VPM3D_cuda::Extract Field: Mapping undefined."; return;}
+    }
+
+    // reset vorticity grid
+    cudaMemset(eu_dddt, 0, 3*NNT*sizeof(Real));                 // Dummy grid (currently unused)
+
+
+    // __global__ void Interp_Block2(  const Real* src,                                // Source grid values (permanently mapped particles)
+    //                                 const int *blX, const int *blY, const int *blZ, // Block indices
+    //                                 const Real* disp,                               // Particle displacement
+    //                                 const int* hs,                                  // Halo indices
+    //                                 Real* dest)                                     // Destination grid (vorticity)
+
+}
+
+
+//-----------------------------------
+//------- External sources ----------
+//-----------------------------------
+
+void VPM3D_cuda::Store_Grid_Node_Sources(const RVector &Px, const RVector &Py, const RVector &Pz, const RVector &Ox, const RVector &Oy, const RVector &Oz, Mapping Map)
+{
+    // This is a modified version of the function within VPM_Solver. Passing data to and from the GPU requires it to be packaged in
+    // a block-style architecture for efficiency. This is done here.
+
+    if (Px.empty() || Py.empty() || Pz.empty()) return;
+
+    Ext_Forcing.clear();
+    Map_Source_Nodes(Px, Py, Pz, Ox, Oy, Oz, Ext_Forcing, Map);
+
+    // Specify block IDs
+    std::vector<ParticleMap> BlockParts, OrdBlockParts;
+    for (ParticleMap p : Ext_Forcing){
+        dim3 pid =  p.cartid;
+        dim3 bid = dim3(pid.x/BX, pid.y/BY, pid.z/BZ);
+        ParticleMap bp;
+        bp.cartid = pid;
+        bp.blockid = bid;
+        bp.globblid = GID(bid.x,bid.y,bid.z,NBX,NBY,NBZ);
+        bp.interblockid = dim3(pid.x-bid.x*BX, pid.y-bid.y*BY, pid.z-bid.z*BZ);
+        bp.Vort = p.Vort;
+        BlockParts.push_back(bp);
+    }
+
+    // Sort based on box id
+    // std::vector<ParticleMap*> pBlockParts;
+    // for (ParticleMap p : BlockParts) pBlockParts.push_back(&p);
+    // std::sort(pBlockParts.begin(), pBlockParts.end(), [](const ParticleMap* a, const ParticleMap* b) { return a->globblid < b->globblid; });
+    // for (ParticleMap *p : pBlockParts) OrdBlockParts.push_back(*p);
+    std::sort(BlockParts.begin(), BlockParts.end(), [](const ParticleMap a, const ParticleMap b) { return a.globblid < b.globblid; });
+    // for (ParticleMap p : BlockParts) OrdBlockParts.push_back(p);
+
+    // We now have the block parts ordered correctly. We now group them together.
+    RVector Obx, Oby, Obz;
+    std::vector<int> sIDX, sIDY, sIDZ, sID;     // X,Y,Z indices of active blocks
+    int idb = -1, bgid = 0;
+    for (ParticleMap p : BlockParts){
+        if (p.globblid != idb){                   // New block
+
+            // Add new block to array.
+            bgid = BT*size(sID);
+            Obx.insert(Obx.end(), BT, Real(0.));    // Append onto x array
+            Oby.insert(Oby.end(), BT, Real(0.));    // Append onto y array
+            Obz.insert(Obz.end(), BT, Real(0.));    // Append onto z array
+
+            // Set block ids
+            idb = p.globblid;                   // Update current block id
+            sID.push_back(idb);                 // Update current block number
+            sIDX.push_back(p.blockid.x);        // Add cartesian block ids
+            sIDY.push_back(p.blockid.y);        // (necessary for mapping temp elements to vort array)
+            sIDZ.push_back(p.blockid.z);
+        }
+
+        // Now add source to block array
+        int ids = GID(p.interblockid.x, p.interblockid.y, p.interblockid.z, BX, BY, BZ);
+        Obx[bgid+ids] = p.Vort(0);
+        Oby[bgid+ids] = p.Vort(1);
+        Obz[bgid+ids] = p.Vort(2);
+    }
+
+    // These should now be passed to the corresponding cuda arrays
+
+    // Allocate external arrays if necessary
+    NBExt = size(sID);
+    if (NBufferExt < NBExt){
+
+        // Reset size of external array
+        NBufferExt = NBExt;
+
+        // Clear arrays if necessary
+        if (ExtVortX) cudaFree(ExtVortX);   ExtVortX = nullptr;
+        if (ExtVortY) cudaFree(ExtVortY);   ExtVortY = nullptr;
+        if (ExtVortZ) cudaFree(ExtVortZ);   ExtVortZ = nullptr;
+        if (blX) cudaFree(blX);             blX = nullptr;
+        if (blY) cudaFree(blY);             blY = nullptr;
+        if (blZ) cudaFree(blZ);             blZ = nullptr;
+
+        // Cuda allocate
+        cudaMalloc((void**)&ExtVortX, NBufferExt*BT*sizeof(Real));
+        cudaMalloc((void**)&ExtVortY, NBufferExt*BT*sizeof(Real));
+        cudaMalloc((void**)&ExtVortZ, NBufferExt*BT*sizeof(Real));
+        cudaMalloc((void**)&blX, NBufferExt*sizeof(int));
+        cudaMalloc((void**)&blY, NBufferExt*sizeof(int));
+        cudaMalloc((void**)&blZ, NBufferExt*sizeof(int));
+    }
+
+    // Transfer data to arrays
+    cudaMemcpy(ExtVortX,    Obx.data(),     NBExt*BT*sizeof(Real),  cudaMemcpyHostToDevice);
+    cudaMemcpy(ExtVortY,    Oby.data(),     NBExt*BT*sizeof(Real),  cudaMemcpyHostToDevice);
+    cudaMemcpy(ExtVortZ,    Obz.data(),     NBExt*BT*sizeof(Real),  cudaMemcpyHostToDevice);
+    cudaMemcpy(blX,         sIDX.data(),    NBExt*sizeof(int),      cudaMemcpyHostToDevice);
+    cudaMemcpy(blY,         sIDY.data(),    NBExt*sizeof(int),      cudaMemcpyHostToDevice);
+    cudaMemcpy(blZ,         sIDZ.data(),    NBExt*sizeof(int),      cudaMemcpyHostToDevice);
+
+    std::cout << "VPM3D_cuda::Store_Grid_Node_Sources: Successfully stored." << std::endl;
+
+    // dim3 Ext_block_extent = dim3(NBExt,1,1);
+    // Map_Ext_Unbounded->Instantiate(Ext_block_extent, blockarch_block);
+    // Map_Ext_Unbounded->Instantiate(Ext_block_extent, blockarch_block);
+
+
+    // std::cout << Ext_Forcing.size() << " Nodes mapped with " << Px.size() << " input nodes." << std::endl;
+    // std::cout << "size of mapping arrays=  "<< Ext_Forcing.size() csp Obx.size() csp Oby.size() csp Obz.size() csp Obx.size()/BT  << std::endl;
+}
+
+void VPM3D_cuda::Map_from_Auxiliary_Grid()
+{
+    // In the case that the external sources should be included in the vorticity (e.g. from a lifting line),
+    // rather than adding these to the full vorticity field,they are only added to the unbounded array
+    if (NBExt==0) return;
+    dim3 Ext_block_extent = dim3(NBExt,1,1);
+    Map_Ext_Unbounded->Instantiate(Ext_block_extent, blockarch_block);
+    Map_Ext_Unbounded->Execute(ExtVortX,ExtVortY,ExtVortZ,blX,blY,blZ,cuda_r_Input1,cuda_r_Input2,cuda_r_Input3);
 }
 
 //-------------------------------------------

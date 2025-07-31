@@ -121,6 +121,15 @@ class VPM3D_cuda : public VPM_3D_Solver //, public cuda_Grid_Data
     Real *travx, *travy, *travz;    // Reduced diagnostics arrays
     int *magfilt_count;         // Count of particle which have non-zero strength after magnitude filtering
 
+    // Arrays for external sources
+    size_t NBExt = 0, NBufferExt = 0;
+    Real *ExtVortX = nullptr;
+    Real *ExtVortY = nullptr;
+    Real *ExtVortZ = nullptr;
+    Real *blX = nullptr;
+    Real *blY = nullptr;
+    Real *blZ = nullptr;
+
     //--- Diagnostics
     static const int NDiags = 15;                             // Number of diagnostics outputs
 
@@ -147,6 +156,7 @@ class VPM3D_cuda : public VPM_3D_Solver //, public cuda_Grid_Data
     dim3 AuxGrid_grid_extent;
     // Real *eu_o_aux;         // Pointer to auxiliary vorticity grid
     // Real *eu_dddt_aux;      // Pointer to auxiliary velocity grid
+    void Map_from_Auxiliary_Grid();// override ;
 
     Real *dumbuffer;            // A buffer allocated for arbitrary tasks and data migration
 
@@ -190,10 +200,18 @@ class VPM3D_cuda : public VPM_3D_Solver //, public cuda_Grid_Data
     cudaKernel *cuda_MagFilt3;
     cudaKernel *cuda_ExtractPlaneX, *cuda_ExtractPlaneY;
 
+    cudaKernel *Map_Ext;
+    cudaKernel *Map_Ext_Unbounded;
+
     cudaKernel *cuda_interpM2_block;
     cudaKernel *cuda_interpM4_block;
     cudaKernel *cuda_interpM4D_block;
     cudaKernel *cuda_interpM6D_block;
+
+    cudaKernel *cuda_interpM2_block2;
+    cudaKernel *cuda_interpM4_block2;
+    cudaKernel *cuda_interpM4D_block2;
+    cudaKernel *cuda_interpM6D_block2;
 
     // Turbulence Kernels
     Real C_smag = 0.;                          // Hyperviscosity constant
@@ -277,6 +295,10 @@ public:
     void Extract_Source_Values(const RVector &Px, const RVector &Py, const RVector &Pz, RVector &Ugx, RVector &Ugy, RVector &Ugz, Mapping Map) override {
         Extract_Field(eu_o, Px, Py, Pz, Ugx, Ugy, Ugz, Map);}
 
+    void Store_Grid_Node_Sources(   const RVector &Px, const RVector &Py, const RVector &Pz,
+                                         const RVector &Ox, const RVector &Oy, const RVector &Oz, Mapping Map) override;
+
+
     //--- Timestepping
     void Advance_Particle_Set() override;
     void Update_Particle_Field() override;
@@ -300,7 +322,7 @@ public:
     void Calc_Grid_Diagnostics() override;
 
     //--- Output grid
-    void Generate_VTK() override;
+    void Generate_VTK();
     void Generate_VTK(const Real *vtkoutput1, const Real *vtkoutput2);
     void Generate_Plane(RVector &U) override;
     void Generate_Traverse(int XP, RVector &U, RVector &V, RVector &W) override;

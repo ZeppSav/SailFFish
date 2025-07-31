@@ -84,23 +84,36 @@ inline Real Kernel_HEJ2_G10_0(const Real &r, const Real &sigma)  {              
 
 //--- 3D
 
-inline Real Q3_4(const Real &rho){return M_INVSQRT2PI*rho;}
-inline Real Q3_6(const Real &rho){return M_INVSQRT2PI*(7.0/4.0*rho-1.0/4.0*rho*rho*rho);}
-inline Real Q3_8(const Real &rho){Real rho2=rho*rho; return M_INVSQRT2PI*(19.0/8.0*rho-2.0/3.0*rho2*rho+1.0/24.0*rho2*rho2*rho);}
-inline Real Q3_10(const Real &rho){Real rho2=rho*rho, rho4=rho2*rho2; return M_INVSQRT2PI*(187.0/64.0*rho-233.0/192.0*rho2*rho+29.0/192.0*rho4*rho-1.0/192.0*rho4*rho2*rho);}
+inline Real Q3_4(const Real &p){return M_INVSQRT2PI*p;}
+inline Real Q3_6(const Real &p){return M_INVSQRT2PI*(7./4.*p-1./4.*p*p*p);}
+inline Real Q3_8(const Real &p){Real p2=p*p; return M_INVSQRT2PI*(19./8.*p-2./3.*p2*p+1./24.*p2*p2*p);}
+inline Real Q3_10(const Real &p){Real p2=p*p, p4=p2*p2; return M_INVSQRT2PI*(187./64.*p-233./192.*p2*p+29./192.*p4*p-1./192.*p4*p2*p);}
 
-inline Real Kernel_HEJ3_S0(const Real &r, const Real &sigma)    {Real rho = r/sigma;    return -M_INV2PISQ*sine_int(rho)/r;     }
-inline Real Kernel_HEJ3_S0_O(const Real &r, const Real &sigma)  {                       return -M_INV2PISQ/sigma;               }
-inline Real Kernel_HEJ3_G2(const Real &r, const Real &sigma)    {Real rho = r/sigma;    return -M_INV4PI/r*(erf(rho*M_INVSQRT2));}
-inline Real Kernel_HEJ3_G2_0(const Real &r, const Real &sigma)  {                       return -1.0/4.0*M_SQRT2/(sigma*sqrt(M_PI*M_PI*M_PI));}
-inline Real Kernel_HEJ3_G4(const Real &r, const Real &sigma)    {Real rho = r/sigma;    return -M_INV4PI/r*(Q3_4(rho)*exp(-0.5*rho*rho) + erf(rho*M_INVSQRT2));}
-inline Real Kernel_HEJ3_G4_0(const Real &r, const Real &sigma)  {                       return -3.0/8.0*M_SQRT2/(sigma*sqrt(M_PI*M_PI*M_PI));}
-inline Real Kernel_HEJ3_G6(const Real &r, const Real &sigma)    {Real rho = r/sigma;    return -M_INV4PI/r*(Q3_6(rho)*exp(-0.5*rho*rho) + erf(rho*M_INVSQRT2));}
-inline Real Kernel_HEJ3_G6_0(const Real &r, const Real &sigma)  {                       return -15.0/32.0*M_SQRT2/(sigma*sqrt(M_PI*M_PI*M_PI));}
-inline Real Kernel_HEJ3_G8(const Real &r, const Real &sigma)    {Real rho=r/sigma;      return -M_INV4PI/r*(Q3_8(rho)*exp(-0.5*rho*rho) + erf(rho*M_INVSQRT2));}
-inline Real Kernel_HEJ3_G8_0(const Real &r, const Real &sigma)  {                       return -35.0/64.0*M_SQRT2/(sigma*sqrt(M_PI*M_PI*M_PI));}
-inline Real Kernel_HEJ3_G10(const Real &r, const Real &sigma)   {Real rho=r/sigma;      return -M_INV4PI/r*(Q3_10(rho)*exp(-0.5*rho*rho) + erf(rho*M_INVSQRT2));}
-inline Real Kernel_HEJ3_G10_0(const Real &r, const Real &sigma) {                       return -315.0/512.0*M_SQRT2/(sigma*sqrt(M_PI*M_PI*M_PI));}
+inline Real Kernel_HEJ3_S0_O(const Real &r, const Real &s)  {return -M_INV2PISQ/s;                                  }
+inline Real Kernel_HEJ3_G2_0(const Real &r, const Real &s)  {return -1./4.*M_SQRT2/(s*sqrt(M_PI*M_PI*M_PI));      }
+inline Real Kernel_HEJ3_G4_0(const Real &r, const Real &s)  {return -3./8.*M_SQRT2/(s*sqrt(M_PI*M_PI*M_PI));      }
+inline Real Kernel_HEJ3_G6_0(const Real &r, const Real &s)  {return -15./32.*M_SQRT2/(s*sqrt(M_PI*M_PI*M_PI));    }
+inline Real Kernel_HEJ3_G8_0(const Real &r, const Real &s)  {return -35./64.*M_SQRT2/(s*sqrt(M_PI*M_PI*M_PI));    }
+inline Real Kernel_HEJ3_G10_0(const Real &r, const Real &s) {return -315./512.*M_SQRT2/(s*sqrt(M_PI*M_PI*M_PI));  }
+
+inline Real Kernel_HEJ3_S0(const Real &r, const Real &s)    {Real p = r/s;  return -M_INV2PISQ*sine_int(p)/r;     }
+inline Real Kernel_HEJ3_G2(const Real &r, const Real &s)    {Real p = r/s;  return -M_INV4PI/r*(                        erf(p*M_INVSQRT2));}
+inline Real Kernel_HEJ3_G4(const Real &r, const Real &s)    {Real p = r/s;  return -M_INV4PI/r*(Q3_4(p)*exp(-0.5*p*p) + erf(p*M_INVSQRT2));}
+inline Real Kernel_HEJ3_G6(const Real &r, const Real &s)    {Real p = r/s;  return -M_INV4PI/r*(Q3_6(p)*exp(-0.5*p*p) + erf(p*M_INVSQRT2));}
+inline Real Kernel_HEJ3_G8(const Real &r, const Real &s)    {Real p = r/s;  return -M_INV4PI/r*(Q3_8(p)*exp(-0.5*p*p) + erf(p*M_INVSQRT2));}
+inline Real Kernel_HEJ3_G10(const Real &r, const Real &s)   {Real p = r/s;  return -M_INV4PI/r*(Q3_10(p)*exp(-0.5*p*p) + erf(p*M_INVSQRT2));}
+
+inline Real KQ3_2(const Real &p)  {                                                     return M_INVSQRT2PI*(-2.*p);}
+inline Real KQ3_4(const Real &p)  {Real p2 = p*p, p3=p*p2;                              return M_INVSQRT2PI*(-2.*p + p3);}
+inline Real KQ3_6(const Real &p)  {Real p2 = p*p, p3=p*p2, p5=p3*p2;                    return M_INVSQRT2PI*(-2.*p + (9.*p3 - p5)/4.);}
+inline Real KQ3_8(const Real &p)  {Real p2 = p*p, p3=p*p2, p5=p3*p2, p7=p5*p2;          return M_INVSQRT2PI*(-2.*p + (89.*p3 - 20.*p5 + p7)/24.);}
+inline Real KQ3_10(const Real &p) {Real p2 = p*p, p3=p*p2, p5=p3*p2, p7=p5*p2, p9=p7*p2;return M_INVSQRT2PI*(-2.*p + (1027.*p3 - 349.*p5 + 35.*p7 - p9)/192.);}
+
+inline Real Kernel_HEJ3_K2(const Real &r, const Real &s)    {Real p =r/s;   return -M_INV4PI/(r*r*r)*(KQ3_2(p)*exp(-0.5*p*p) + erf(p*M_INVSQRT2));}
+inline Real Kernel_HEJ3_K4(const Real &r, const Real &s)    {Real p =r/s;   return -M_INV4PI/(r*r*r)*(KQ3_4(p)*exp(-0.5*p*p) + erf(p*M_INVSQRT2));}
+inline Real Kernel_HEJ3_K6(const Real &r, const Real &s)    {Real p =r/s;   return -M_INV4PI/(r*r*r)*(KQ3_6(p)*exp(-0.5*p*p) + erf(p*M_INVSQRT2));}
+inline Real Kernel_HEJ3_K8(const Real &r, const Real &s)    {Real p =r/s;   return -M_INV4PI/(r*r*r)*(KQ3_8(p)*exp(-0.5*p*p) + erf(p*M_INVSQRT2));}
+inline Real Kernel_HEJ3_K10(const Real &r, const Real &s)   {Real p =r/s;   return -M_INV4PI/(r*r*r)*(KQ3_10(p)*exp(-0.5*p*p) + erf(p*M_INVSQRT2));}
 
 
 }

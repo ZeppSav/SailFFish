@@ -91,6 +91,8 @@ public:
     void Get_ZGrid(RVector &Z)      {for (int k=0; k<gNZ; k++) Z.push_back(gZ[k]);}
     void Get_Grid_Dims(Real &L1, Real &L2, Real &L3)    {L1 = Lx; L2 = Ly; L3 = Lz;}
     void Get_Grid_Res(Real &L1, Real &L2, Real &L3)     {L1 = Hx; L2 = Hy; L3 = Hz;}
+    void Get_Grid_Lower_Bdry(Real &L1, Real &L2, Real &L3)  {L1 = gX[0]; L2 = gY[0]; L3 = gZ[0];}
+    void Get_Grid_Upper_Bdry(Real &L1, Real &L2, Real &L3)  {L1 = gX[gNX-1]; L2 = gY[gNY-1]; L3 = gZ[gNZ-1];}
 
     //--- Destructor
     ~Solver();

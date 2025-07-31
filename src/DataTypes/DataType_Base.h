@@ -160,6 +160,10 @@ public:
     virtual void Convolution_Complex()  {}
     virtual void Convolution_Complex3() {}
 
+    //--- Get status
+    SFStatus GetStatus()    {return Status;}
+    void    ResetStatus()  {Status = NoError;}
+
 
     //--- Spectral gradients
     virtual void Spectral_Gradients_3DV_Reprojection()                              {}

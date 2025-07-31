@@ -47,6 +47,8 @@ typedef Eigen::Quaterniond          Quat;
 
 //--- Macros to improve readability
 
+namespace SailFFish {
+
 #define OpenMPfor _Pragma("omp parallel for")
 #define csp <<" "<<
 
@@ -107,6 +109,8 @@ inline std::vector<std::string> SplitUp(const std::string &str)
     std::vector<std::string> tokens;
     while (ss >> word)  tokens.push_back(word);
     return tokens;
+}
+
 }
 
 #endif // VPML_TYPES_H

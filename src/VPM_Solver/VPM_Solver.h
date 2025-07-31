@@ -28,6 +28,7 @@
 
 #include "../Solvers/Unbounded_Solver.h"
 #include "VPM3D_kernels_cpu.h"
+#include "../Solvers/Greens_Functions.h"
 
 namespace SailFFish
 {
@@ -37,10 +38,44 @@ namespace SailFFish
 
 enum TimeIntegrator     {NOTI, EF, EM, RK2, AB2LF, RK3, RK4, LSRK3, LSRK4};
 enum FiniteDiff         {CD2, CD4, CD6, CD8};
-enum GridDefType        {NODES, BLOCKS, ADAPTIVE};
-enum Turbulence         {LAM, HYP, RVM1, RVM2};
+enum GridDef            {NODES, BLOCKS, ADAPTIVE};
+enum Turbulence         {LAM, HYP, RVM1, RVM2, RVM3, RVM2_DGC};
 
 static int const NBlock3 = 1024;
+// using OrdPart = std::tuple<dim3, Vector3, int>;                 // Object contains node id, vorticity vector and mapping indices
+// using OrdMap = std::tuple<int, dim3s, Vector3, Matrix, bool>;   // Object contains node id, node indices, vorticity vector and mapping indices
+
+typedef Real (*BS_Kernel)(const Real &r, const Real &sigma);
+typedef void (*Map_Kernel)(const Real &d, Real &f);
+
+struct ParticleMap
+{
+    Vector3 Vort = Vector3::Zero(); // Vorticity vector
+    // Note on indices:
+    // glob_ (monolithic system)
+    // block_ (block system)
+
+    // Cartesian ids.
+    dim3 cartid;                    // Global cartesian id
+    dim3 blockid;                   // Block id
+    dim3 interblockid;              // Cartesian id WITHIN block
+
+    int globid;                     // Global monolithic id
+    int globblid;                   // Block cartesian id
+    // int globblid;                   // Block cartesian id
+};
+
+struct CellMap
+{
+    int id;                         // Global id
+    int idin;                       // Position in input array
+    dim3 id3;                       // Cartesian id
+    Vector3 Pos;                    // Cell Weight
+    Vector3 Weight;                 // Cell Weight
+    Matrix Coeff;                   // Mapping Coefficients
+    std::vector<Vector3> Weights;   // Cell Weights (multiple nodes)
+    std::vector<Matrix> Coeffs;     // Mapping Coefficients
+};
 
 struct VPM_Input
 {
@@ -49,7 +84,7 @@ struct VPM_Input
 
     //--- Grid variables
 
-    GridDefType GridDef = NODES;
+    GridDef GridDef = NODES;
     Grid_Type Grid = STAGGERED;         // Grid type
     Real H_Grid = 0;                    // Grid resolution (isotropic)
     Real L = 1.0;                       // Characteristic dimension of problem
@@ -169,7 +204,7 @@ struct VPM_Input
                 if (Fields[1] == "BCTYPE"){
                     if (Fields[0] == "BOUND")   {
                         std::cout << "VPM_3D_Solver::Setup_VPM: Input setup not yet configured for bound BC types." << std::endl;
-//                        return SetupError;
+                        //                        return SetupError;
                     }
                 }
 
@@ -185,11 +220,19 @@ struct VPM_Input
                 }
 
                 if (Fields[1] == "TURB"){
-                    if (Fields[0] == "LAM")     {Turb = LAM;            C_smag = 0.0;                   }
-                    if (Fields[0] == "HYP")     {Turb = HYP;            C_smag = 2.5e-2;                }
-                    if (Fields[0] == "RVM1")    {Turb = RVM1;           C_smag = pow(0.3,3)*1.39;       }
-                    if (Fields[0] == "RVM2")    {Turb = RVM2;           C_smag = 1.27*pow(0.3,3)*1.39;  }
+                    if (Fields[0] == "LAM")     {Turb = LAM;    C_smag = 0.0;                   }
+                    if (Fields[0] == "HYP")     {Turb = HYP;    C_smag = 2.5e-2;                }   // C_inf, theoretical = pow(0.3,3) -> Smagoriski theoretical
+                    if (Fields[0] == "RVM1")    {Turb = RVM1;   C_smag = 0.036;                 }   // Compare: Theoretical =      pow(0.3,3)*1.39 = 0.03753  -> Cocle 2007;
+                    if (Fields[0] == "RVM2")    {Turb = RVM2;   C_smag = 0.047663;              }   //          Theoretical = 1.27*pow(0.3,3)*1.39 = 0.047663 -> Cocle 2007;
+                    if (Fields[0] == "RVM3")    {Turb = RVM3;   C_smag = 0.060;                 }   // Compare: Theoretical = 1.40*pow(0.3,3)*1.39 = 0.052542 -> Cocle 2007;
+                    // if (Fields[0] == "RVMDGC")  {Turb = RVM2_DGC;   C_smag = 1.27*pow(0.3,3)*1.39;  }       //?!?!?
+                    if (Fields[0] == "RVM2DTU") {Turb = RVM2;   C_smag = 0.121;  std::cout << "DTU RVM2 Specs" << std::endl;}       //Trial
                 }
+
+                // In the paper by Cocle (2009) a set of numerical investigations are carried out wiht a range of different turbulence models.
+                // The results are seen to align well along a best-fit curve  log_10(C/C_inf) = -a*exp(-b delta/eta) where a = 10 and b = 0.3;
+                // The value of C chosen is therefore be related to the cutoff length (delta-characteristic grid size) and the kolmogorov scale (eta).
+                // I should assume that my ratio delta/eta is very large, and hence C/C_inf = 1 for each model and therefore choose C=C_inf.
 
                 if (Fields[1] == "REPROJECT"){
                     if (Fields[0] == "TRUE")    DivFilt = true;
@@ -421,6 +464,14 @@ protected:
     int NBSAX, NBSAY, NBSAZ;       // Block-type setup for shifted blocks
     int SAX, SAY, SAZ;          // Shift of external grid
 
+    //--- Mapping parameters
+    int Set_Map_Shift(Mapping Map);
+    int Set_Map_Stencil_Width(Mapping Map);
+
+    //--- External forcing
+    BS_Kernel BS;
+    // Real Sigma;
+
     //--- Finite different objects & parameters
     FiniteDiff FDOrder = CD4;
 
@@ -444,6 +495,9 @@ protected:
     Mapping RemeshMap = M4D;                // Mapping scheme for remeshing
     Turbulence Turb = LAM;                  // Turbulence model
 
+    //--- External forcing
+    std::vector<ParticleMap> Ext_Forcing;
+
     //--- Auxiliary grid definition
     VPM_3D_Solver *AuxGrid = nullptr;
 
@@ -453,13 +507,13 @@ protected:
     bool Log = false;                       // Are we writing the diagnostics to a log file?
     std::chrono::steady_clock::time_point Sim_begin, Sim_end;   // Start/stop time of sims--- total timing
 
-    //--- Output vtk names
+    //--- Output vti/k names
     std::string vtk_Prefix = "Mesh_3DV_";
 
 public:
 
     //--- Constructor
-    VPM_3D_Solver(Grid_Type G = STAGGERED, Unbounded_Kernel B = HEJ_G8);
+    VPM_3D_Solver(Grid_Type G, Unbounded_Kernel B);
 
     //--- Solver setup
     virtual SFStatus Setup_VPM(VPM_Input &I)            {}
@@ -483,7 +537,6 @@ public:
     virtual void Grid_Shear_Stresses()              {}
     virtual void Grid_Turb_Shear_Stresses()         {}
     virtual void Add_Freestream_Velocity()          {}
-    virtual void Solve_Velocity()                   {}
     virtual void Calc_Grid_SpectralRatesof_Change() {}
     virtual void Calc_Grid_FDRatesof_Change()       {}
     virtual void Increment_Time()                   {NStep++; T += dT;}
@@ -494,32 +547,53 @@ public:
     virtual void Reproject_Particle_Set_Spectral()  {}
     virtual void Magnitude_Filtering()              {}
 
+    void Domain_Bounds(std::vector<CellMap> &CD, dim3 &Lower, dim3 &Upper);
+
+    void Process_Cells(const RVector &Px, const RVector &Py, const RVector &Pz,
+                       const RVector &Ox, const RVector &Oy, const RVector &Oz,
+                       std::vector<CellMap> &IDs, Mapping Map);
+
+    void Store_Grid_Sources(const RVector &Px, const RVector &Py, const RVector &Pz, const RVector &Ox, const RVector &Oy, const RVector &Oz, Mapping Map);
+
     void Grid_Interp_Coeffs(const RVector &Px, const RVector &Py, const RVector &Pz,
                             std::vector<dim3s> &IDs, std::vector<bool> &Flags,
                             Matrix &Mx, Matrix &My, Matrix &Mz, Mapping Map);
 
     virtual void Map_from_Grid( const RVector &Px, const RVector &Py, const RVector &Pz,
-                                const RVector &Gx, const RVector &Gy, const RVector &Gz,
-                                RVector &uX, RVector &uY, RVector &uZ, Mapping Map);
+                               const RVector &Gx, const RVector &Gy, const RVector &Gz,
+                               RVector &uX, RVector &uY, RVector &uZ, Mapping Map);
 
     virtual void Map_to_Grid(   const RVector &Px, const RVector &Py, const RVector &Pz,
-                                const RVector &Ox, const RVector &Oy, const RVector &Oz,
-                                RVector &gX, RVector &gY, RVector &gZ, Mapping Map);
+                             const RVector &Ox, const RVector &Oy, const RVector &Oz,
+                             RVector &gX, RVector &gY, RVector &gZ, Mapping Map);
 
     virtual void Add_Grid_Sources(const RVector &Px, const RVector &Py, const RVector &Pz, const RVector &Ox, const RVector &Oy, const RVector &Oz, Mapping Map) {}
     virtual void Extract_Sol_Values(const RVector &Px, const RVector &Py, const RVector &Pz, RVector &Ugx, RVector &Ugy, RVector &Ugz, Mapping Map) {}
     virtual void Extract_Source_Values(const RVector &Px, const RVector &Py, const RVector &Pz, RVector &Ugx, RVector &Ugy, RVector &Ugz, Mapping Map) {}
 
+    virtual void Store_Grid_Node_Sources(const RVector &Px, const RVector &Py, const RVector &Pz, const RVector &Ox, const RVector &Oy, const RVector &Oz, Mapping Map);
+
+    // virtual void Add_Grid_Node_Sources(const RVector &Px, const RVector &Py, const RVector &Pz, const RVector &Ox, const RVector &Oy, const RVector &Oz, Mapping Map) {}
+
+    void Map_Source_Nodes(const RVector &Px, const RVector &Py, const RVector &Pz,
+                          const RVector &Ox, const RVector &Oy, const RVector &Oz, std::vector<ParticleMap> &GP, Mapping Map);
+
+    void Map_Probe_Nodes(const RVector &Px, const RVector &Py, const RVector &Pz, std::vector<ParticleMap> &GP, Mapping Map);
+
+    void Get_Ext_Velocity(const RVector &Px, const RVector &Py, const RVector &Pz,
+                          RVector &Ux, RVector &Uy, RVector &Uz, Mapping Map);
+
     //--- Grid operations
     virtual void Clear_Source_Grid()        {}
     virtual void Clear_Solution_Grid()      {}
-    virtual TensorGrid *Get_pArray()        {return nullptr;}
-    virtual TensorGrid *Get_gArray()        {return nullptr;}
-    virtual Real* Get_Vort_Array()          {return nullptr;}
-    virtual Real* Get_Vel_Array()           {return nullptr;}
+    virtual TensorGrid *Get_pArray()    {return nullptr;}
+    virtual TensorGrid *Get_gArray()    {return nullptr;}
+    virtual Real* Get_Vort_Array()      {return nullptr;}
+    virtual Real* Get_Vel_Array()       {return nullptr;}
 
     //--- Auxiliary grid functions
     virtual void Set_External_Grid(VPM_3D_Solver *G)        {}
+    virtual void Solve_Velocity()           {}
     Real GetXgridMax()  {RVector XG; Get_XGrid(XG); return XG[XG.size()-1];}
 
     //--- Grid statistics
@@ -532,12 +606,12 @@ public:
     //--- Visualisation
     virtual void Generate_Plane(RVector &U)        {}
 
-    // //--- Output grid
+    //--- Output grid
     virtual void Generate_VTK()                     {}
     void Set_VTK_Prefix(std::string S)              {vtk_Prefix = S;}
     virtual void Generate_Traverse(int XP, RVector &U, RVector &V, RVector &W)      {}
 
-    // //--- Output summary
+    //--- Output summary
     void Generate_Summary(std::string Filename);
     void Generate_Summary_End();
     std::string Output_Filename = "";

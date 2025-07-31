@@ -20,6 +20,17 @@ VPM_3D_Solver::VPM_3D_Solver(Grid_Type G, Unbounded_Kernel B)
     Specify_Operator(SailFFish::CURL);
     // InPlace = true;     // Specify that transforms should occur either in place or out of place (reduced memory footprint)
     // c_dbf_1 = true;     // This dummy buffer is required as I have not included custom Kernels into Datatype_Cuda yet
+
+    // Extract forcing nodes and subtract this solution (rather than getting the solution from the auxiliary grid)
+    switch (Greens_Kernel)
+    {
+    case (HEJ_G2):  {BS = &SailFFish::Kernel_HEJ3_K2;   break;}
+    case (HEJ_G4):  {BS = &SailFFish::Kernel_HEJ3_K4;   break;}
+    case (HEJ_G6):  {BS = &SailFFish::Kernel_HEJ3_K6;   break;}
+    case (HEJ_G8):  {BS = &SailFFish::Kernel_HEJ3_K8;   break;}
+    case (HEJ_G10): {BS = &SailFFish::Kernel_HEJ3_K10;  break;}
+    default:   break;
+    }
 }
 
 //--- Grid setup
@@ -28,7 +39,7 @@ void VPM_3D_Solver::Set_Grid_Positions()
 {
     //--- Specify grid positions
     OpenMPfor
-    for (int i=0; i<NNX; i++){
+        for (int i=0; i<NNX; i++){
         for (int j=0; j<NNY; j++){
             for (int k=0; k<NNZ; k++){
                 int id_dest = GID(i,j,k,NNX,NNY,NNZ);
@@ -38,6 +49,8 @@ void VPM_3D_Solver::Set_Grid_Positions()
             }
         }
     }
+
+    //    for (int i=0; i<NNT; i++) std::cout << g_Array[0][i] csp g_Array[1][i] csp g_Array[2][i] << std::endl;
 }
 
 SFStatus VPM_3D_Solver::Define_Grid_Nodes(VPM_Input *I)
@@ -209,30 +222,30 @@ SFStatus VPM_3D_Solver::Define_Grid_Blocks_Adaptive(VPM_Input *I)
 
 //--- Grid Mapping operation
 
-inline int Set_Map_Shift(Mapping Map)
+int VPM_3D_Solver::Set_Map_Shift(Mapping Map)
 {
     int sh = 0;
     switch (Map)
     {
-        case (M2):  {sh = 0;  break;}
-        case (M4):  {sh = -1; break;}
-        case (M4D): {sh = -1; break;}
-        case (M6D): {sh = -2; break;}
-        default:    {std::cout << "Set_Map_Shift: Mapping unknown" << std::endl;    break;}
+    case (M2):  {sh = 0;  break;}
+    case (M4):  {sh = -1; break;}
+    case (M4D): {sh = -1; break;}
+    case (M6D): {sh = -2; break;}
+    default:    {std::cout << "Set_Map_Shift: Mapping unknown" << std::endl;    break;}
     }
     return sh;
 }
 
-inline int Set_Map_Stencil_Width(Mapping Map)
+int VPM_3D_Solver::Set_Map_Stencil_Width(Mapping Map)
 {
     int st = 0;
     switch (Map)
     {
-        case (M2):  {st = 2;  break;}
-        case (M4):  {st = 4; break;}
-        case (M4D): {st = 4; break;}
-        case (M6D): {st = 6; break;}
-        default:    {std::cout << "Set_Map_Stencil: Mapping unknown" << std::endl;    break;}
+    case (M2):  {st = 2;  break;}
+    case (M4):  {st = 4; break;}
+    case (M4D): {st = 4; break;}
+    case (M6D): {st = 6; break;}
+    default:    {std::cout << "Set_Map_Stencil: Mapping unknown" << std::endl;    break;}
     }
     return st;
 }
@@ -270,57 +283,57 @@ void VPM_3D_Solver::Grid_Interp_Coeffs(const RVector &Px, const RVector &Py, con
     Mx = Matrix(NP,nc), My = Matrix(NP,nc), Mz = Matrix(NP,nc);
     switch (Map)
     {
-        case (M2):      {
-            Parallel_Kernel(NP)  {
-                Real fx = (Px[i] - XN1 - H_Grid*IDs[i].x)/H_Grid;
-                Real fy = (Py[i] - YN1 - H_Grid*IDs[i].y)/H_Grid;
-                Real fz = (Pz[i] - ZN1 - H_Grid*IDs[i].z)/H_Grid;
-                mapM2(fx, Mx(i,0)); mapM2(1.0-fx, Mx(i,1));
-                mapM2(fy, My(i,0)); mapM2(1.0-fy, My(i,1));
-                mapM2(fz, Mz(i,0)); mapM2(1.0-fz, Mz(i,1));
-            }
-            break;
+    case (M2):      {
+        Parallel_Kernel(NP)  {
+            Real fx = (Px[i] - XN1 - H_Grid*IDs[i].x)/H_Grid;
+            Real fy = (Py[i] - YN1 - H_Grid*IDs[i].y)/H_Grid;
+            Real fz = (Pz[i] - ZN1 - H_Grid*IDs[i].z)/H_Grid;
+            mapM2(fx, Mx(i,0)); mapM2(1.0-fx, Mx(i,1));
+            mapM2(fy, My(i,0)); mapM2(1.0-fy, My(i,1));
+            mapM2(fz, Mz(i,0)); mapM2(1.0-fz, Mz(i,1));
         }
-        case (M4):      {
-            Parallel_Kernel(NP)  {
-                Real fx = (Px[i] - XN1 - H_Grid*IDs[i].x)/H_Grid;
-                Real fy = (Py[i] - YN1 - H_Grid*IDs[i].y)/H_Grid;
-                Real fz = (Pz[i] - ZN1 - H_Grid*IDs[i].z)/H_Grid;
-                mapM4(1.0+fx,Mx(i,0));     mapM4(fx,Mx(i,1));  mapM4(1.0-fx,Mx(i,2));  mapM4(2.0-fx,Mx(i,3));
-                mapM4(1.0+fy,My(i,0));     mapM4(fy,My(i,1));  mapM4(1.0-fy,My(i,2));  mapM4(2.0-fy,My(i,3));
-                mapM4(1.0+fz,Mz(i,0));     mapM4(fz,Mz(i,1));  mapM4(1.0-fz,Mz(i,2));  mapM4(2.0-fz,Mz(i,3));
-            }
-            break;
+        break;
+    }
+    case (M4):      {
+        Parallel_Kernel(NP)  {
+            Real fx = (Px[i] - XN1 - H_Grid*IDs[i].x)/H_Grid;
+            Real fy = (Py[i] - YN1 - H_Grid*IDs[i].y)/H_Grid;
+            Real fz = (Pz[i] - ZN1 - H_Grid*IDs[i].z)/H_Grid;
+            mapM4(1.0+fx,Mx(i,0));     mapM4(fx,Mx(i,1));  mapM4(1.0-fx,Mx(i,2));  mapM4(2.0-fx,Mx(i,3));
+            mapM4(1.0+fy,My(i,0));     mapM4(fy,My(i,1));  mapM4(1.0-fy,My(i,2));  mapM4(2.0-fy,My(i,3));
+            mapM4(1.0+fz,Mz(i,0));     mapM4(fz,Mz(i,1));  mapM4(1.0-fz,Mz(i,2));  mapM4(2.0-fz,Mz(i,3));
         }
-        case (M4D):     {
-            Parallel_Kernel(NP)  {
-                Real fx = (Px[i] - XN1 - H_Grid*IDs[i].x)/H_Grid;
-                Real fy = (Py[i] - YN1 - H_Grid*IDs[i].y)/H_Grid;
-                Real fz = (Pz[i] - ZN1 - H_Grid*IDs[i].z)/H_Grid;
-                mapM4D(1.0+fx,Mx(i,0));    mapM4D(fx,Mx(i,1)); mapM4D(1.0-fx,Mx(i,2)); mapM4D(2.0-fx,Mx(i,3));
-                mapM4D(1.0+fy,My(i,0));    mapM4D(fy,My(i,1)); mapM4D(1.0-fy,My(i,2)); mapM4D(2.0-fy,My(i,3));
-                mapM4D(1.0+fz,Mz(i,0));    mapM4D(fz,Mz(i,1)); mapM4D(1.0-fz,Mz(i,2)); mapM4D(2.0-fz,Mz(i,3));
-            }
-            break;
+        break;
+    }
+    case (M4D):     {
+        Parallel_Kernel(NP)  {
+            Real fx = (Px[i] - XN1 - H_Grid*IDs[i].x)/H_Grid;
+            Real fy = (Py[i] - YN1 - H_Grid*IDs[i].y)/H_Grid;
+            Real fz = (Pz[i] - ZN1 - H_Grid*IDs[i].z)/H_Grid;
+            mapM4D(1.0+fx,Mx(i,0));    mapM4D(fx,Mx(i,1)); mapM4D(1.0-fx,Mx(i,2)); mapM4D(2.0-fx,Mx(i,3));
+            mapM4D(1.0+fy,My(i,0));    mapM4D(fy,My(i,1)); mapM4D(1.0-fy,My(i,2)); mapM4D(2.0-fy,My(i,3));
+            mapM4D(1.0+fz,Mz(i,0));    mapM4D(fz,Mz(i,1)); mapM4D(1.0-fz,Mz(i,2)); mapM4D(2.0-fz,Mz(i,3));
         }
-        case (M6D):     {
-            Parallel_Kernel(NP)  {
-                Real fx = (Px[i] - XN1 - H_Grid*IDs[i].x)/H_Grid;
-                Real fy = (Py[i] - YN1 - H_Grid*IDs[i].y)/H_Grid;
-                Real fz = (Pz[i] - ZN1 - H_Grid*IDs[i].z)/H_Grid;
-                mapM6D(2.0+fx,Mx(i,0)); mapM6D(1.0+fx,Mx(i,1)); mapM6D(fx,Mx(i,2)); mapM6D(1.0-fx,Mx(i,3)); mapM6D(2.0-fx,Mx(i,4)); mapM6D(3.0-fx,Mx(i,5));
-                mapM6D(2.0+fy,My(i,0)); mapM6D(1.0+fy,My(i,1)); mapM6D(fy,My(i,2)); mapM6D(1.0-fy,My(i,3)); mapM6D(2.0-fy,My(i,4)); mapM6D(3.0-fy,My(i,5));
-                mapM6D(2.0+fz,Mz(i,0)); mapM6D(1.0+fz,Mz(i,1)); mapM6D(fz,Mz(i,2)); mapM6D(1.0-fz,Mz(i,3)); mapM6D(2.0-fz,Mz(i,4)); mapM6D(3.0-fz,Mz(i,5));
-            }
-            break;
+        break;
+    }
+    case (M6D):     {
+        Parallel_Kernel(NP)  {
+            Real fx = (Px[i] - XN1 - H_Grid*IDs[i].x)/H_Grid;
+            Real fy = (Py[i] - YN1 - H_Grid*IDs[i].y)/H_Grid;
+            Real fz = (Pz[i] - ZN1 - H_Grid*IDs[i].z)/H_Grid;
+            mapM6D(2.0+fx,Mx(i,0)); mapM6D(1.0+fx,Mx(i,1)); mapM6D(fx,Mx(i,2)); mapM6D(1.0-fx,Mx(i,3)); mapM6D(2.0-fx,Mx(i,4)); mapM6D(3.0-fx,Mx(i,5));
+            mapM6D(2.0+fy,My(i,0)); mapM6D(1.0+fy,My(i,1)); mapM6D(fy,My(i,2)); mapM6D(1.0-fy,My(i,3)); mapM6D(2.0-fy,My(i,4)); mapM6D(3.0-fy,My(i,5));
+            mapM6D(2.0+fz,Mz(i,0)); mapM6D(1.0+fz,Mz(i,1)); mapM6D(fz,Mz(i,2)); mapM6D(1.0-fz,Mz(i,3)); mapM6D(2.0-fz,Mz(i,4)); mapM6D(3.0-fz,Mz(i,5));
         }
-        default:        {std::cout << "VPM_3D_Solver::Map_Grid_Sources: Mapping unknown" << std::endl;    break;}
+        break;
+    }
+    default:        {std::cout << "VPM_3D_Solver::Map_Grid_Sources: Mapping unknown" << std::endl;    break;}
     }
 }
 
 void VPM_3D_Solver::Map_from_Grid(  const RVector &Px, const RVector &Py, const RVector &Pz,
-                                    const RVector &Gx, const RVector &Gy, const RVector &Gz,
-                                    RVector &uX, RVector &uY, RVector &uZ, Mapping Map)
+                                  const RVector &Gx, const RVector &Gy, const RVector &Gz,
+                                  RVector &uX, RVector &uY, RVector &uZ, Mapping Map)
 {
     // This function maps the input particle to the specified destination grid g_i
 
@@ -403,6 +416,475 @@ void VPM_3D_Solver::Map_to_Grid(const RVector &Px, const RVector &Py, const RVec
     }
 }
 
+//--- New approach to avoid auxiliary grid.
+
+void VPM_3D_Solver::Get_External_Forcing_Nodes(std::vector<Vector3> &Om, std::vector<Vector3> &Pos)
+{
+    // For the hybrid solver, we need to know at each timestep the influence of the
+    // temporary mapped vorticity on the field. We export here the nodes for this.
+    Real dV = Hx*Hy*Hz;
+    // std::cout << dV  << std::endl;
+    // for (size_t i=0; i<size(Ext_Forcing); i++){
+    for (ParticleMap p : Ext_Forcing){
+        dim3 nid = p.cartid;    //std::get<0>(Ext_Forcing[i]);
+        Vector3 no = p.Vort;    //std::get<1>(Ext_Forcing[i]);
+        Om.push_back(no*dV);
+        Pos.push_back(Vector3(XN1 + nid.x*Hx, YN1 + nid.y*Hy, ZN1 + nid.z*Hz));
+    }
+}
+
+void VPM_3D_Solver::Process_Cells(const RVector &Px, const RVector &Py, const RVector &Pz,
+                                  const RVector &Ox, const RVector &Oy, const RVector &Oz,
+                                  std::vector<CellMap> &IDs, Mapping Map)
+{
+
+    // Loop over source positions & specify source id
+    int NP = Px.size();
+
+    // Set buffer for mapping/interpolation
+    uint b = abs(Set_Map_Shift(Map));
+
+    std::vector<CellMap> Cells(NP);             // Initial array of cells
+    std::vector<bool> Valid(NP,true);           // Is this particle in a valid region?
+
+    // Step 1: Specify node ids
+    Parallel_Kernel(NP) {
+
+        dim3 tID = dim3(int((Px[i] - XN1)/H_Grid),
+                        int((Py[i] - YN1)/H_Grid),
+                        int((Pz[i] - ZN1)/H_Grid));
+        bool xbuf = (tID.x < b || tID.x >= NNX-b-1);
+        bool ybuf = (tID.y < b || tID.y >= NNY-b-1);
+        bool zbuf = (tID.z < b || tID.z >= NNZ-b-1);
+        Cells[i].idin = i;
+        Cells[i].Pos = Vector3(Px[i],Py[i],Pz[i]);
+        Cells[i].id = GID(tID.x,tID.y,tID.z,NNX,NNY,NNZ);   // Set particle cell global id
+        Cells[i].id3 = tID;                                 // Set particle cell cartesian id
+        Cells[i].Weight = Vector3(Ox[i],Oy[i],Oz[i]);       // Set particle cell weight
+        if (xbuf || ybuf || zbuf){                          // Position out of bounds
+            Valid[i] = false;
+            Status = GridError;
+            // std::cout << Px[i] << Px[i]-XN1 csp Lx csp IDs[i].x << std::endl;
+            // std::cout << Py[i] << Py[i]-YN1 csp Ly csp IDs[i].y << std::endl;
+            // std::cout << Pz[i] << Pz[i]-ZN1 csp Lz csp IDs[i].z << std::endl;
+            // std::cout << " " << std::endl;
+        }
+    }
+
+    // Step 2: Remove invalid cell mappings and generate list of pointers to cell objects
+    // std::vector<CellMap*> IDs;
+    for (size_t i=0; i<size(Cells); i++)   {if (Valid[i])   IDs.push_back(Cells[i]);}
+
+    // Step 3: Sort remaining cell mappings based on global id
+    std::sort(IDs.begin(), IDs.end(), [](const CellMap& a, const CellMap& b) { return a.id < b.id; });
+
+    // Step 2: Remove invalid cell mappings and generate list of pointers to cell objects
+    // std::vector<CellMap*> unsortedIDs;
+    // for (size_t i=0; i<size(Cells); i++)   {if (Valid[i])   unsortedIDs.push_back(&Cells[i]);}
+
+    // Step 3: Sort remaining cell mappings based on global id
+    // std::sort(IDs.begin(), IDs.end(), [](const CellMap& a, const CellMap& b) { return a.id < b.id; });
+
+    // // Step 3: Sort objects (use pointers!)
+    // std::vector<CellMap*> sortedpIDs;
+    // for (auto& cell : IDs) sortedPtrs.push_back(&cell);
+    // std::sort(unsortedIDs.begin(), unsortedIDs.end(), [](const CellMap* a, const CellMap* b) { return a->id < b->id; });
+    // for (CellMap* p : unsortedIDs) IDs.push_back(*p);
+    // for (auto& cell : IDs) IDs.push_back(&cell);
+
+    // Specify mapping coefficient matrices
+    NP = int(IDs.size());
+    switch (Map)
+    {
+    case (M2):      {
+        Parallel_Kernel(NP)  {
+            Real fx = (IDs[i].Pos(0) - XN1 - H_Grid*IDs[i].id3.x)/H_Grid;
+            Real fy = (IDs[i].Pos(1) - YN1 - H_Grid*IDs[i].id3.y)/H_Grid;
+            Real fz = (IDs[i].Pos(2) - ZN1 - H_Grid*IDs[i].id3.z)/H_Grid;
+            Matrix mMat = Matrix(3,2);
+            mapM2(fx, mMat(0,0)); mapM2(1.0-fx, mMat(0,1));
+            mapM2(fy, mMat(1,0)); mapM2(1.0-fy, mMat(1,1));
+            mapM2(fz, mMat(2,0)); mapM2(1.0-fz, mMat(2,1));
+            IDs[i].Coeff = mMat;
+        }
+        break;
+    }
+    case (M4):      {
+        Parallel_Kernel(NP)  {
+            Real fx = (IDs[i].Pos(0) - XN1 - H_Grid*IDs[i].id3.x)/H_Grid;
+            Real fy = (IDs[i].Pos(1) - YN1 - H_Grid*IDs[i].id3.y)/H_Grid;
+            Real fz = (IDs[i].Pos(2) - ZN1 - H_Grid*IDs[i].id3.z)/H_Grid;
+            Matrix mMat = Matrix(3,4);
+            mapM4(1.0+fx,mMat(0,0));     mapM4(fx,mMat(0,1));  mapM4(1.0-fx,mMat(0,2));  mapM4(2.0-fx,mMat(0,3));
+            mapM4(1.0+fy,mMat(1,0));     mapM4(fy,mMat(1,1));  mapM4(1.0-fy,mMat(1,2));  mapM4(2.0-fy,mMat(1,3));
+            mapM4(1.0+fz,mMat(2,0));     mapM4(fz,mMat(2,1));  mapM4(1.0-fz,mMat(2,2));  mapM4(2.0-fz,mMat(2,3));
+            IDs[i].Coeff = mMat;
+        }
+        break;
+    }
+    case (M4D):     {
+        Parallel_Kernel(NP)  {
+            Real fx = (IDs[i].Pos(0) - XN1 - H_Grid*IDs[i].id3.x)/H_Grid;
+            Real fy = (IDs[i].Pos(1) - YN1 - H_Grid*IDs[i].id3.y)/H_Grid;
+            Real fz = (IDs[i].Pos(2) - ZN1 - H_Grid*IDs[i].id3.z)/H_Grid;
+            Matrix mMat = Matrix(3,4);
+            mapM4D(1.0+fx,mMat(0,0));    mapM4D(fx,mMat(0,1)); mapM4D(1.0-fx,mMat(0,2)); mapM4D(2.0-fx,mMat(0,3));
+            mapM4D(1.0+fy,mMat(1,0));    mapM4D(fy,mMat(1,1)); mapM4D(1.0-fy,mMat(1,2)); mapM4D(2.0-fy,mMat(1,3));
+            mapM4D(1.0+fz,mMat(2,0));    mapM4D(fz,mMat(2,1)); mapM4D(1.0-fz,mMat(2,2)); mapM4D(2.0-fz,mMat(2,3));
+            IDs[i].Coeff = mMat;
+        }
+        break;
+    }
+    case (M6D):     {
+        Parallel_Kernel(NP)  {
+            Real fx = (IDs[i].Pos(0) - XN1 - H_Grid*IDs[i].id3.x)/H_Grid;
+            Real fy = (IDs[i].Pos(1) - YN1 - H_Grid*IDs[i].id3.y)/H_Grid;
+            Real fz = (IDs[i].Pos(2) - ZN1 - H_Grid*IDs[i].id3.z)/H_Grid;
+            Matrix mMat = Matrix(3,6);
+            mapM6D(2.0+fx,mMat(0,0)); mapM6D(1.0+fx,mMat(0,1)); mapM6D(fx,mMat(0,2)); mapM6D(1.0-fx,mMat(0,3)); mapM6D(2.0-fx,mMat(0,4)); mapM6D(3.0-fx,mMat(0,5));
+            mapM6D(2.0+fy,mMat(1,0)); mapM6D(1.0+fy,mMat(1,1)); mapM6D(fy,mMat(1,2)); mapM6D(1.0-fy,mMat(1,3)); mapM6D(2.0-fy,mMat(1,4)); mapM6D(3.0-fy,mMat(1,5));
+            mapM6D(2.0+fz,mMat(2,0)); mapM6D(1.0+fz,mMat(2,1)); mapM6D(fz,mMat(2,2)); mapM6D(1.0-fz,mMat(2,3)); mapM6D(2.0-fz,mMat(2,4)); mapM6D(3.0-fz,mMat(2,5));
+            IDs[i].Coeff = mMat;
+        }
+        break;
+    }
+    default:        {std::cout << "VPM_3D_Solver::Map_Grid_Sources: Mapping unknown" << std::endl;    break;}
+    }
+}
+
+void VPM_3D_Solver::Domain_Bounds(std::vector<CellMap> &CD, dim3 &Lower, dim3 &Upper)
+{
+    CellMap min_x = *std::min_element(CD.begin(), CD.end(), [](const CellMap& a, const CellMap& b) { return a.id3.x < b.id3.x; });
+    CellMap max_x = *std::max_element(CD.begin(), CD.end(), [](const CellMap& a, const CellMap& b) { return a.id3.x < b.id3.x; });
+    CellMap min_y = *std::min_element(CD.begin(), CD.end(), [](const CellMap& a, const CellMap& b) { return a.id3.y < b.id3.y; });
+    CellMap max_y = *std::max_element(CD.begin(), CD.end(), [](const CellMap& a, const CellMap& b) { return a.id3.y < b.id3.y; });
+    CellMap min_z = *std::min_element(CD.begin(), CD.end(), [](const CellMap& a, const CellMap& b) { return a.id3.z < b.id3.z; });
+    CellMap max_z = *std::max_element(CD.begin(), CD.end(), [](const CellMap& a, const CellMap& b) { return a.id3.z < b.id3.z; });
+    Lower = dim3(min_x.id3.x, min_y.id3.y, min_z.id3.z);
+    Upper = dim3(max_x.id3.x, max_y.id3.y, max_z.id3.z);
+    // std::cout << Lower.x csp Lower.y csp Lower.z csp  Upper.x csp Upper.y csp Upper.z << std::endl;
+}
+
+void VPM_3D_Solver::Map_Source_Nodes(const RVector &Px, const RVector &Py, const RVector &Pz,
+                                     const RVector &Ox, const RVector &Oy, const RVector &Oz, std::vector<ParticleMap> &GP, Mapping Map)
+{
+    // This function takes the array of nodes specified at Position Px,y,z with strength Ox,y,z and returns
+    // the representative grid ids and weights at OrderedParticles in GP.
+
+    if (Px.empty() || Py.empty() || Pz.empty()) return;
+
+    // Process nodes
+    std::vector<CellMap> ID;
+    Process_Cells(Px, Py, Pz, Ox, Oy, Oz, ID, Map);
+
+    // Accumulate equivalent node positions
+    std::vector<CellMap> Maps;      // Array of sorted maps
+    Maps.emplace_back(ID[0]);       // Add first element
+    Maps[0].Weights.push_back(ID[0].Weight);
+    Maps[0].Coeffs.push_back(ID[0].Coeff);
+    for (size_t i=1; i<ID.size(); ++i) {
+        if (ID[i].id == Maps.back().id){
+            Maps.back().Weights.push_back(ID[i].Weight);
+            Maps.back().Coeffs.push_back(ID[i].Coeff);
+        }
+        else {
+            Maps.emplace_back(ID[i]);       // Add next element
+            Maps.back().Weights.push_back(ID[i].Weight);
+            Maps.back().Coeffs.push_back(ID[i].Coeff);
+        }
+    }
+
+    // Check domain limits
+    dim3 dLow,dUpp;
+    Domain_Bounds(Maps,dLow,dUpp);
+    dLow.x -= 3; dLow.y -= 3; dLow.z -= 3;
+    dUpp.x += 3; dUpp.y += 3; dUpp.z += 3;
+    uint nx = dUpp.x-dLow.x+1, ny = dUpp.y-dLow.y+1, nz = dUpp.z-dLow.z+1, nt = nx*ny*nz;
+
+    // Generate grid of nodes
+    RVector mox(nt,0.), moy(nt,0.), moz(nt,0.);
+
+    // Map particles to temp grid
+    int idsh = Set_Map_Shift(Map);
+    int nc = Set_Map_Stencil_Width(Map);
+    for (size_t p=0; p<size(Maps); p++){
+
+        dim3 rid(Maps[p].id3.x-dLow.x, Maps[p].id3.y-dLow.y, Maps[p].id3.z-dLow.z); // Local position of cell within sparse grid
+
+        // Append onto temp grid
+#pragma omp parallel for collapse(3)
+        for (int i=0; i<nc; i++){
+            for (int j=0; j<nc; j++){
+                for (int k=0; k<nc; k++){
+                    dim3 mid(rid.x+idsh+i, rid.y+idsh+j, rid.z+idsh+k);     // Local dim3 id of node within sparse grid
+                    int gid = GID(mid.x,mid.y,mid.z,nx,ny,nz);              // Local id of node within sparse grid
+                    for (size_t pm=0; pm<size(Maps[p].Weights); pm++){
+                        Matrix M = Maps[p].Coeffs[pm];
+                        Vector3 Om = Maps[p].Weights[pm];
+                        Real Fac = M(0,i)*M(1,j)*M(2,k);
+                        mox[gid] += Fac*Om(0);
+                        moy[gid] += Fac*Om(1);
+                        moz[gid] += Fac*Om(2);
+                    }
+                }
+            }
+        }
+    }
+
+    //  std::cout << "Now grid"<< std::endl;
+    // Approach 1: Fullgrid
+    // std::vector<OrdPart> Parts;
+    for (uint i=0; i<nx; i++) {
+        for (uint j=0; j<ny; j++) {
+            for (uint k=0; k<nz; k++) {
+                uint lid = GID(i,j,k,nx,ny,nz);
+                Vector3 v(mox[lid],moy[lid],moz[lid]);
+                if (v.norm()>0){    // GP.emplace_back(OrdPart(dim3(i+dLow.x,j+dLow.y,k+dLow.z), v, 0));
+                    ParticleMap p;
+                    p.Vort = v;
+                    p.cartid = dim3(i+dLow.x,j+dLow.y,k+dLow.z)  ;
+                    GP.emplace_back(p);
+                }
+
+            }
+        }
+    }
+}
+
+void VPM_3D_Solver::Store_Grid_Node_Sources(const RVector &Px, const RVector &Py, const RVector &Pz, const RVector &Ox, const RVector &Oy, const RVector &Oz, Mapping Map)
+{
+    // Processes the external forcing nodes.
+    if (Px.empty() || Py.empty() || Pz.empty()) return;
+
+    Ext_Forcing.clear();
+    Map_Source_Nodes(Px, Py, Pz, Ox, Oy, Oz, Ext_Forcing, Map);
+    std::cout << Ext_Forcing.size() << " Nodes mapped with " << Px.size() << " input nodes." << std::endl;
+}
+
+void VPM_3D_Solver::Map_Probe_Nodes(const RVector &Px, const RVector &Py, const RVector &Pz, std::vector<ParticleMap> &GP, Mapping Map)
+{
+    // This function takes the array of nodes specified at Position Px,y,z with strength Ox,y,z and returns
+    // the representative grid ids and weights at OrderedParticles in GP.
+
+    if (Px.empty() || Py.empty() || Pz.empty()) return;
+
+    // Process nodes
+    std::vector<CellMap> ID;
+    RVector dumOx(size(Px),0), dumOy(size(Px),0), dumOz(size(Px),0);    // Dummy source arrays
+    Process_Cells(Px, Py, Pz, dumOx, dumOy, dumOz, ID, Map);
+
+    // Accumulate equivalent node positions
+    std::vector<CellMap> Maps;      // Array of sorted maps
+    Maps.emplace_back(ID[0]);       // Add first element
+    Maps[0].Coeffs.push_back(ID[0].Coeff);
+    for (size_t i=1; i<ID.size(); ++i) {
+        if (ID[i].id == Maps.back().id){
+            Maps.back().Coeffs.push_back(ID[i].Coeff);
+        }
+        else {
+            Maps.emplace_back(ID[i]);       // Add next element
+            Maps.back().Coeffs.push_back(ID[i].Coeff);
+        }
+    }
+
+    // Check domain limits
+    dim3 dLow,dUpp;
+    Domain_Bounds(Maps,dLow,dUpp);
+    dLow.x -= 3; dLow.y -= 3; dLow.z -= 3;
+    dUpp.x += 3; dUpp.y += 3; dUpp.z += 3;
+    uint nx = dUpp.x-dLow.x+1, ny = dUpp.y-dLow.y+1, nz = dUpp.z-dLow.z+1, nt = nx*ny*nz;
+
+    // Generate grid of flags
+    std::vector<bool> fox(nt,false);
+
+    // Map particles to temp grid
+    int idsh = Set_Map_Shift(Map);
+    int nc = Set_Map_Stencil_Width(Map);
+    for (size_t p=0; p<size(Maps); p++){
+
+        dim3 rid(Maps[p].id3.x-dLow.x, Maps[p].id3.y-dLow.y, Maps[p].id3.z-dLow.z); // Local position of cell within sparse grid
+
+        // Set activity
+#pragma omp parallel for collapse(3)
+        for (int i=0; i<nc; i++){
+            for (int j=0; j<nc; j++){
+                for (int k=0; k<nc; k++){
+                    dim3 mid(rid.x+idsh+i, rid.y+idsh+j, rid.z+idsh+k);     // Local dim3 id of node within sparse grid
+                    int gid = GID(mid.x,mid.y,mid.z,nx,ny,nz);              // Local id of node within sparse grid
+                    fox[gid] = true;
+                }
+            }
+        }
+    }
+    // for (int i=0; i<nt; i++) std::cout << mox[i] csp moy[i] csp moz[i] << std::endl;
+
+    // Approach 1: Fullgrid
+    // std::vector<OrdPart> Parts;
+    for (uint i=0; i<nx; i++) {
+        for (uint j=0; j<ny; j++) {
+            for (uint k=0; k<nz; k++) {
+                uint lid = GID(i,j,k,nx,ny,nz);
+                if (fox[lid]){// GP.emplace_back(OrdPart(dim3(i+dLow.x,j+dLow.y,k+dLow.z), Vector3::Zero(), 0));
+                    ParticleMap p;
+                    // p.Vort = v;
+                    p.cartid = dim3(i+dLow.x,j+dLow.y,k+dLow.z);
+                    GP.emplace_back(p);
+                }
+            }
+        }
+    }
+}
+
+void VPM_3D_Solver::Get_Ext_Velocity(const RVector &Px, const RVector &Py, const RVector &Pz,
+                                     RVector &Ux, RVector &Uy, RVector &Uz, Mapping Map)
+{
+    // This function uses the mapped source particles to calculate the mapped velocity.
+
+    if (Px.empty() || Py.empty() || Pz.empty()) return;
+
+    // Process nodes
+    std::vector<CellMap> ID;
+    RVector dumOx(size(Px),0), dumOy(size(Px),0), dumOz(size(Px),0);    // Dummy source arrays
+    Process_Cells(Px, Py, Pz, dumOx, dumOy, dumOz, ID, Map);
+
+    // Accumulate equivalent receiver node positions
+    std::vector<CellMap> Maps;      // Array of sorted maps
+    Maps.emplace_back(ID[0]);       // Add first element
+    Maps[0].Coeffs.push_back(ID[0].Coeff);
+    for (size_t i=1; i<ID.size(); ++i) {
+        if (ID[i].id == Maps.back().id){
+            Maps.back().Coeffs.push_back(ID[i].Coeff);
+        }
+        else {
+            Maps.emplace_back(ID[i]);       // Add next element
+            Maps.back().Coeffs.push_back(ID[i].Coeff);
+        }
+    }
+
+    // Check domain limits and add buffer
+    dim3 dLow,dUpp;
+    Domain_Bounds(Maps,dLow,dUpp);
+    dLow.x -= 3; dLow.y -= 3; dLow.z -= 3;
+    dUpp.x += 3; dUpp.y += 3; dUpp.z += 3;
+    uint nx = dUpp.x-dLow.x+1, ny = dUpp.y-dLow.y+1, nz = dUpp.z-dLow.z+1, nt = nx*ny*nz;
+
+    // Generate grid of flags
+    std::vector<bool> fox(nt,false);
+
+    // Specify locations where influence needs to be calculated
+    int idsh = Set_Map_Shift(Map);
+    int nc = Set_Map_Stencil_Width(Map);
+    for (size_t p=0; p<size(Maps); p++){
+
+        dim3 rid(Maps[p].id3.x-dLow.x, Maps[p].id3.y-dLow.y, Maps[p].id3.z-dLow.z); // Local position of cell within sparse grid
+
+        // Set activity
+#pragma omp parallel for collapse(3)
+        for (int i=0; i<nc; i++){
+            for (int j=0; j<nc; j++){
+                for (int k=0; k<nc; k++){
+                    dim3 mid(rid.x+idsh+i, rid.y+idsh+j, rid.z+idsh+k);     // Local dim3 id of node within sparse grid
+                    int gid = GID(mid.x,mid.y,mid.z,nx,ny,nz);              // Local id of node within sparse grid
+                    fox[gid] = true;
+                }
+            }
+        }
+    }
+
+    // Identify probe points
+    std::vector<ParticleMap> RcvrNodes;
+    for (uint i=0; i<nx; i++) {
+        for (uint j=0; j<ny; j++) {
+            for (uint k=0; k<nz; k++) {
+                uint lid = GID(i,j,k,nx,ny,nz);
+                if (fox[lid]){// RcvrNodes.emplace_back(OrdPart(dim3(i+dLow.x,j+dLow.y,k+dLow.z), Vector3::Zero(), 0));
+                    ParticleMap p;
+                    // p.Vort = v;
+                    p.cartid = dim3(i+dLow.x,j+dLow.y,k+dLow.z);
+                    RcvrNodes.emplace_back(p);
+
+
+                    // dim3(i+dLow.x,j+dLow.y,k+dLow.z)
+                }
+            }
+        }
+    }
+
+    // Generate grid of potential/velocity
+    RVector ugx(nt,0), ugy(nt,0), ugz(nt,0);
+
+    // Calculate influence of source terms
+    Real dV = Hx*Hy*Hz;
+    Real Sigma = 1.5*Hx;
+    OpenMPfor
+        for (size_t p=0; p<size(RcvrNodes); p++){                                   // Loop over evaluation points
+        dim3 rcvr = RcvrNodes[p].cartid; //std::get<0>(RcvrNodes[p]);                                  // Receiver global id
+        Vector3 prcvr(XN1+rcvr.x*Hx, YN1+rcvr.y*Hy, ZN1+rcvr.z*Hz);         // Receiver global position
+
+        Vector3 tPhi = Vector3::Zero();
+        for (size_t s=0; s<size(Ext_Forcing); s++){
+            dim3 sid = Ext_Forcing[s].cartid;   //std::get<0>(Ext_Forcing[s]);                     // Global id of source node
+            Vector3 psrc(XN1+sid.x*Hx, YN1+sid.y*Hy, ZN1+sid.z*Hz);     // Global position of source node
+            Vector3 alpha = Ext_Forcing[s].Vort;    //std::get<1>(Ext_Forcing[s])*dV;             // Circulation of source node
+            Vector3 r = prcvr-psrc;
+            Real rn = r.norm();
+            if (rn!=0.) tPhi += BS(rn,Sigma)*r.cross(alpha);
+            // if (rn>0.1*Hx) tPhi += BS(rn,Sigma)*r.cross(alpha);         // Modified influence... ensure no node self-influence
+        }
+
+        dim3 idl3 = dim3(rcvr.x-dLow.x, rcvr.y-dLow.y, rcvr.z-dLow.z);  // Receiver local id
+        int idl = GID(idl3.x, idl3.y, idl3.z, nx, ny, nz);
+        ugx[idl] = tPhi(0);
+        ugy[idl] = tPhi(1);
+        ugz[idl] = tPhi(2);
+    }
+
+    // std::cout << "Source nodes" << std::endl;
+    // for (size_t i=0; i<size(Ext_Forcing); i++) {
+    //     dim3 sid = std::get<0>(Ext_Forcing[i]);
+    //     Vector3 psrc(XN1+sid.x*Hx, YN1+sid.y*Hy, ZN1+sid.z*Hz);     // Global position of source node
+    //     std::cout << psrc(0) csp psrc(1) csp psrc(2) << std::endl;
+    // }
+
+    // std::cout << "Probe nodes" << std::endl;
+    // for (size_t i=0; i<size(Px); i++) {
+    //     std::cout << Px[i] csp Py[i] csp Pz[i] << std::endl;
+    // }
+
+    // std::cout << "Receiver nodes" << std::endl;
+    // for (size_t i=0; i<size(RcvrNodes); i++) {
+    //     dim3 rcvr = std::get<0>(RcvrNodes[i]);                                  // Receiver global id
+    //     Vector3 prcvr(XN1+rcvr.x*Hx, YN1+rcvr.y*Hy, ZN1+rcvr.z*Hz);         // Receiver global position
+    //     std::cout << prcvr(0) csp prcvr(1) csp prcvr(2) << std::endl;
+    // }
+
+    // Now carry out interpolation on the local grid and store outputs
+    OpenMPfor
+        for (size_t p=0; p<ID.size(); p++){                 // Loop over evaluation points
+        dim3 rid = ID[p].id3;                              // Receiver global id
+        Matrix M = ID[p].Coeff;
+        Vector3 Phi = Vector3::Zero();
+        for (int i=0; i<nc; i++){
+            for (int j=0; j<nc; j++){
+                for (int k=0; k<nc; k++){
+                    // int pid = GID(rid.x+idsh-dLow.x, rid.y+idsh-dLow.y, rid.z+idsh-dLow.z, nx, ny, nz); // Local id of node within sparse grid
+                    dim3 sidg(rid.x+idsh+i,rid.y+idsh+j,rid.z+idsh+k);      // Global id of source node
+                    dim3 sidl(sidg.x-dLow.x,sidg.y-dLow.y,sidg.z-dLow.z);   // Local id of source node
+                    int pid = GID(sidl.x, sidl.y, sidl.z, nx, ny, nz);      // Local index of source
+                    Real Fac = M(0,i)*M(1,j)*M(2,k);
+                    Phi(0) += Fac*ugx[pid];
+                    Phi(1) += Fac*ugy[pid];
+                    Phi(2) += Fac*ugz[pid];
+                }
+            }
+        }
+        Ux[ID[p].idin] = Phi(0);
+        Uy[ID[p].idin] = Phi(1);
+        Uz[ID[p].idin] = Phi(2);
+    }
+}
+
+
 //--- Output
 
 void VPM_3D_Solver::Generate_Summary(std::string Filename)
@@ -413,11 +895,11 @@ void VPM_3D_Solver::Generate_Summary(std::string Filename)
     const std::time_t t_c = std::chrono::system_clock::to_time_t(now);
     std::cout << "The system clock is currently at " << std::ctime(&t_c);
 
-//    chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-//    chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+    //    chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+    //    chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
 
-//    std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]" << std::endl;
-//    std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count() << "[ns]" << std::endl;
+    //    std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]" << std::endl;
+    //    std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count() << "[ns]" << std::endl;
 
     //--- Create output director if non existent
     std::string OutputDirectory = "Output/" + OutputFolder;
@@ -436,9 +918,9 @@ void VPM_3D_Solver::Generate_Summary(std::string Filename)
         file << "#-------------------------------------------------------------------------#" << std::endl;
         file << "#-----------------VoldeVort VPM Solver Summary File-----------------------#" << std::endl;
         file << "#-------------------------------------------------------------------------#" << std::endl;
-//        file << "\n" << std::endl;
+        //        file << "\n" << std::endl;
         file << "Simulation began: " << std::ctime(&t_c) << std::endl;
-//        file << "\n" << std::endl;
+        //        file << "\n" << std::endl;
         file << "#-----------Grid Variables-----------------#" << std::endl;
         file << "XLOW       " << Xl     << "    (Lower X Limit)" <<std::endl;
         file << "YLOW       " << Yl     << "    (Lower Y Limit)" <<std::endl;
@@ -476,13 +958,13 @@ void VPM_3D_Solver::Generate_Summary(std::string Filename)
         std::string KER;
         switch (Greens_Kernel)
         {
-            case (HEJ_S0):  {KER = "HEJ_S0"; break;}
-            case (HEJ_G2):  {KER = "HEJ_G2"; break;}
-            case (HEJ_G4):  {KER = "HEJ_G4"; break;}
-            case (HEJ_G6):  {KER = "HEJ_G6"; break;}
-            case (HEJ_G8):  {KER = "HEJ_G8"; break;}
-            case (HEJ_G10): {KER = "HEJ_G10"; break;}
-            default:        {KER = "NONE"; break;}
+        case (HEJ_S0):  {KER = "HEJ_S0"; break;}
+        case (HEJ_G2):  {KER = "HEJ_G2"; break;}
+        case (HEJ_G4):  {KER = "HEJ_G4"; break;}
+        case (HEJ_G6):  {KER = "HEJ_G6"; break;}
+        case (HEJ_G8):  {KER = "HEJ_G8"; break;}
+        case (HEJ_G10): {KER = "HEJ_G10"; break;}
+        default:        {KER = "NONE"; break;}
         }
         file << "KER        "   << KER                  <<"    (Kernel type)" <<std::endl;
         file << "REMESH     "   << NRemesh              << "    (Remeshing Frequency)" <<std::endl;
@@ -503,13 +985,13 @@ void VPM_3D_Solver::Generate_Summary(std::string Filename)
         std::string TS;
         switch (Integrator)
         {
-            case (EF):      {TS = "EF"; break;}
-            case (EM):      {TS = "EM"; break;}
-            case (RK2):     {TS = "RK2"; break;}
-            case (AB2LF):   {TS = "AB2LF"; break;}
-            case (RK3):     {TS = "RK3"; break;}
-            case (RK4):     {TS = "RK4"; break;}
-            default:        {TS = "NONE"; break;}
+        case (EF):      {TS = "EF"; break;}
+        case (EM):      {TS = "EM"; break;}
+        case (RK2):     {TS = "RK2"; break;}
+        case (AB2LF):   {TS = "AB2LF"; break;}
+        case (RK3):     {TS = "RK3"; break;}
+        case (RK4):     {TS = "RK4"; break;}
+        default:        {TS = "NONE"; break;}
         }
         file << "INT        "   << TS                  <<"    (Integration scheme)" <<std::endl;
         file << "dT        "   << dT                  <<"    (Timestep size [s])" <<std::endl;

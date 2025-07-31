@@ -120,8 +120,11 @@ void Test_Dirichlet_1D_IHBC(int NX)
     if (Solver->Get_Grid_Type()==SailFFish::REGULAR) IS = 1;
     for (int i=IS; i<NX; i++){
         Real xs = XGrid[i]-UnitX[0];
+        // std::cout << i csp xs << std::endl;
         Input.push_back(    IH_BC_Omega(xs,Lx,a,b));    // Input field
         Solution.push_back( IH_BC_Phi(xs,Lx,a,b));      // Solution field
+
+        // std::cout << XGrid[i] csp xs csp IH_BC_Omega(xs,Lx,a,b) csp IH_BC_Phi(xs,Lx,a,b) << std::endl;
     }
     Status = Solver->Set_Input(Input);
     if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
@@ -140,6 +143,8 @@ void Test_Dirichlet_1D_IHBC(int NX)
     Solver->Get_Output(Output);
     unsigned int t5 = stopwatch();
     Real tTot = Real(t2+t3+t4+t5);
+
+    // for (int i=0; i<NX; i++) std::cout << XGrid[i] csp Input[i] csp Output[i] csp Solution[i] csp Output[i]/Solution[i] << std::endl;  // Output do we return the correct result FFt+iFFT
 
     std::cout << "Trial Calculation: Solution of the 1D Poisson equation with inhomogeneous Dirichlet boundary conditions." << std::endl;
     std::cout << std::scientific;

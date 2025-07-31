@@ -1730,6 +1730,53 @@ __global__ void MaptoAuxiliaryVPMGrid(const Real* Grid, Real* auxGrid) {
 	auxGrid[rid + 2*NTA] = Grid[sid + 2*NT] - c;
 }
 
+
+__global__ void Map_Ext_Unbounded(  const Real* sx, const Real* sy, const Real* sz,     // Source grid
+                                    const int *blX, const int *blY, const int *blZ,     // Block indices
+                                    Real* ux, Real* uy, Real* uz)                       // Destination grid
+{
+// Prepare relevant indices
+const int BlockID = blockIdx.x;
+const int gx0 = blX[BlockID]*BX;
+const int gy0 = blY[BlockID]*BY;
+const int gz0 = blZ[BlockID]*BZ;
+const int gx = threadIdx.x + gx0;
+const int gy = threadIdx.y + gy0;
+const int gz = threadIdx.z + gz0;
+
+const int lid = gid(threadIdx.x,threadIdx.y,threadIdx.z,BX,BY,BZ);  // Local id within block
+const int sid = lid + BlockID*BT;                                   // Positions within array of source
+const int did = gid(gx,gy,gz,2*NX,2*NY,2*NZ);                       // Local id within padded block
+
+ux[did] += sx[sid];
+uy[did] += sy[sid];
+uz[did] += sz[sid];
+
+}
+
+__global__ void Map_Ext_Bounded(const Real* sx, const Real* sy, const Real* sz,     // Source grid
+                                const int *blX, const int *blY, const int *blZ,     // Block indices
+                                Real* u)                                            // Destination grid
+{
+// Prepare relevant indices
+const int BlockID = blockIdx.x;
+const int gx0 = blX[BlockID]*BX;
+const int gy0 = blY[BlockID]*BY;
+const int gz0 = blZ[BlockID]*BZ;
+const int gx = threadIdx.x + gx0;
+const int gy = threadIdx.y + gy0;
+const int gz = threadIdx.z + gz0;
+
+const int lid = gid(threadIdx.x,threadIdx.y,threadIdx.z,BX,BY,BZ);  // Local id within block
+const int sid = lid + BlockID*BT;                                   // Positions within array of source
+const int did = gidb(gx,gy,gz);                                     // Destination grid index
+
+u[did       ] += sx[sid];
+u[did + 1*NT] += sy[sid];
+u[did + 2*NT] += sz[sid];
+
+}
+
 //----------------------------------
 // Block-data interpolation routines
 //----------------------------------
@@ -1916,6 +1963,186 @@ __syncthreads();
 ux[llid] = m1x;
 uy[llid] = m1y;
 uz[llid] = m1z;
+}
+
+
+template<int Halo, int Mapping, int NHT>                                        // Pass padded grid size as template argument
+__global__ void Interp_Block2(  const Real* src,                                // Source grid values (permanently mapped particles)
+                                const int *blX, const int *blY, const int *blZ, // Block indices
+                                const Real* disp,                               // Particle displacement
+                                const int* hs,                                  // Halo indices
+                                Real* dest)                                     // Destination grid (vorticity)
+{
+// Declare shared memory vars (mapped vorticity field)
+__shared__ Real sx[NHT];
+__shared__ Real sy[NHT];
+__shared__ Real sz[NHT];
+
+// We are still executing the blocks with blockdim [BX, BY, BZ], however are are using the Griddims in a 1d sense.
+// So we need to modify the x-dim based on the number of active blocks.
+
+// Prepare relevant indices
+const int BlockID = blockIdx.x;
+const int gx0 = blX[BlockID]*BX;
+const int gy0 = blY[BlockID]*BY;
+const int gz0 = blZ[BlockID]*BZ;
+const int gx = threadIdx.x + gx0;
+const int gy = threadIdx.y + gy0;
+const int gz = threadIdx.z + gz0;
+const int txh = threadIdx.x + Halo;                                         // Local x id within padded grid
+const int tyh = threadIdx.y + Halo;                                         // Local y id within padded grid
+const int tzh = threadIdx.z + Halo;                                         // Local z id within padded grid												// How many source points shalll be loaded for this block?
+
+// Monolith structure
+// if (Data==Monolith) Kernel.append(const int bid = gid(gx,gy,gz,NX,NY,NZ););
+// if (Data==Block)    Kernel.append(const int bid = gidb(gx,gy,gz););
+const int bid = gidb(gx,gy,gz);
+const int lid = gid(threadIdx.x,threadIdx.y,threadIdx.z,BX,BY,BZ);           // Local id within block
+const int pid = gid(txh,tyh,tzh,NFDX,NFDY,NFDZ);                             // Local id within padded block
+
+
+//-------------------------------------------------------
+// Step 1) Copy global memory to shared & local memory
+//-------------------------------------------------------
+
+// Specify node displacement
+const Real pX = disp[bid       ];
+const Real pY = disp[bid + 1*NT];
+const Real pZ = disp[bid + 2*NT];
+
+// Specify centre volume arrays
+sx[pid] = src[bid       ];
+sy[pid] = src[bid + 1*NT];
+sz[pid] = src[bid + 2*NT];
+
+__syncthreads();
+
+// Fill Halo (with coalesced index read)
+for (int i=0; i<NHIT; i++){
+   const int hid = BT*i + lid;
+   const int hsx = hs[hid];                    		// global x-shift relative to position
+   const int hsy = hs[hid+BT*NHIT];               	// global y-shift relative to position
+   const int hsz = hs[hid+2*BT*NHIT];             	// global z-shift relative to position
+   if (hsx<NFDX){                                 	// Catch: is id within padded indices?
+                const int ghx = gx0-Halo+hsx;             	// Global x-value of retrieved node
+                const int ghy = gy0-Halo+hsy;             	// Global y-value of retrieved node
+                const int ghz = gz0-Halo+hsz;             	// Global z-value of retrieved node
+                const int lhid = gid(hsx,hsy,hsz,NFDX,NFDY,NFDZ);
+
+                // if (Data==Monolith) Kernel.append(const int bhid = gid(ghx,ghy,ghz,NX,NY,NZ););
+                // if (Data==Block)    Kernel.append(const int bhid = gidb(ghx,ghy,ghz););
+                const int bhid = gidb(ghx,ghy,ghz);
+
+                const bool exx = (ghx<0 || ghx>=NX);      	// Is x coordinate outside of the domain?
+                const bool exy = (ghy<0 || ghy>=NY);      	// Is y coordinate outside of the domain?
+                const bool exz = (ghz<0 || ghz>=NZ);      	// Is z coordinate outside of the domain?
+                if (exx || exy || exz){                    	// Catch: is id outside of domain?
+                        sx[lhid] = Real(0.);
+                        sy[lhid] = Real(0.);
+                        sz[lhid] = Real(0.);
+                }
+                else {
+                        sx[lhid] = src[bhid       ];
+                        sy[lhid] = src[bhid + 1*NT];
+                        sz[lhid] = src[bhid + 2*NT];
+                }
+        }
+        __syncthreads();
+}
+
+//------------------------------------------------------------------------------
+// Step 2) Interpolate values from grid
+//------------------------------------------------------------------------------
+
+Real m1x = Real(0.), m1y = Real(0.), m1z = Real(0.);     // Interpolated values
+
+int iix, iiy, iiz;                                // Interpolation id
+const Real dxh = pX/hx, dyh = pY/hy, dzh = pZ/hz;    // Normalized distances
+
+// Calculate interpolation weights
+const int H2 = Halo*2;
+Real cx[H2], cy[H2], cz[H2];			// Interpolation weights
+int NS;									// Shift for node id
+
+// M2 interpolation
+if (Mapping==2){
+        NS = 0;
+        if (dxh>=Real(0.)){ iix = txh;      mapM2(dxh,cx[0]);         	mapM2(Real(1.)-dxh,cx[1]);  }
+        else {             	iix = txh-1;    mapM2(Real(1.)+dxh,cx[0]);  mapM2(-dxh,cx[1]);        	}
+
+        if (dyh>=Real(0.)){ iiy = tyh;      mapM2(dyh,cy[0]);         	mapM2(Real(1.)-dyh,cy[1]);  }
+        else {             	iiy = tyh-1;    mapM2(Real(1.)+dyh,cy[0]);  mapM2(-dyh,cy[1]);        	}
+
+        if (dzh>=Real(0.)){ iiz = tzh;      mapM2(dzh,cz[0]);         	mapM2(Real(1.)-dzh,cz[1]); 	}
+        else {             	iiz = tzh-1;    mapM2(Real(1.)+dzh,cz[0]);  mapM2(-dzh,cz[1]);        	}
+}
+
+// M4 interpolation
+if (Mapping==4){
+        NS = -1;
+        if (dxh>=Real(0.)){ iix = txh;      mapM4(Real(1.)+dxh,cx[0]);  mapM4(dxh,cx[1]);    		mapM4(Real(1.)-dxh,cx[2]);  mapM4(Real(2.)-dxh,cx[3]);}
+        else {             	iix = txh-1;    mapM4(Real(2.)+dxh,cx[0]);  mapM4(Real(1.)+dxh,cx[1]);  mapM4(-dxh,cx[2]);  		mapM4(Real(1.)-dxh,cx[3]);}
+
+        if (dyh>=Real(0.)){ iiy = tyh;    	mapM4(Real(1.)+dyh,cy[0]);  mapM4(dyh,cy[1]);   		mapM4(Real(1.)-dyh,cy[2]);	mapM4(Real(2.)-dyh,cy[3]);}
+        else {             	iiy = tyh-1;    mapM4(Real(2.)+dyh,cy[0]);  mapM4(Real(1.)+dyh,cy[1]);	mapM4(-dyh,cy[2]);  		mapM4(Real(1.)-dyh,cy[3]);}
+
+        if (dzh>=Real(0.)){ iiz = tzh;		mapM4(Real(1.)+dzh,cz[0]);  mapM4(dzh,cz[1]);   		mapM4(Real(1.)-dzh,cz[2]);	mapM4(Real(2.)-dzh,cz[3]);}
+        else {             	iiz = tzh-1;	mapM4(Real(2.)+dzh,cz[0]);  mapM4(Real(1.)+dzh,cz[1]);	mapM4(-dzh,cz[2]);  		mapM4(Real(1.)-dzh,cz[3]);}
+}
+
+// M4' interpolation
+if (Mapping==42){
+        NS = -1;
+        if (dxh>=Real(0.)){ iix = txh;      mapM4D(Real(1.)+dxh,cx[0]);  mapM4D(dxh,cx[1]);    			mapM4D(Real(1.)-dxh,cx[2]);	mapM4D(Real(2.)-dxh,cx[3]);}
+        else {             	iix = txh-1;    mapM4D(Real(2.)+dxh,cx[0]);  mapM4D(Real(1.)+dxh,cx[1]);   	mapM4D(-dxh,cx[2]);  		mapM4D(Real(1.)-dxh,cx[3]);}
+
+        if (dyh>=Real(0.)){ iiy = tyh;      mapM4D(Real(1.)+dyh,cy[0]);  mapM4D(dyh,cy[1]);   			mapM4D(Real(1.)-dyh,cy[2]);	mapM4D(Real(2.)-dyh,cy[3]);}
+        else {             	iiy = tyh-1;    mapM4D(Real(2.)+dyh,cy[0]);  mapM4D(Real(1.)+dyh,cy[1]);   	mapM4D(-dyh,cy[2]);  		mapM4D(Real(1.)-dyh,cy[3]);}
+
+        if (dzh>=Real(0.)){	iiz = tzh;      mapM4D(Real(1.)+dzh,cz[0]);  mapM4D(dzh,cz[1]);   			mapM4D(Real(1.)-dzh,cz[2]);	mapM4D(Real(2.)-dzh,cz[3]);}
+        else {             	iiz = tzh-1;    mapM4D(Real(2.)+dzh,cz[0]);  mapM4D(Real(1.)+dzh,cz[1]);   	mapM4D(-dzh,cz[2]); 		mapM4D(Real(1.)-dzh,cz[3]);}
+}
+
+// M6' interpolation
+
+if (Mapping==6){
+        NS = -2;
+        if (dxh>=Real(0.)){	iix = txh;      mapM6D(Real(2.)+dxh,cx[0]);  mapM6D(Real(1.)+dxh,cx[1]);  mapM6D(      dxh,cx[2]);  	mapM6D(Real(1.)-dxh,cx[3]); 	mapM6D(Real(2.)-dxh,cx[4]);  	mapM6D(Real(3.)-dxh,cx[5]);}
+        else {             	iix = txh-1;    mapM6D(Real(3.)+dxh,cx[0]);  mapM6D(Real(2.)+dxh,cx[1]);  mapM6D(Real(1.)+dxh,cx[2]);  	mapM6D(     -dxh,cx[3]); 		mapM6D(Real(1.)-dxh,cx[4]);  	mapM6D(Real(2.)-dxh,cx[5]);}
+
+        if (dyh>=Real(0.)){	iiy = tyh;      mapM6D(Real(2.)+dyh,cy[0]);  mapM6D(Real(1.)+dyh,cy[1]);  mapM6D(      dyh,cy[2]);  	mapM6D(Real(1.)-dyh,cy[3]); 	mapM6D(Real(2.)-dyh,cy[4]);  	mapM6D(Real(3.)-dyh,cy[5]);}
+        else {             	iiy = tyh-1;    mapM6D(Real(3.)+dyh,cy[0]);  mapM6D(Real(2.)+dyh,cy[1]);  mapM6D(Real(1.)+dyh,cy[2]);  	mapM6D(     -dyh,cy[3]); 		mapM6D(Real(1.)-dyh,cy[4]);  	mapM6D(Real(2.)-dyh,cy[5]);}
+
+        if (dzh>=Real(0.)){	iiz = tzh;      mapM6D(Real(2.)+dzh,cz[0]);  mapM6D(Real(1.)+dzh,cz[1]);  mapM6D(      dzh,cz[2]);  	mapM6D(Real(1.)-dzh,cz[3]); 	mapM6D(Real(2.)-dzh,cz[4]);  	mapM6D(Real(3.)-dzh,cz[5]);}
+        else {             	iiz = tzh-1;    mapM6D(Real(3.)+dzh,cz[0]);  mapM6D(Real(2.)+dzh,cz[1]);  mapM6D(Real(1.)+dzh,cz[2]);  	mapM6D(     -dzh,cz[3]); 		mapM6D(Real(1.)-dzh,cz[4]);  	mapM6D(Real(2.)-dzh,cz[5]);}
+}
+
+// Carry out interpolation
+for (int i=0; i<H2; i++){
+   for (int j=0; j<H2; j++){
+           for (int k=0; k<H2; k++){
+                   const int idsx =  iix + NS + i;
+                   const int idsy =  iiy + NS + j;
+                   const int idsz =  iiz + NS + k;
+                   const int ids =  gid(idsx,idsy,idsz,NFDX,NFDY,NFDZ);
+                   const Real fac =  cx[i]*cy[j]*cz[k];
+                   m1x =  fastma(fac,sx[ids],m1x);
+                   m1y =  fastma(fac,sy[ids],m1y);
+                   m1z =  fastma(fac,sz[ids],m1z);
+           }
+   }
+}
+
+__syncthreads();
+
+//------------------------------------------------------------------------------
+// Step 3) Transfer interpolated values back to array
+//------------------------------------------------------------------------------
+
+dest[bid       ] += m1x;
+dest[bid + 1*NT] += m1y;
+dest[bid + 2*NT] += m1z;
+
 }
 
 //----------------------

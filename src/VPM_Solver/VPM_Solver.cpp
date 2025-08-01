@@ -658,7 +658,7 @@ void VPM_3D_Solver::Store_Grid_Node_Sources(const RVector &Px, const RVector &Py
 
     Ext_Forcing.clear();
     Map_Source_Nodes(Px, Py, Pz, Ox, Oy, Oz, Ext_Forcing, Map);
-    std::cout << Ext_Forcing.size() << " Nodes mapped with " << Px.size() << " input nodes." << std::endl;
+    // std::cout << Ext_Forcing.size() << " Nodes mapped with " << Px.size() << " input nodes." << std::endl;
 }
 
 void VPM_3D_Solver::Map_Probe_Nodes(const RVector &Px, const RVector &Py, const RVector &Pz, std::vector<ParticleMap> &GP, Mapping Map)

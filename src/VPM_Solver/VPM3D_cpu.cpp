@@ -11,22 +11,6 @@ namespace SailFFish
 //------ Initialization -----------
 //---------------------------------
 
-//--- Constructor
-
-VPM3D_cpu::VPM3D_cpu(Grid_Type G, Unbounded_Kernel B)
-{
-    // Basis constructor
-
-    // Specify grid and Ker types
-    Grid = G;
-    Greens_Kernel = B;
-
-    // Specify operator
-    Specify_Operator(SailFFish::CURL);
-    InPlace = false;        // Specify that transforms should occur either in place of out of place (reduced memory footprint)
-    // c_dbf_1 = true;         // This dummy buffer is required as I have not included custom Kernels into Datatype_Cuda yet
-}
-
 //--- Solver setup
 
 SFStatus VPM3D_cpu::Setup_VPM(VPM_Input *I)
@@ -1012,6 +996,62 @@ void VPM3D_cpu::Reproject_Particle_Set_Spectral()
     std::cout << "MinVortDiv Post = " << MinVortDivpost << " MaxVortDiv Post = " << MaxVortDivpost << " VortDivFactor Post = " << VortDivFacpost << std::endl;
 
     std::cout << "Vorticity field reprojection completed with spectral method." << std::endl;
+}
+
+//-------------------------------------------
+//----- Auxiliary grid operations  ----------
+//-------------------------------------------
+
+void VPM3D_cpu::Interpolate_Ext_Sources(Mapping M)
+{
+    // Prior to executing this function, a source field has been defined on the ource grid of the auxiliary grid.
+    // In this step, the source field of the lagrangian grid p_Array are appended with this source field
+
+    // External forcing stored in Ext_Forcing array.
+    // In this step we loop over particles and interpolate to Lagrangian positions
+
+    // Set mapping parameters
+    int idsh = Set_Map_Shift(M) - 1;
+    int nc = Set_Map_Stencil_Width(M) + 1;
+    Map_Kernel Map;
+    switch (M)
+    {
+    case (M2):  {Map = &mapM2;  break;}
+    case (M4):  {Map = &mapM4;  break;}
+    case (M4D): {Map = &mapM4D; break;}
+    case (M6D): {Map = &mapM6D; break;}
+    default:   break;
+    }
+
+    // Loop over external nodes
+    for (size_t p=0; p<size(Ext_Forcing); p++){
+        dim3 sid = Ext_Forcing[p].cartid;   //std::get<0>(Ext_Forcing[p]);
+        Vector3 Omega = Ext_Forcing[p].Vort;  //std::get<1>(Ext_Forcing[p]);
+
+        // Loop over surrounding nodes
+        // #pragma omp parallel for collapse(3)
+        for (int i=0; i<nc; i++){
+            for (int j=0; j<nc; j++){
+                for (int k=0; k<nc; k++){
+
+                    dim3 rid = dim3(sid.x+idsh+i, sid.y+idsh+j, sid.z+idsh+k);
+                    int idr = GID(rid,dom_size);
+
+                    // Calc mapping factors for this receiver node
+                    Real fx, fy, fz;
+                    Map(fabs((idsh+i)*1.0 + lg_d[0][idr]/Hx), fx);
+                    Map(fabs((idsh+j)*1.0 + lg_d[1][idr]/Hy), fy);
+                    Map(fabs((idsh+k)*1.0 + lg_d[2][idr]/Hz), fz);
+                    Real mfac = fx*fy*fz;
+
+                    // Add contribution
+                    lg_o[0][idr] += Omega(0)*mfac;
+                    lg_o[1][idr] += Omega(1)*mfac;
+                    lg_o[2][idr] += Omega(2)*mfac;
+                }
+            }
+        }
+    }
 }
 
 //-------------------------------------------

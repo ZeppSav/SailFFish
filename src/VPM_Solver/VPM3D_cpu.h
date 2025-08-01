@@ -45,7 +45,19 @@ protected:
 public:
 
     //--- Constructor
-    VPM3D_cpu(Grid_Type G = STAGGERED, Unbounded_Kernel B = HEJ_G8);
+    VPM3D_cpu(Grid_Type G = STAGGERED, Unbounded_Kernel B = HEJ_G8)  : VPM_3D_Solver(G,B)
+    {
+        // Basis constructor
+
+        // Specify grid and Ker types
+        Grid = G;
+        Greens_Kernel = B;
+
+        // Specify operator
+        Specify_Operator(SailFFish::CURL);
+        InPlace = false;        // Specify that transforms should occur either in place of out of place (reduced memory footprint)
+        // c_dbf_1 = true;         // This dummy buffer is required as I have not included custom Kernels into Datatype_Cuda yet
+    }
 
     //--- Solver setup
     SFStatus Setup_VPM(VPM_Input *I);
@@ -84,6 +96,9 @@ public:
     //--- Initial vorticity distribution
     void Retrieve_Grid_Positions(RVector &xc, RVector &yc, RVector &zc);
     void Set_Input_Arrays(RVector &xo, RVector &yo, RVector &zo);
+
+    //--- Auxiliary Grid
+    void Interpolate_Ext_Sources(Mapping M) override ;
 
     //--- Grid operations
     TensorGrid *Get_pArray()  override  {return &eu_o;}

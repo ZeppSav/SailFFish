@@ -542,7 +542,8 @@ void VPM3D_cpu::Calc_Grid_FDRatesof_Change()
     //--- Add sources to grid if required
     SFStatus Stat;
     Stat = Set_Input_Unbounded_3D(eu_o[0],eu_o[1],eu_o[2]);
-    Stat = Transfer_Data_Device();
+    Map_from_Auxiliary_Grid();
+    // Stat = Transfer_Data_Device();
 
     //--- Calculate and extract velocity
     Forward_Transform();
@@ -1001,6 +1002,24 @@ void VPM3D_cpu::Reproject_Particle_Set_Spectral()
 //-------------------------------------------
 //----- Auxiliary grid operations  ----------
 //-------------------------------------------
+
+void VPM3D_cpu::Map_from_Auxiliary_Grid()
+{
+    // The vorticity grid of the auxiliary grid is mapped to the input array for the Fast Poisson solver.
+    // This ensure that the vorticity field of the main domain is decoupled from the lifting body.
+    if (Ext_Forcing.empty()) return;
+
+    // Alternate approach: External sources
+    // std::cout << "Alternate auxiliary grid mapping. NNodes = " << size(Ext_Forcing) << std::endl;
+    OpenMPfor
+    for (size_t i=0; i<size(Ext_Forcing); i++){
+        dim3 did = Ext_Forcing[i].cartid;       //std::get<0>(Ext_Forcing[i]);
+        int gid = GID(did.x,did.y,did.z,NX,NY,NZ);
+        r_Input1[gid] += Ext_Forcing[i].Vort(0); // std::get<1>(Ext_Forcing[i])(0);
+        r_Input2[gid] += Ext_Forcing[i].Vort(1); //std::get<1>(Ext_Forcing[i])(1);
+        r_Input3[gid] += Ext_Forcing[i].Vort(2); //std::get<1>(Ext_Forcing[i])(2);
+    }
+}
 
 void VPM3D_cpu::Interpolate_Ext_Sources(Mapping M)
 {

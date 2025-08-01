@@ -253,7 +253,6 @@ public:
         // InPlace = true;     // Specify that transforms should occur either in place of out of place (reduced memory footprint)
     }
 
-
     //--- Solver setup
     SFStatus Setup_VPM(VPM_Input *I);
     SFStatus Allocate_Data() override;

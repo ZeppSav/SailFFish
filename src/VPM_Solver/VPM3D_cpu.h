@@ -98,6 +98,7 @@ public:
     void Set_Input_Arrays(RVector &xo, RVector &yo, RVector &zo);
 
     //--- Auxiliary Grid
+    void Map_from_Auxiliary_Grid();
     void Interpolate_Ext_Sources(Mapping M) override ;
 
     //--- Grid operations

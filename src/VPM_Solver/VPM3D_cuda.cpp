@@ -1934,15 +1934,7 @@ void VPM3D_cuda::Store_Grid_Node_Sources(const RVector &Px, const RVector &Py, c
     cudaMemcpy(blY,         sIDY.data(),    NBExt*sizeof(int),      cudaMemcpyHostToDevice);
     cudaMemcpy(blZ,         sIDZ.data(),    NBExt*sizeof(int),      cudaMemcpyHostToDevice);
 
-    std::cout << "VPM3D_cuda::Store_Grid_Node_Sources: Successfully stored." << std::endl;
-
-    // dim3 Ext_block_extent = dim3(NBExt,1,1);
-    // Map_Ext_Unbounded->Instantiate(Ext_block_extent, blockarch_block);
-    // Map_Ext_Unbounded->Instantiate(Ext_block_extent, blockarch_block);
-
-
-    // std::cout << Ext_Forcing.size() << " Nodes mapped with " << Px.size() << " input nodes." << std::endl;
-    // std::cout << "size of mapping arrays=  "<< Ext_Forcing.size() csp Obx.size() csp Oby.size() csp Obz.size() csp Obx.size()/BT  << std::endl;
+    // std::cout << "VPM3D_cuda::Store_Grid_Node_Sources: Successfully stored." << std::endl;
 }
 
 void VPM3D_cuda::Map_from_Auxiliary_Grid()

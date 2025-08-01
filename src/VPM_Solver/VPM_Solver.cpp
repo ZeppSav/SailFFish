@@ -779,7 +779,7 @@ void VPM_3D_Solver::Get_Ext_Velocity(const RVector &Px, const RVector &Py, const
         dim3 rid(Maps[p].id3.x-dLow.x, Maps[p].id3.y-dLow.y, Maps[p].id3.z-dLow.z); // Local position of cell within sparse grid
 
         // Set activity
-#pragma omp parallel for collapse(3)
+    #pragma omp parallel for collapse(3)
         for (int i=0; i<nc; i++){
             for (int j=0; j<nc; j++){
                 for (int k=0; k<nc; k++){
@@ -815,7 +815,7 @@ void VPM_3D_Solver::Get_Ext_Velocity(const RVector &Px, const RVector &Py, const
 
     // Calculate influence of source terms
     Real dV = Hx*Hy*Hz;
-    Real Sigma = 1.5*Hx;
+    Real Sigma = 2.0*Hx;
     OpenMPfor
         for (size_t p=0; p<size(RcvrNodes); p++){                                   // Loop over evaluation points
         dim3 rcvr = RcvrNodes[p].cartid; //std::get<0>(RcvrNodes[p]);                                  // Receiver global id

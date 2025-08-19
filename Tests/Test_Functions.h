@@ -96,24 +96,26 @@ Real UnitZ[2] = {-1.0, 1.0};
 //--- Test Cases dirichlet BCs
 //-----------------------------------
 
+
+
 inline Real STest_Omega(Real x, Real Lx)
 {
-    Real Cx = M_4PI/Lx;
+    Real Cx = 4.*M_PI/Lx;
     return -Cx*Cx*sin(x*Cx);
 }
-inline Real STest_Phi(Real x, Real Lx)                                      {return sin(M_4PI*x/Lx);}
+inline Real STest_Phi(Real x, Real Lx)                                      {return sin(4.*M_PI*x/Lx);}
 inline Real STest_Omega(Real x, Real Lx, Real y, Real Ly)
 {
-    Real Cx = M_2PI/Lx, Cy = M_2PI/Ly;
+    Real Cx = 2.*M_PI/Lx, Cy = 2.*M_PI/Ly;
     return - (Cx*Cx + Cy*Cy)*sin(x*Cx)*sin(y*Cy);
 }
-inline Real STest_Phi(Real x, Real Lx, Real y, Real Ly)                     {return sin(M_2PI*x/Lx)*sin(M_2PI*y/Ly);}
+inline Real STest_Phi(Real x, Real Lx, Real y, Real Ly)                     {return sin(2.*M_PI*x/Lx)*sin(2.*M_PI*y/Ly);}
 inline Real STest_Omega(Real x, Real Lx, Real y, Real Ly, Real z, Real Lz)
 {
-    Real Cx = M_4PI/Lx, Cy = M_4PI/Ly, Cz = M_4PI/Lz;
+    Real Cx = 4.*M_PI/Lx, Cy = 4.*M_PI/Ly, Cz = 4.*M_PI/Lz;
     return - (Cx*Cx + Cy*Cy + Cz*Cz)*sin(x*Cx)*sin(y*Cy)*sin(z*Cz);
 }
-inline Real STest_Phi(Real x, Real Lx, Real y, Real Ly, Real z, Real Lz)    {return sin(M_4PI*x/Lx)*sin(M_4PI*y/Ly)*sin(M_4PI*z/Lz);}
+inline Real STest_Phi(Real x, Real Lx, Real y, Real Ly, Real z, Real Lz)    {return sin(4.*M_PI*x/Lx)*sin(4.*M_PI*y/Ly)*sin(4.*M_PI*z/Lz);}
 
 //--- Inhomogenous boundary conditions
 
@@ -143,22 +145,22 @@ inline Real IH_BC_Phi(      Real x, Real Lx, Real a, Real b,
 
 inline Real CTest_Omega(Real x, Real Lx)
 {
-    Real Cx = M_4PI/Lx;
+    Real Cx = 4.*M_PI/Lx;
     return -Cx*Cx*cos(x*Cx);
 }
-inline Real CTest_Phi(Real x, Real Lx)                                      {return cos(M_4PI*x/Lx);}
+inline Real CTest_Phi(Real x, Real Lx)                                      {return cos(4.*M_PI*x/Lx);}
 inline Real CTest_Omega(Real x, Real Lx, Real y, Real Ly)
 {
-    Real Cx = M_4PI/Lx, Cy = M_4PI/Ly;
+    Real Cx = 4.*M_PI/Lx, Cy = 4.*M_PI/Ly;
     return - (Cx*Cx + Cy*Cy)*cos(x*Cx)*cos(y*Cy);
 }
-inline Real CTest_Phi(Real x, Real Lx, Real y, Real Ly)                     {return cos(M_4PI*x/Lx)*cos(M_4PI*y/Ly);}
+inline Real CTest_Phi(Real x, Real Lx, Real y, Real Ly)                     {return cos(4.*M_PI*x/Lx)*cos(4.*M_PI*y/Ly);}
 inline Real CTest_Omega(Real x, Real Lx, Real y, Real Ly, Real z, Real Lz)
 {
-    Real Cx = M_4PI/Lx, Cy = M_4PI/Ly, Cz = M_4PI/Lz;
+    Real Cx = 4.*M_PI/Lx, Cy = 4.*M_PI/Ly, Cz = 4.*M_PI/Lz;
     return - (Cx*Cx + Cy*Cy + Cz*Cz)*cos(Cx*x)*cos(Cy*y)*cos(Cz*z);
 }
-inline Real CTest_Phi(Real x, Real Lx, Real y, Real Ly, Real z, Real Lz)    {return cos(M_4PI*x/Lx)*cos(M_4PI*y/Ly)*cos(M_4PI*z/Lz);}
+inline Real CTest_Phi(Real x, Real Lx, Real y, Real Ly, Real z, Real Lz)    {return cos(4.*M_PI*x/Lx)*cos(4.*M_PI*y/Ly)*cos(4.*M_PI*z/Lz);}
 
 //-----------------------------------
 //--- Test Cases unbounded solvers

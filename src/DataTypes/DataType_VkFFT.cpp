@@ -355,7 +355,7 @@ SFStatus DataType_VkFFT::Prepare_Plan(VkFFTConfiguration &Config)
 
     // Specify presision
     // if (std::is_same<Real,float>::value)    Config.doublePrecision = 0;  // Standard!
-    if (std::is_same<Real,double>::value)   Config.doublePrecision = 1;
+    // if (std::is_same<Real,double>::value)   Config.doublePrecision = 1;
 
     return NoError;
 }
@@ -588,21 +588,37 @@ void DataType_VkFFT::Prep_Greens_Function(FTType TF)
     // This process is substantially the same between Real or Complex inputs, so we shall bring them together into a single function.
     VkFFTResult resFFT = VKFFT_SUCCESS;
 
+    int Dim;
+    if (NX>0)                   Dim = 1;
+    if (NX>0 && NY>0)           Dim = 2;
+    if (NX>0 && NY>0 && NZ>0)   Dim = 3;
+
     // Step 1: Pass Greens function to cl buffer
     if (TF==DFT_R2R){       // Real Green's kernel
-        // for (int i=0; i<NT; i++) r_FG[i] = BFac;             // Trick for identity convolution
+
+        if (Dim==1)  {}       // Do not change anything
+        if (Dim==2 && Transform==DST1)  {for (int i=0; i<NT; i++) r_FG[i] = -BFac/M_PI/M_PI/2.0;   }    // 2D- Dirichlet STAGGERED
+        if (Dim==2 && Transform==DST2)  {for (int i=0; i<NT; i++) r_FG[i] = -BFac/M_PI/M_PI/2.0;   }    // 2D- Dirichlet REGULAR
+        if (Dim==2 && Transform==DCT1)  {for (int i=0; i<NT; i++) r_FG[i] = -BFac/M_PI/M_PI/8.0;   }    // 2D- Neumann STAGGERED
+        if (Dim==2 && Transform==DCT2)  {for (int i=0; i<NT; i++) r_FG[i] = -BFac/M_PI/M_PI/8.0;   }    // 2D- Neumann REGULAR
+
         resFFT = transferDataFromCPU(vkGPU, r_FG, &cl_r_FG, InputbufferSize);     // Transfer cpu data from r_FG to GPU buffer
         if (FusedKernel) kernel_configuration.buffer = &cl_r_FG;
     }
     if (TF==DFT_C2C){       // Complex Green's kernel
+
+        // 1D- Periodic- do not change rFG
+
         std::vector<cl_complex> rFG2(NTM,CLC1);
-        OpenMPfor
-        for (int i=0; i<NTM; i++) rFG2[i].x = r_FG[i];   // Set real components  (comment out for identify kernel)
+
+        if (Dim==1)  {}       // Do not change anything
+        if (Dim==2)   {for (int i=0; i<NT; i++) rFG2[i].x = -BFac/M_PI/M_PI/8.0;   }    // 2D- Periodic STAGGERED or REGULAR
+
         resFFT = transferDataFromCPU(vkGPU, rFG2.data(), &c_FG, InputbufferSize);     // Transfer cpu data from r_FG to GPU buffer
         if (FusedKernel) kernel_configuration.buffer = &c_FG;
     }
     if (TF==DFT_R2C){       // Real Green's kernel
-        // for (int i=0; i<NT; i++) r_FG[i] = BFac;             // Trick for identity convolution
+        // for (int i=0; i<NT; i++) r_FG[i] = BFac;             // Trick for identity convolution (testing FFT-iFFT)
         resFFT = transferDataFromCPU(vkGPU, r_FG, &cl_r_FG, InputbufferSize);     // Transfer cpu data from r_FG to GPU buffer
         if (FusedKernel) kernel_configuration.buffer = &cl_r_FG;
     }
@@ -623,19 +639,23 @@ void DataType_VkFFT::Prep_Greens_Function(FTType TF)
 
         // Exploit the in-built convolution capabilites of VkFFT
         configuration.performConvolution = true;
-        configuration.conjugateConvolution = true;
+        // configuration.conjugateConvolution = 0;
         configuration.kernel = kernel_configuration.buffer; // Pass convolution buffer
         configuration.symmetricKernel = true;               // Specify if convolution kernel is symmetric.
         configuration.matrixConvolution = 1;                // We do matrix convolution, so kernel is 9 numbers (3x3), but vector dimension is 3
         configuration.coordinateFeatures = 1;               // Equal to matrixConvolution size
-        configuration.kernelSize = &c_bufferSizeNT;
+        // configuration.kernelSize = &c_bufferSizeNT;
+        configuration.kernelSize = &InputbufferSize;
 
         // configuration.numberBatches = 4;
-        // configuration.printMemoryLayout = true;
+        configuration.printMemoryLayout = true;
         // configuration.disableReorderFourStep = 1;
         // configuration.isInputFormatted = true;
         // configuration.isOutputFormatted = true;
         std::cout << "Application prepared for FUSED FFT-Conv-iFFT. " << std::endl;
+
+        std::cout << "Convolution VkFFT Plan: Axis split 1: " << kernel_app.localFFTPlan->axisSplit[0][0] csp kernel_app.localFFTPlan->axisSplit[0][1] << std::endl;
+        // std::cout << "Convolution VkFFT Plan: Axis split 2: " << kernel_app.localFFTPlan->axisSplit[1][0] csp kernel_app.localFFTPlan->axisSplit[1][1] << std::endl;
     }
     else
     {
@@ -688,8 +708,28 @@ void DataType_VkFFT::Prep_Greens_Function(FTType TF)
     size_t preferredWorkGroupSizeMultiple;
     clGetKernelWorkGroupInfo(conv_kernel, vkGPU->device, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, sizeof(size_t), &preferredWorkGroupSizeMultiple, NULL);
     std::cout << "Convolution kernel: Preferred work-group size multiple: " << preferredWorkGroupSizeMultiple << std::endl;
-    std::cout << "VkFFT Plan: Axis split: " << app.localFFTPlan->axisSplit[0][0] csp app.localFFTPlan->axisSplit[0][1] << std::endl;
+    std::cout << "VkFFT Plan: Axis split 1: " << app.localFFTPlan->axisSplit[0][0] csp app.localFFTPlan->axisSplit[0][1] << std::endl;
+    std::cout << "VkFFT Plan: Axis split 2: " << app.localFFTPlan->axisSplit[1][0] csp app.localFFTPlan->axisSplit[1][1] << std::endl;
 
+    // if (TF==DFT_R2R){
+    //     // Try reordering the data...
+    //     int as0 = app.localFFTPlan->axisSplit[0][0];
+    //     int as1 = app.localFFTPlan->axisSplit[0][1];
+    //     std::cout << "HEre " csp as0 csp as1 << std::endl;
+    //     Real r_FG2[NT];
+    //     OpenMPfor
+    //     for (int i=0; i<NX; i++){
+    //         for (int j=0; j<NY; j++) {
+    //             // int i1 = i*NY+j;
+    //             int i1 = i+j*NX;
+    //             int i2 = (i1%as1)*as0+i1/as1;
+    //             // i->(i%axisSplit[1])*axisSplit[0]+i/axisSplit[1])
+    //             r_FG2[i2] = r_FG[i1];
+    //             // for (int j=0; j<NY; j++) r_FG[i+j*NX] = BFac/(fx[i]+fy[j]);
+    //         }
+    //     }
+    //     resFFT = transferDataFromCPU(vkGPU, r_FG2, &cl_r_FG, InputbufferSize);     // Transfer cpu data from r_FG to GPU buffer
+    // }
 }
 
 void DataType_VkFFT::Prep_Greens_Function_R2C()
@@ -772,7 +812,7 @@ cl_int DataType_VkFFT::Convolution()
     // catches in kernel to avoid out of bounds access.
     cl_int err = clEnqueueNDRangeKernel(vkGPU->commandQueue, conv_kernel, 1, NULL, &globalSize, NULL, 0, NULL, NULL);
 
-    // Option 2: Explicityl assign local work group size. Possibly more efficient, but requires catches in kernel
+    // Option 2: Explicitly assign local work group size. Possibly more efficient, but requires catches in kernel
     // This is not working for now... avoid
     // size_t localSize = 128;
     // cl_int err = clEnqueueNDRangeKernel(vkGPU->commandQueue, conv_kernel, 1, NULL, &globalSize, &localSize, 0, NULL, NULL);

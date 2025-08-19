@@ -9,9 +9,9 @@ static const bool Export_VTK = true;
 int main()
 {
 
-    // int nx = 256;
-    // int ny = 256;
-    // int nz = 128;
+    int nx = 128;
+    int ny = 128;
+    int nz = 128;
 
     // int nx = pow(2,13);        // VkFFT tests
     // int nx = pow(2,10)*19;

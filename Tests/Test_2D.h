@@ -376,15 +376,6 @@ void Test_Periodic_2D(int NX, int NY, bool ExportVTK = false)
     unsigned int t5 = stopwatch();
     Real tTot = Real(t2+t3+t4+t5);
 
-    // for (int i=0; i<NX; i++){                       // Shifted: with the dirichlet solver the boundary values are ignored.
-    //     for (int j=0; j<NY; j++){                       // Shifted: with the dirichlet solver the boundary values are ignored.
-    //         Real xs = XGrid[i]-UnitX[0];
-    //         Real ys = YGrid[j]-UnitY[0];
-    //         int id = i*NY + j;
-    //         std::cout << xs csp ys csp Input[id] csp Output[id] csp Solution[id] csp Output[id]/Solution[id] << std::endl;
-    //     }
-    // }
-
     std::cout << "Trial Calculation: Solution of the 2D Poisson equation with Periodic boundary conditions." << std::endl;
     std::cout << std::scientific;
     std::cout << "The grid was resolved with [" << NX <<" , "<< NY <<" , "<< 1 <<"] cells. " << std::endl;

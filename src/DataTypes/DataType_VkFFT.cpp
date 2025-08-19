@@ -597,10 +597,14 @@ void DataType_VkFFT::Prep_Greens_Function(FTType TF)
     if (TF==DFT_R2R){       // Real Green's kernel
 
         if (Dim==1)  {}       // Do not change anything
-        if (Dim==2 && Transform==DST1)  {for (int i=0; i<NT; i++) r_FG[i] = -BFac/M_PI/M_PI/2.0;   }    // 2D- Dirichlet STAGGERED
-        if (Dim==2 && Transform==DST2)  {for (int i=0; i<NT; i++) r_FG[i] = -BFac/M_PI/M_PI/2.0;   }    // 2D- Dirichlet REGULAR
-        if (Dim==2 && Transform==DCT1)  {for (int i=0; i<NT; i++) r_FG[i] = -BFac/M_PI/M_PI/8.0;   }    // 2D- Neumann STAGGERED
-        if (Dim==2 && Transform==DCT2)  {for (int i=0; i<NT; i++) r_FG[i] = -BFac/M_PI/M_PI/8.0;   }    // 2D- Neumann REGULAR
+        if (Dim==2 && Transform==DST1)  {for (int i=0; i<NT; i++) r_FG[i] = -BFac/M_PI/M_PI/2.0;    }    // 2D- Dirichlet REGULAR
+        if (Dim==2 && Transform==DST2)  {for (int i=0; i<NT; i++) r_FG[i] = -BFac/M_PI/M_PI/2.0;    }    // 2D- Dirichlet STAGGERED
+        if (Dim==2 && Transform==DCT1)  {for (int i=0; i<NT; i++) r_FG[i] = -BFac/M_PI/M_PI/8.0;    }    // 2D- Neumann REGULAR
+        if (Dim==2 && Transform==DCT2)  {for (int i=0; i<NT; i++) r_FG[i] = -BFac/M_PI/M_PI/8.0;    }    // 2D- Neumann STAGGERED
+        if (Dim==3 && Transform==DST1)  {for (int i=0; i<NT; i++) r_FG[i] = -BFac/M_PI/M_PI/12.0;   }    // 3D- Dirichlet REGULAR
+        if (Dim==3 && Transform==DST2)  {for (int i=0; i<NT; i++) r_FG[i] = -BFac/M_PI/M_PI/12.0;   }    // 3D- Dirichlet STAGGERED
+        if (Dim==3 && Transform==DCT1)  {for (int i=0; i<NT; i++) r_FG[i] = -BFac/M_PI/M_PI/12.0;   }    // 3D- Dirichlet REGULAR
+        if (Dim==3 && Transform==DCT2)  {for (int i=0; i<NT; i++) r_FG[i] = -BFac/M_PI/M_PI/12.0;   }    // 3D- Dirichlet STAGGERED
 
         resFFT = transferDataFromCPU(vkGPU, r_FG, &cl_r_FG, InputbufferSize);     // Transfer cpu data from r_FG to GPU buffer
         if (FusedKernel) kernel_configuration.buffer = &cl_r_FG;
@@ -609,10 +613,10 @@ void DataType_VkFFT::Prep_Greens_Function(FTType TF)
 
         // 1D- Periodic- do not change rFG
 
-        std::vector<cl_complex> rFG2(NTM,CLC1);
-
-        if (Dim==1)  {}       // Do not change anything
-        if (Dim==2)   {for (int i=0; i<NT; i++) rFG2[i].x = -BFac/M_PI/M_PI/8.0;   }    // 2D- Periodic STAGGERED or REGULAR
+        std::vector<cl_complex> rFG2(NTM,CLC0);
+        if (Dim==1) {for (int i=0; i<NT; i++) rFG2[i].x = r_FG[i];              }   // Do not change anything
+        if (Dim==2) {for (int i=0; i<NT; i++) rFG2[i].x = -BFac/M_PI/M_PI/8.0;  }   // 2D- Periodic STAGGERED or REGULAR
+        if (Dim==3) {for (int i=0; i<NT; i++) rFG2[i].x = -BFac/M_PI/M_PI/12.0; }   // 3D- Periodic STAGGERED or REGULAR
 
         resFFT = transferDataFromCPU(vkGPU, rFG2.data(), &c_FG, InputbufferSize);     // Transfer cpu data from r_FG to GPU buffer
         if (FusedKernel) kernel_configuration.buffer = &c_FG;

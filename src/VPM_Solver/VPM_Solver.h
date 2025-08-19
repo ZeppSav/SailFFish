@@ -38,7 +38,7 @@ namespace SailFFish
 
 enum TimeIntegrator     {NOTI, EF, EM, RK2, AB2LF, RK3, RK4, LSRK3, LSRK4};
 enum FiniteDiff         {CD2, CD4, CD6, CD8};
-enum GridDef            {NODES, BLOCKS, ADAPTIVE};
+enum GridDefinition     {NODES, BLOCKS, ADAPTIVE};
 enum Turbulence         {LAM, HYP, RVM1, RVM2, RVM3, RVM2_DGC};
 
 static int const NBlock3 = 1024;
@@ -84,7 +84,7 @@ struct VPM_Input
 
     //--- Grid variables
 
-    GridDef GridDef = NODES;
+    GridDefinition GridDef = NODES;
     Grid_Type Grid = STAGGERED;         // Grid type
     Real H_Grid = 0;                    // Grid resolution (isotropic)
     Real L = 1.0;                       // Characteristic dimension of problem

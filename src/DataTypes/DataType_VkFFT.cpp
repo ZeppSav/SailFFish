@@ -598,7 +598,8 @@ void DataType_VkFFT::Prep_Greens_Function(FTType TF)
 
         if (Dim==1)  {}       // Do not change anything
         if (Dim==2 && Transform==DST1)  {for (int i=0; i<NT; i++) r_FG[i] = -BFac/M_PI/M_PI/2.0;    }    // 2D- Dirichlet REGULAR
-        if (Dim==2 && Transform==DST2)  {for (int i=0; i<NT; i++) r_FG[i] = -BFac/M_PI/M_PI/2.0;    }    // 2D- Dirichlet STAGGERED
+        // if (Dim==2 && Transform==DST2)  {for (int i=0; i<NT; i++) r_FG[i] = -BFac/M_PI/M_PI/2.0;    }    // 2D- Dirichlet STAGGERED
+        // if (Dim==2 && Transform==DST2)  {for (int i=0; i<NT; i++) r_FG[i] = r_FG[i]/M_PI/M_PI/2.0;  }    // This ONLY works for my particular test cases :(
         if (Dim==2 && Transform==DCT1)  {for (int i=0; i<NT; i++) r_FG[i] = -BFac/M_PI/M_PI/8.0;    }    // 2D- Neumann REGULAR
         if (Dim==2 && Transform==DCT2)  {for (int i=0; i<NT; i++) r_FG[i] = -BFac/M_PI/M_PI/8.0;    }    // 2D- Neumann STAGGERED
         if (Dim==3 && Transform==DST1)  {for (int i=0; i<NT; i++) r_FG[i] = -BFac/M_PI/M_PI/12.0;   }    // 3D- Dirichlet REGULAR
@@ -652,14 +653,14 @@ void DataType_VkFFT::Prep_Greens_Function(FTType TF)
         configuration.kernelSize = &InputbufferSize;
 
         // configuration.numberBatches = 4;
-        configuration.printMemoryLayout = true;
+        // configuration.printMemoryLayout = true;
         // configuration.disableReorderFourStep = 1;
         // configuration.isInputFormatted = true;
         // configuration.isOutputFormatted = true;
         std::cout << "Application prepared for FUSED FFT-Conv-iFFT. " << std::endl;
 
         std::cout << "Convolution VkFFT Plan: Axis split 1: " << kernel_app.localFFTPlan->axisSplit[0][0] csp kernel_app.localFFTPlan->axisSplit[0][1] << std::endl;
-        // std::cout << "Convolution VkFFT Plan: Axis split 2: " << kernel_app.localFFTPlan->axisSplit[1][0] csp kernel_app.localFFTPlan->axisSplit[1][1] << std::endl;
+        std::cout << "Convolution VkFFT Plan: Axis split 2: " << kernel_app.localFFTPlan->axisSplit[1][0] csp kernel_app.localFFTPlan->axisSplit[1][1] << std::endl;
     }
     else
     {
@@ -704,7 +705,10 @@ void DataType_VkFFT::Prep_Greens_Function(FTType TF)
     }
 
     // Step 3: Initialize FFT solver
+    // configuration.printMemoryLayout = true;
+    // configuration.disableReorderFourStep = 1;
     resFFT = initializeVkFFT(&app, configuration);
+    // configuration.printMemoryLayout = true;
     SFStatus resSF = ConvertVkFFTError(resFFT);
     std::cout << "FFT plans configured." << std::endl;
 
@@ -712,9 +716,11 @@ void DataType_VkFFT::Prep_Greens_Function(FTType TF)
     size_t preferredWorkGroupSizeMultiple;
     clGetKernelWorkGroupInfo(conv_kernel, vkGPU->device, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, sizeof(size_t), &preferredWorkGroupSizeMultiple, NULL);
     std::cout << "Convolution kernel: Preferred work-group size multiple: " << preferredWorkGroupSizeMultiple << std::endl;
-    std::cout << "VkFFT Plan: Axis split 1: " << app.localFFTPlan->axisSplit[0][0] csp app.localFFTPlan->axisSplit[0][1] << std::endl;
-    std::cout << "VkFFT Plan: Axis split 2: " << app.localFFTPlan->axisSplit[1][0] csp app.localFFTPlan->axisSplit[1][1] << std::endl;
-
+    std::cout << "VkFFT Plan: Axis split 1: " << app.localFFTPlan->axisSplit[0][0] csp app.localFFTPlan->axisSplit[0][1] csp app.localFFTPlan->axisSplit[0][2] << std::endl;
+    std::cout << "VkFFT Plan: Axis split 2: " << app.localFFTPlan->axisSplit[1][0] csp app.localFFTPlan->axisSplit[1][1] csp app.localFFTPlan->axisSplit[0][2] << std::endl;
+    std::cout << "VkFFT Plan: actualFFTSizePerAxis: " << app.localFFTPlan->actualFFTSizePerAxis[0][0] csp app.localFFTPlan->actualFFTSizePerAxis[0][1] << std::endl;
+    std::cout << "VkFFT Plan: actualFFTSizePerAxis: " << app.localFFTPlan->actualFFTSizePerAxis[1][0] csp app.localFFTPlan->actualFFTSizePerAxis[1][1] << std::endl;
+    std::cout << "VkFFT Plan: numAxisUploads: " << app.localFFTPlan->numAxisUploads[0] csp app.localFFTPlan->numAxisUploads[1] << std::endl;
     // if (TF==DFT_R2R){
     //     // Try reordering the data...
     //     int as0 = app.localFFTPlan->axisSplit[0][0];

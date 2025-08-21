@@ -46,7 +46,8 @@ void Test_Dirichlet_2D(int NX, int NY, bool ExportVTK = false)
 
     SailFFish::Poisson_Dirichlet_2D *Solver = new SailFFish::Poisson_Dirichlet_2D(SailFFish::STAGGERED, SailFFish::PS);
     // SailFFish::Poisson_Dirichlet_2D *Solver = new SailFFish::Poisson_Dirichlet_2D(SailFFish::REGULAR, SailFFish::PS);
-    Status = Solver->Setup(UnitX,UnitY,NX,NY);
+    // Status = Solver->Setup(UnitX,UnitY,NX,NY);
+    Status = Solver->Setup(HUnitX,HUnitY,NX,NY);
     if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
     unsigned int t2 = stopwatch();  // Timer
 
@@ -63,10 +64,14 @@ void Test_Dirichlet_2D(int NX, int NY, bool ExportVTK = false)
     if (Solver->Get_Grid_Type()==SailFFish::REGULAR) IS = 1;
     for (int i=IS; i<NX; i++){                       // Shifted: with the dirichlet solver the boundary values are ignored.
         for (int j=IS; j<NY; j++){                       // Shifted: with the dirichlet solver the boundary values are ignored.
-            Real xs = XGrid[i]-UnitX[0];
-            Real ys = YGrid[j]-UnitY[0];
-            Input.push_back(    STest_Omega(xs,Lx,ys,Ly));    // Input field
-            Solution.push_back( STest_Phi(xs,Lx,ys,Ly));      // Solution field
+            // Real xs = XGrid[i]-UnitX[0];
+            // Real ys = YGrid[j]-UnitY[0];
+            // Input.push_back(    STest_Omega(xs,Lx,ys,Ly));    // Input field
+            // Solution.push_back( STest_Phi(xs,Lx,ys,Ly));      // Solution field
+            Real xs = XGrid[i]-HUnitX[0];
+            Real ys = YGrid[j]-HUnitY[0];
+            Input.push_back(    PNTest_Omega(xs,ys));    // Input field
+            Solution.push_back( PNTest_Phi(xs,ys));      // Solution field
         }
     }
     Status = Solver->Set_Input(Input);
@@ -85,9 +90,11 @@ void Test_Dirichlet_2D(int NX, int NY, bool ExportVTK = false)
     Real tTot = Real(t2+t3+t4+t5);
 
     // for (int i=IS; i<NX; i++){                       // Shifted: with the dirichlet solver the boundary values are ignored.
-    //     for (int j=IS; j<NY; j++){                       // Shifted: with the dirichlet solver the boundary values are ignored.
-    //         Real xs = XGrid[i]-UnitX[0];
-    //         Real ys = YGrid[j]-UnitY[0];
+    //     for (int j=IS; j<NY; j++){                   // Shifted: with the dirichlet solver the boundary values are ignored.
+    //         // Real xs = XGrid[i]-UnitX[0];
+    //         // Real ys = YGrid[j]-UnitY[0];
+    //         Real xs = XGrid[i]-HUnitX[0];
+    //         Real ys = YGrid[j]-HUnitY[0];
     //         int id = i*NY + j;
     //         std::cout << xs csp ys csp Input[id] csp Output[id] csp Solution[id] << std::endl;
     //     }

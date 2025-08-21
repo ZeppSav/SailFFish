@@ -75,6 +75,9 @@ Real E_Inf(RVector &V, RVector &Sol)
 //--- Grid Vars
 //-----------------------------------
 
+Real HUnitX[2] = {0.0, 1.0};
+Real HUnitY[2] = {0.0, 1.0};
+Real HUnitZ[2] = {0.0, 1.0};
 Real UnitX[2] = {-1.0, 1.0};
 Real UnitY[2] = {-1.0, 1.0};
 Real UnitZ[2] = {-1.0, 1.0};
@@ -116,6 +119,19 @@ inline Real STest_Omega(Real x, Real Lx, Real y, Real Ly, Real z, Real Lz)
     return - (Cx*Cx + Cy*Cy + Cz*Cz)*sin(x*Cx)*sin(y*Cy)*sin(z*Cz);
 }
 inline Real STest_Phi(Real x, Real Lx, Real y, Real Ly, Real z, Real Lz)    {return sin(4.*M_PI*x/Lx)*sin(4.*M_PI*y/Ly)*sin(4.*M_PI*z/Lz);}
+
+// POlynomial test for dirichlet BCs. Only valid on x,y,[0,1]
+const Real pm = 16.0; // Normalizing factor
+inline Real PNTest_Omega(Real x )                   {return pm*2.*(6.*x*x-6.*x+1.);}
+inline Real PNTest_Phi(Real x)                      {return pm*x*x*(1.-x)*(1.-x);}
+inline Real PNTest_Omega(Real x, Real y)            {return pm*pm*2.*((6.*x*x-6.*x+1.)*y*y*(1.-y)*(1.-y) + (6.*y*y-6.*y+1.)*x*x*(1.-x)*(1.-x));}
+inline Real PNTest_Phi(Real x, Real y)              {return pm*pm*x*x*(1.-x)*(1.-x)*y*y*(1.-y)*(1.-y);}
+inline Real PNTest_Omega(Real x, Real y, Real z)    {
+    return  pm*pm*pm*2.*(   (6.*x*x-6.*x+1.)*y*y*(1.-y)*(1.-y)*z*z*(1.-z)*(1.-z) +
+                            (6.*y*y-6.*y+1.)*x*x*(1.-x)*(1.-x)*z*z*(1.-z)*(1.-z) +
+                            (6.*z*z-6.*z+1.)*x*x*(1.-x)*(1.-x)*y*y*(1.-y)*(1.-y));
+}
+inline Real PNTest_Phi(Real x, Real y, Real z)      {return pm*pm*pm*x*x*(1.-x)*(1.-x)*y*y*(1.-y)*(1.-y)*z*z*(1.-z)*(1.-z);}
 
 //--- Inhomogenous boundary conditions
 

@@ -42,6 +42,7 @@ void Test_Dirichlet_1D(int NX)
     // Define solver
     SailFFish::Poisson_Dirichlet_1D *Solver = new SailFFish::Poisson_Dirichlet_1D();
     Status = Solver->Setup(UnitX,NX);
+    // Status = Solver->Setup(HUnitX,NX);
     if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
     unsigned int t2 = stopwatch();  // Timer
 
@@ -59,6 +60,9 @@ void Test_Dirichlet_1D(int NX)
         Real xs = XGrid[i]-UnitX[0];
         Input.push_back(    STest_Omega(xs,Lx));    // Input field
         Solution.push_back( STest_Phi(xs,Lx));      // Solution field
+    //     Real xs = XGrid[i]-HUnitX[0];
+    //     Input.push_back(    PNTest_Omega(xs));    // Input field
+    //     Solution.push_back( PNTest_Phi(xs));      // Solution field
     }
 
     Status = Solver->Set_Input(Input);

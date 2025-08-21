@@ -9,16 +9,16 @@ static const bool Export_VTK = true;
 int main()
 {
 
-    int nx = 128;
-    int ny = 128;
-    int nz = 128;
+    // int nx = 245;
+    // int ny = 512;       // 514089
+    // int nz = 128;
 
-    // int nx = pow(2,13);        // VkFFT tests
+    // int nx = pow(2,10);        // VkFFT tests
     // int nx = pow(2,10)*19;
     // int nx = 8192;
     // int nx = 16384*2;
 
-    //--- 1D solver tests
+    // --- 1D solver tests
     // Test_Dirichlet_1D(nx);
     // Test_Dirichlet_1D_IHBC(nx);
     // Test_Neumann_1D(nx);

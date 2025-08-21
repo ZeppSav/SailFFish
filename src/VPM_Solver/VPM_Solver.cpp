@@ -779,7 +779,7 @@ void VPM_3D_Solver::Get_Ext_Velocity(const RVector &Px, const RVector &Py, const
         dim3 rid(Maps[p].id3.x-dLow.x, Maps[p].id3.y-dLow.y, Maps[p].id3.z-dLow.z); // Local position of cell within sparse grid
 
         // Set activity
-    #pragma omp parallel for collapse(3)
+        #pragma omp parallel for collapse(3)
         for (int i=0; i<nc; i++){
             for (int j=0; j<nc; j++){
                 for (int k=0; k<nc; k++){
@@ -817,15 +817,16 @@ void VPM_3D_Solver::Get_Ext_Velocity(const RVector &Px, const RVector &Py, const
     Real dV = Hx*Hy*Hz;
     Real Sigma = 2.0*Hx;
     OpenMPfor
-        for (size_t p=0; p<size(RcvrNodes); p++){                                   // Loop over evaluation points
-        dim3 rcvr = RcvrNodes[p].cartid; //std::get<0>(RcvrNodes[p]);                                  // Receiver global id
-        Vector3 prcvr(XN1+rcvr.x*Hx, YN1+rcvr.y*Hy, ZN1+rcvr.z*Hz);         // Receiver global position
+        for (size_t p=0; p<size(RcvrNodes); p++){                               // Loop over evaluation points
+        dim3 rcvr = RcvrNodes[p].cartid; //std::get<0>(RcvrNodes[p]);           // Receiver global id
+        Vector3 prcvr(XN1+rcvr.x*Hx, YN1+rcvr.y*Hy, ZN1+rcvr.z*Hz);             // Receiver global position
 
         Vector3 tPhi = Vector3::Zero();
         for (size_t s=0; s<size(Ext_Forcing); s++){
             dim3 sid = Ext_Forcing[s].cartid;   //std::get<0>(Ext_Forcing[s]);                     // Global id of source node
             Vector3 psrc(XN1+sid.x*Hx, YN1+sid.y*Hy, ZN1+sid.z*Hz);     // Global position of source node
-            Vector3 alpha = Ext_Forcing[s].Vort;    //std::get<1>(Ext_Forcing[s])*dV;             // Circulation of source node
+            // Vector3 alpha = Ext_Forcing[s].Vort;    //std::get<1>(Ext_Forcing[s])*dV;             // Circulation of source node
+            Vector3 alpha = Ext_Forcing[s].Vort*dV;    //std::get<1>(Ext_Forcing[s])*dV;             // Circulation of source node
             Vector3 r = prcvr-psrc;
             Real rn = r.norm();
             if (rn!=0.) tPhi += BS(rn,Sigma)*r.cross(alpha);

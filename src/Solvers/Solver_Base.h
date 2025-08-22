@@ -38,13 +38,14 @@ enum Grid_Type          {REGULAR, STAGGERED};
 enum Bounded_Kernel     {PS, FD2};
 enum Unbounded_Kernel   {HEJ_S0, HEJ_G2, HEJ_G4, HEJ_G6, HEJ_G8, HEJ_G10};
 
-#ifdef FFTW
+#if defined(FFTW)
     class Solver : public DataType_FFTW
-#elif CUFFT
+#elif defined(CUFFT)
     class Solver : public DataType_CUDA
-#elif VKFFT
+#elif defined(VKFFT)
     class Solver : public DataType_VkFFT
 #endif
+// class Solver : public DataType_FFTW
 {
 protected:
 
@@ -71,7 +72,7 @@ public:
     virtual void X_Grid_Setup(Real X[2], int iNX);
     virtual void Y_Grid_Setup(Real Y[2], int iNY);
     virtual void Z_Grid_Setup(Real Z[2], int iNZ);
-    virtual SFStatus FFT_Data_Setup()               {}
+    virtual SFStatus FFT_Data_Setup()               {return NoError;}
     virtual void Specify_Operator(OperatorType O)   {}
 
     //--- Frequency space operations

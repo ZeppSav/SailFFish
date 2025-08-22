@@ -1,7 +1,9 @@
 #ifndef VPML_TYPES_H
 #define VPML_TYPES_H
 
-#include <Eigen/Eigen>          // Eigen data types (
+#include <complex>
+#include <vector>
+#include <cstring>
 #include <iostream>
 #include <iomanip>
 #include <fstream>              // ofstream
@@ -10,39 +12,21 @@
 #define csp <<" "<<
 
 #ifdef SinglePrec
-
-//--------Single Precision----------
-typedef float                       Real;
-typedef std::complex<float>         CReal;
-typedef std::vector<float>          RVector;
-typedef std::vector<CReal>          CVector;
-#define fmadd fmaf
-
-typedef Eigen::MatrixXf             Matrix;
-typedef Eigen::VectorXf             Vector;
-typedef Eigen::Vector3f             Vector3;
-typedef Eigen::Matrix<float,6,1>    Vector6;
-typedef Eigen::Matrix3f             Matrix3;
-typedef Eigen::Quaternionf          Quat;
-
+    //--------Single Precision----------
+    typedef float                       Real;
+    typedef std::complex<float>         CReal;
+    typedef std::vector<float>          RVector;
+    typedef std::vector<CReal>          CVector;
+    #define fmadd fmaf
 #endif
 
 #ifdef DoublePrec
-
-//--------Double Precision----------
-typedef double                      Real;
-typedef std::complex<double>        CReal;
-typedef std::vector<double>         RVector;
-typedef std::vector<CReal>          CVector;
-#define fmadd fma
-
-typedef Eigen::MatrixXd             Matrix;
-typedef Eigen::VectorXd             Vector;
-typedef Eigen::Vector3d             Vector3;
-typedef Eigen::Matrix<double,6,1>   Vector6;
-typedef Eigen::Matrix3d             Matrix3;
-typedef Eigen::Quaterniond          Quat;
-
+    //--------Double Precision----------
+    typedef double                      Real;
+    typedef std::complex<double>        CReal;
+    typedef std::vector<double>         RVector;
+    typedef std::vector<CReal>          CVector;
+    #define fmadd fma
 #endif
 
 //--- Macros to improve readability

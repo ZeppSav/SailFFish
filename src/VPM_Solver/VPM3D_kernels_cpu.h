@@ -24,6 +24,20 @@
 
 #include "../Solvers/Solver_Base.h"
 
+//---- Add eigen library
+#include <Eigen/Eigen>          // Eigen data types (
+#ifdef SinglePrec
+    //--------Single Precision----------
+    typedef Eigen::MatrixXf             Matrix;
+    typedef Eigen::VectorXf             Vector;
+    typedef Eigen::Vector3f             Vector3;
+#endif
+#ifdef DoublePrec
+    //--------Double Precision----------
+    typedef Eigen::MatrixXd             Matrix;
+    typedef Eigen::VectorXd             Vector;
+    typedef Eigen::Vector3d             Vector3;
+#endif
 
 namespace SailFFish
 {
@@ -1638,10 +1652,10 @@ inline void KER_Collision(const Real &x, const Real &y, const Real &z, Real &Ox,
 
     // Ring 1
     // Ring CS
-    Real C1[3] = {0.0, 0.5*D, 0.0};
+    Real C1[3] = {0.0, Real(0.5*D), 0.0};
     Real X1[3] = {1.0,0.0,0.0};
-    Real Y1[3] = {0.0,cos(Alpha),-sin(Alpha)};
-    Real Z1[3] = {0.0,sin(Alpha),cos(Alpha)};
+    Real Y1[3] = {0.0,Real(cos(Alpha)),Real(-sin(Alpha))};
+    Real Z1[3] = {0.0,Real(sin(Alpha)),Real(cos(Alpha))};
 
     // Ring position and tangent vectors
     Real p1[3] = {x-C1[0], y-C1[1], z-C1[2]};
@@ -1669,10 +1683,10 @@ inline void KER_Collision(const Real &x, const Real &y, const Real &z, Real &Ox,
     // Ring 2
 
     // Ring CS
-    Real C2[3] = {0.0, -0.5*D, 0.0};
+    Real C2[3] = {0.0, Real(-0.5*D), 0.0};
     Real X2[3] = {1.0,0.0,0.0};
-    Real Y2[3] = {0.0,cos(-Alpha),-sin(-Alpha)};
-    Real Z2[3] = {0.0,sin(-Alpha),cos(-Alpha)};
+    Real Y2[3] = {0.0,Real(cos(-Alpha)),Real(-sin(-Alpha))};
+    Real Z2[3] = {0.0,Real(sin(-Alpha)),Real(cos(-Alpha))};
 
     // Ring position and tangent vectors
     Real p2[3] = {x-C2[0], y-C2[1], z-C2[2]};

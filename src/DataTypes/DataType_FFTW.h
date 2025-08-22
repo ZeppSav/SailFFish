@@ -25,7 +25,7 @@
 #ifndef DATATYPE_FFTW_H
 #define DATATYPE_FFTW_H
 
-#ifdef FFTW
+#if defined(FFTW)
 
 #include "DataType_Base.h"
 #include <fftw3.h>

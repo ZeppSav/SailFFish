@@ -28,11 +28,9 @@
 
 #include "../Solvers/Unbounded_Solver.h"
 #include "VPM3D_kernels_cpu.h"
-#include "../Solvers/Greens_Functions.h"
 
 namespace SailFFish
 {
-
 
 //--- Identifiers
 

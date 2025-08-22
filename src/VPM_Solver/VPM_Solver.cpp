@@ -3,6 +3,7 @@
 //-----------------------------------------------------------------------
 
 #include "VPM_Solver.h"
+#include "../Solvers/Greens_Functions.h"
 
 namespace SailFFish
 {
@@ -817,7 +818,7 @@ void VPM_3D_Solver::Get_Ext_Velocity(const RVector &Px, const RVector &Py, const
     Real dV = Hx*Hy*Hz;
     Real Sigma = 2.0*Hx;
     OpenMPfor
-        for (size_t p=0; p<size(RcvrNodes); p++){                               // Loop over evaluation points
+    for (size_t p=0; p<size(RcvrNodes); p++){                               // Loop over evaluation points
         dim3 rcvr = RcvrNodes[p].cartid; //std::get<0>(RcvrNodes[p]);           // Receiver global id
         Vector3 prcvr(XN1+rcvr.x*Hx, YN1+rcvr.y*Hy, ZN1+rcvr.z*Hz);             // Receiver global position
 
@@ -825,7 +826,6 @@ void VPM_3D_Solver::Get_Ext_Velocity(const RVector &Px, const RVector &Py, const
         for (size_t s=0; s<size(Ext_Forcing); s++){
             dim3 sid = Ext_Forcing[s].cartid;   //std::get<0>(Ext_Forcing[s]);                     // Global id of source node
             Vector3 psrc(XN1+sid.x*Hx, YN1+sid.y*Hy, ZN1+sid.z*Hz);     // Global position of source node
-            // Vector3 alpha = Ext_Forcing[s].Vort;    //std::get<1>(Ext_Forcing[s])*dV;             // Circulation of source node
             Vector3 alpha = Ext_Forcing[s].Vort*dV;    //std::get<1>(Ext_Forcing[s])*dV;             // Circulation of source node
             Vector3 r = prcvr-psrc;
             Real rn = r.norm();
@@ -861,7 +861,7 @@ void VPM_3D_Solver::Get_Ext_Velocity(const RVector &Px, const RVector &Py, const
 
     // Now carry out interpolation on the local grid and store outputs
     OpenMPfor
-        for (size_t p=0; p<ID.size(); p++){                 // Loop over evaluation points
+    for (size_t p=0; p<ID.size(); p++){                 // Loop over evaluation points
         dim3 rid = ID[p].id3;                              // Receiver global id
         Matrix M = ID[p].Coeff;
         Vector3 Phi = Vector3::Zero();

@@ -2,11 +2,11 @@ cmake_minimum_required(VERSION 3.10)
 
 project(SailFFish VERSION 1.0 LANGUAGES CXX)
 
-# option(BUILD_SHARED_LIBS "Build shared library" ON)
+option(BUILD_SHARED_LIBS "Build shared library" OFF)
 option(BUILD_FFTW "Build FFTW version" ON)  	# Option to build SailFFish to use FFTW backend (https://www.fftw.org/)
-option(BUILD_CUDA "Build CUDA version" OFF)  	# Option to build SailFFish to use CUFFT backend
+option(BUILD_CUFFT "Build CUDA version" OFF)  	# Option to build SailFFish to use CUFFT backend
 option(BUILD_VKFFT "Build VKFFT version" OFF)  	# Option to build SailFFish to use VKFFT backend (https://github.com/DTolm/VkFFT)
-option(BUILD_VPM "Build VPM solver" OFF)  		# Option to build the vortex particle mesh library
+option(BUILD_VPM "Build VPM solver" ON)  		# Option to build the vortex particle mesh library
 
 
 IF(NOT DEFINED CMAKE_BUILD_TYPE)
@@ -36,6 +36,11 @@ endif()
 
 #--- Add library directory
 add_subdirectory(src) # Add the main SailFFish library source directory
+
+#--- Add source if compiling VPM solver
+if (BUILD_VPM)
+    add_subdirectory(src/VPM_Solver) # Add the VPM directory
+endif()
 
 add_executable(SailFFish main.cpp)
 

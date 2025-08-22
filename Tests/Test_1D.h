@@ -25,7 +25,7 @@
 #ifndef TEST_1D_H
 #define TEST_1D_H
 
-#include "../src/SailFFish.h"
+#include "SailFFish.h"
 #include "Test_Functions.h"
 
 //---------------------

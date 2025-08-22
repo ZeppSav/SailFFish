@@ -25,7 +25,8 @@
 #include "../Solvers/Solver_Base.h"
 
 //---- Add eigen library
-#include <Eigen/Eigen>          // Eigen data types (
+// #include <../../eigen/Eigen/Eigen>
+#include <Eigen/Eigen>               // Dont know... but this isn't working with CMake
 #ifdef SinglePrec
     //--------Single Precision----------
     typedef Eigen::MatrixXf             Matrix;

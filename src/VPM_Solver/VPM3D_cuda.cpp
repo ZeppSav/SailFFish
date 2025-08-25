@@ -45,6 +45,7 @@ SFStatus VPM3D_cuda::Setup_VPM(VPM_Input *I)
 
     // Export params
     NExp = I->NExp;
+    ExpTB = I->ExpTB;
     Debug = I->Debug;
     Log = I->Log;
     OutputFolder = I->OutputFolder;
@@ -1020,7 +1021,7 @@ void VPM3D_cuda::Advance_Particle_Set()
     if (Remeshing && MagFiltFac>0)    Magnitude_Filtering();          // Filter magnitude
     if (DivFilt && Remeshing && NStep%NReproject==0)   Reproject_Particle_Set_Spectral();   // Reproject vorticity field
     Update_Particle_Field();                                            // Update vorticity field                    // HERR !
-    if (NExp>0 && NStep%NExp==0 && NStep>0)    Generate_VTK();                 // Export grid if desired
+    if (NExp>0 && NStep%NExp==0 && NStep>0 && NStep>=ExpTB) Generate_VTK();                 // Export grid if desired
     Increment_Time();
 
     // RVector dgdtcheck(NNT);     // Something is wrong!
@@ -2017,6 +2018,8 @@ void VPM3D_cuda::Generate_VTK(const Real *vtkoutput1, const Real *vtkoutput2)
 
     cudaMemset(int_lg_d,      Real(0.0), 3*NNT*sizeof(Real));
     cudaMemset(int_lg_o,      Real(0.0), 3*NNT*sizeof(Real));
+    free(hostout1);
+    free(hostout2);
 }
 
 void VPM3D_cuda::Generate_Plane(RVector &U)

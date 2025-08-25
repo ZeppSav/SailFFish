@@ -1,16 +1,16 @@
 // #include "Tests/Test_1D.h"
-#include "Tests/Test_2D.h"
+// #include "Tests/Test_2D.h"
 // #include "Tests/Test_3D.h"
 // #include "Tests/Test_3DV.h"
-// #include "Tests/Test_Vortex_Rings.h"
+#include "Tests/Test_Vortex_Rings.h"
 
 static const bool Export_VTK = true;
 
 int main()
 {
 
-    int nx = 256;
-    int ny = 256;       // 514089
+    // int nx = 256;
+    // int ny = 256;       // 514089
     // int nz = 128;
 
     // int nx = pow(2,10);        // VkFFT tests
@@ -26,7 +26,7 @@ int main()
     // Test_Unbounded_1D(nx);
 
     //--- 2D scalar solver tests
-    Test_Dirichlet_2D(nx,ny);
+    // Test_Dirichlet_2D(nx,ny);
     // Test_Dirichlet_2D_IHBC(nx,ny);
     // Test_Neumann_2D(nx,ny);
     // Test_Neumann_2D_IHBC(nx,ny);
@@ -49,7 +49,7 @@ int main()
     // Test_Unbounded_3DV_Curl(nx,ny,nz);
 
     // --- VPM tests
-    // Vortex_Ring_Evolution_Test();
+    Vortex_Ring_Evolution_Test();
 
     return 0;
 }

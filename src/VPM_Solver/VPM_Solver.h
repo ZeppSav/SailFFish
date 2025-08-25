@@ -156,7 +156,8 @@ struct VPM_Input
 
     //--- Output settings
     bool Debug = false;
-    int NExp = 0;
+    int NExp = 0;                       // How often will we export the volume grid?
+    int ExpTB = 0;                      // From whcih timestep will we export volume grid?
     bool Log = false;                   // Are we logging solver/field diagnostics?
     std::string Outputdir;              // Output directory
 
@@ -240,6 +241,8 @@ struct VPM_Input
                 if (Fields[1] == "MAGFILT")     MagFiltFac = std::stod(Fields[0]);
 
                 if (Fields[1] == "NEXP")        NExp = std::stoi(Fields[0]);
+
+                if (Fields[1] == "EXPTB")       ExpTB = std::stoi(Fields[0]);
 
                 if (Fields[1] == "FINDIFF"){
                     if (Fields[0] == "CD2")   FDOrder = CD2;
@@ -501,6 +504,7 @@ protected:
 
     //--- Debugging & output parameters
     int NExp = 0;                           // Output visualisation frequency
+    int ExpTB = 0;                          // Exporting from which timestep?
     bool Debug = false;                     // Are we debugging into the console at each timestep?
     bool Log = false;                       // Are we writing the diagnostics to a log file?
     std::chrono::steady_clock::time_point Sim_begin, Sim_end;   // Start/stop time of sims--- total timing

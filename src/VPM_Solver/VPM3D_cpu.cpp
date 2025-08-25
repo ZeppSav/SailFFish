@@ -55,6 +55,7 @@ SFStatus VPM3D_cpu::Setup_VPM(VPM_Input *I)
 
     // Export params
     NExp = I->NExp;
+    ExpTB = I->ExpTB;
     Debug = I->Debug;
     Log = I->Log;
     OutputFolder = I->OutputFolder;
@@ -338,7 +339,7 @@ void VPM3D_cpu::Advance_Particle_Set()
     if (DivFilt && Remeshing && NStep%NReproject==0)   Reproject_Particle_Set_Spectral();   // Reproject vorticity field
     Update_Particle_Field();                                            // Update vorticity field
     // Filter_Boundary();
-    if (NExp>0 && NStep%NExp==0 && NStep>0) Generate_VTK();             // Export grid if desired
+    if (NExp>0 && NStep%NExp==0 && NStep>0 && NStep>=ExpTB) Generate_VTK();             // Export grid if desired
     Increment_Time();
 }
 

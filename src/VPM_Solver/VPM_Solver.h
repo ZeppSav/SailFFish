@@ -610,6 +610,7 @@ public:
 
     //--- Output grid
     virtual void Generate_VTK()                     {}
+    virtual void Generate_VTK_Scalar()              {}
     void Set_VTK_Prefix(std::string S)              {vtk_Prefix = S;}
     virtual void Generate_Traverse(int XP, RVector &U, RVector &V, RVector &W)      {}
 

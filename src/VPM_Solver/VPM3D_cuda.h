@@ -99,6 +99,7 @@ class VPM3D_cuda : public VPM_3D_Solver //, public cuda_Grid_Data
     Real *Laplacian;        // Laplacian of vorticity field                         // Only necessary if using hyperviscosity turbulence model
     // Real *NablaU;           // Gradients of velocity field
     Real *sgs;              // sub grid scale
+    Real *qcrit;            // qcriterion
     Real *gfilt_Array1;     // Filtered vorticity field
     Real *gfilt_Array2;     // Gradients of velocity field
 
@@ -166,6 +167,7 @@ class VPM3D_cuda : public VPM_3D_Solver //, public cuda_Grid_Data
     cudaKernel *cuda_VPM_reprojection;
     cudaKernel *cuda_monolith_to_block_arch;
     cudaKernel *cuda_block_to_monolith_arch;
+    cudaKernel *cuda_block_to_monolith_single;
     cudaKernel *cuda_mapM2;
     cudaKernel *cuda_mapM4;
     cudaKernel *cuda_mapM4D;
@@ -321,7 +323,8 @@ public:
     void Calc_Grid_Diagnostics() override;
 
     //--- Output grid
-    void Generate_VTK();
+    void Generate_VTK() override;
+    void Generate_VTK_Scalar()  override;
     void Generate_VTK(const Real *vtkoutput1, const Real *vtkoutput2);
     void Generate_Plane(RVector &U) override;
     void Generate_Traverse(int XP, RVector &U, RVector &V, RVector &W) override;

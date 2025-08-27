@@ -157,6 +157,7 @@ SFStatus VPM3D_cuda::Allocate_Data()
         eu_dodt = cuda_r_Output2 + 4*NNT;
         dumbuffer = cuda_r_Output3 + 4*NNT;
         sgs = cuda_r_Output1 + 7*NNT;
+        qcrit = cuda_r_Output2 + 7*NNT;
 
         cudaMalloc((void**)&diagnostic_reduced, NDiags*NBT*sizeof(Real));
         cudaMalloc((void**)&magfilt_count, NBT*sizeof(int));
@@ -644,6 +645,7 @@ SFStatus VPM3D_cuda::Initialize_Kernels()
         cuda_VPM_reprojection = new cudaKernel(Source,"vpm_reprojection",KID, type_of(ComplexType));
         cuda_monolith_to_block_arch = new cudaKernel(Source,"Monolith_to_Block",KID);
         cuda_block_to_monolith_arch  = new cudaKernel(Source,"Block_to_Monolith",KID);
+        cuda_block_to_monolith_single  = new cudaKernel(Source,"Block_to_Monolith_Single",KID);
         cuda_map_toUnbounded = new cudaKernel(Source,"Map_toUnbounded",KID);
         cuda_map_fromUnbounded = new cudaKernel(Source,"Map_fromUnbounded",KID);
         cuda_mapM2 = new cudaKernel(Source,"MapKernel",KID, 1,2,(BX+2)*(BY+2)*(BZ+2));
@@ -717,6 +719,7 @@ SFStatus VPM3D_cuda::Initialize_Kernels()
         //--- Specify grid constants
         Set_Kernel_Constants(cuda_monolith_to_block_arch->Get_Instance(), 0);
         Set_Kernel_Constants(cuda_block_to_monolith_arch->Get_Instance(), 0);
+        Set_Kernel_Constants(cuda_block_to_monolith_single->Get_Instance(), 0);
         Set_Kernel_Constants(cuda_map_toUnbounded->Get_Instance(), 0);
         Set_Kernel_Constants(cuda_map_fromUnbounded->Get_Instance(), 0);
         Set_Kernel_Constants(cuda_mapM2->Get_Instance(), 1);
@@ -792,6 +795,7 @@ SFStatus VPM3D_cuda::Initialize_Kernels()
             //--- Configure grid
             cuda_monolith_to_block_arch->Instantiate(blockarch_grid, blockarch_block);
             cuda_block_to_monolith_arch->Instantiate(blockarch_grid, blockarch_block);
+            cuda_block_to_monolith_single->Instantiate(blockarch_grid, blockarch_block);
             cuda_mapM2->Instantiate(blockarch_grid, blockarch_block);
             cuda_mapM4->Instantiate(blockarch_grid, blockarch_block);
             cuda_mapM4D->Instantiate(blockarch_grid, blockarch_block);
@@ -1236,10 +1240,10 @@ void VPM3D_cuda::Grid_Shear_Stresses()
     // We shall execute the different fd depending on the order of the FD
     switch (FDOrder)
     {
-    case (CD2): {cuda_stretch_FD2->Execute(eu_o, eu_dddt, Halo1data, eu_dodt, sgs);   break;}
-    case (CD4): {cuda_stretch_FD4->Execute(eu_o, eu_dddt, Halo2data, eu_dodt, sgs);   break;}
-    case (CD6): {cuda_stretch_FD6->Execute(eu_o, eu_dddt, Halo3data, eu_dodt, sgs);   break;}
-    case (CD8): {cuda_stretch_FD8->Execute(eu_o, eu_dddt, Halo4data, eu_dodt, sgs);   break;}
+    case (CD2): {cuda_stretch_FD2->Execute(eu_o, eu_dddt, Halo1data, eu_dodt, sgs, qcrit);   break;}
+    case (CD4): {cuda_stretch_FD4->Execute(eu_o, eu_dddt, Halo2data, eu_dodt, sgs, qcrit);   break;}
+    case (CD6): {cuda_stretch_FD6->Execute(eu_o, eu_dddt, Halo3data, eu_dodt, sgs, qcrit);   break;}
+    case (CD8): {cuda_stretch_FD8->Execute(eu_o, eu_dddt, Halo4data, eu_dodt, sgs, qcrit);   break;}
     default:    {std::cout << "VPM3D_cuda::Grid_Shear_Stresses(). FDOrder undefined.";   break;}
     }
     return;
@@ -1998,15 +2002,6 @@ void VPM3D_cuda::Generate_VTK(const Real *vtkoutput1, const Real *vtkoutput2)
                 r_Output1[gid] = hostout2[lid      ];
                 r_Output2[gid] = hostout2[lid+1*NNT];
                 r_Output3[gid] = hostout2[lid+2*NNT];
-
-                // int gid2 = GID(i,j,k,NX,NY,NZ);
-                // r_Input1[gid] = DummyArrayX[gid];
-                // r_Input2[gid] = DummyArrayY[gid];
-                // r_Input3[gid] = DummyArrayZ[gid];
-                // r_Output1[gid] = hostout2[lid      ];
-                // r_Output2[gid] = hostout2[lid+1*NNT];
-                // r_Output3[gid] = hostout2[lid+2*NNT];
-                // std::cout << gid csp DummyArrayX[gid] csp DummyArrayY[gid] csp DummyArrayZ[gid] << std::endl;;
             }
         }
     }
@@ -2020,7 +2015,59 @@ void VPM3D_cuda::Generate_VTK(const Real *vtkoutput1, const Real *vtkoutput2)
     cudaMemset(int_lg_o,      Real(0.0), 3*NNT*sizeof(Real));
     free(hostout1);
     free(hostout2);
+
+    // HACK to export qcrit
+    Generate_VTK_Scalar();
 }
+
+void VPM3D_cuda::Generate_VTK_Scalar()
+{
+    // A vtk output is generated for a scalar output array.
+    // This function is included for now only for the q-criterion
+
+    // Convert to correct data ordering if necessary
+    if (Architecture==BLOCK){
+        cuda_block_to_monolith_single->Execute(qcrit,int_lg_d);
+    }
+    if (Architecture==MONO){
+        // cudaMemcpy(int_lg_d, vtkoutput1, 3*NNT*sizeof(Real), cudaMemcpyDeviceToHost);        // Lagrangian grid vorticity field
+    }
+
+    // Transfer data from device to host
+    Real *hostout1 = (Real*)malloc(NNT*sizeof(Real));
+    cudaMemcpy(hostout1, int_lg_d, NNT*sizeof(Real), cudaMemcpyDeviceToHost);        // Lagrangian grid vorticity field
+
+    // Extra hack for q-criterion
+    // Real *hostout3 = (Real*)malloc(NNT*sizeof(Real));
+    // cudaMemcpy(hostout3, qcrit, NNT*sizeof(Real), cudaMemcpyDeviceToHost);        // Eulerian grid velocity field
+
+    // Fill in output vector
+    // OpenMPfor
+    for (int i=0; i<NNX; i++){
+        for (int j=0; j<NNY; j++){
+            for (int k=0; k<NNZ; k++){
+                int gid = GID(i,j,k,NX,NY,NZ);
+                int lid = GID(i,j,k,NNX,NNY,NNZ);
+                r_Input1[gid] = hostout1[lid      ];
+                r_Input2[gid] = 0.0;
+                r_Input3[gid] = 0.0;
+                r_Output1[gid] = 0.0;
+                r_Output2[gid] = 0.0;
+                r_Output3[gid] = 0.0;
+            }
+        }
+    }
+
+    // Specify current filename.
+    vtk_Name = vtk_Prefix + std::to_string(NStep) + "_qcrit.vtk";
+
+    Create_vtk();
+
+    cudaMemset(int_lg_d,      Real(0.0), 3*NNT*sizeof(Real));
+    cudaMemset(int_lg_o,      Real(0.0), 3*NNT*sizeof(Real));
+    free(hostout1);
+}
+
 
 void VPM3D_cuda::Generate_Plane(RVector &U)
 {

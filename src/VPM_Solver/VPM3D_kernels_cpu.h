@@ -932,6 +932,24 @@ inline void KER_RVM_SGS(const TensorGrid &GradU, RVector &SGS, const int &id, co
     SGS[id] = RVMConst*H*H*sqrt(2.0*s_ij2);
 }
 
+inline void KER_QCriterion(const TensorGrid &GradU, RVector &Q, const int &id, const Real &H, const Real &RVMConst)
+{
+    // The sub-grid scale viscosity is calcualted here as described in Appendix A of the thesis of R. Cocle
+
+    Real s11 = 0.5*(GradU[0][id] + GradU[0][id]), q11 = 0.0;
+    Real s12 = 0.5*(GradU[1][id] + GradU[3][id]), q12 = 0.5*(GradU[1][id] - GradU[3][id]);
+    Real s13 = 0.5*(GradU[2][id] + GradU[6][id]), q13 = 0.5*(GradU[2][id] - GradU[6][id]);
+    Real s21 = 0.5*(GradU[3][id] + GradU[1][id]), q21 = 0.5*(GradU[3][id] - GradU[1][id]);
+    Real s22 = 0.5*(GradU[4][id] + GradU[4][id]), q22 = 0.0;
+    Real s23 = 0.5*(GradU[5][id] + GradU[7][id]), q23 = 0.5*(GradU[5][id] - GradU[7][id]);
+    Real s31 = 0.5*(GradU[6][id] + GradU[2][id]), q31 = 0.5*(GradU[6][id] - GradU[2][id]);
+    Real s32 = 0.5*(GradU[7][id] + GradU[5][id]), q32 = 0.5*(GradU[7][id] - GradU[5][id]);
+    Real s33 = 0.5*(GradU[8][id] + GradU[8][id]), q33 = 0.0;
+    Real s2 = s11*s11 + s12*s12 + s13*s13 + s21*s21 + s22*s22 + s23*s23 + s31*s31 + s32*s32 + s33*s33;
+    Real q2 = q11*q11 + q12*q12 + q13*q13 + q21*q21 + q22*q22 + q23*q23 + q31*q31 + q32*q32 + q33*q33;
+    Q[id] = 0.5*(q2-s2);
+}
+
 inline void KER_SG_Disc_Filter(const TensorGrid &g, TensorGrid &g_filt, const dim3 &id, const dim3 &D, const Axis &A)
 {
     // This kernel implements the Discrete SGS filter operator described in Jeanmart & Winckelmans doi 10.1063/1.2728935

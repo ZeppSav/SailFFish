@@ -204,6 +204,17 @@ __global__ void Block_to_Monolith(const Real* src, Real* dst) {
 	dst[mid+2*NT]  = src[bid+2*NT];
 }
 
+__global__ void Block_to_Monolith_Single(const Real* src, Real* dst) {
+
+    const int gx = threadIdx.x + blockIdx.x*BX;
+    const int gy = threadIdx.y + blockIdx.y*BY;
+    const int gz = threadIdx.z + blockIdx.z*BZ;
+    const int mid = gid(gx,gy,gz,NX,NY,NZ);
+    const int bid = gidb(gx,gy,gz);
+
+    dst[mid]       = src[bid];
+}
+
 __global__ void Map_toUnbounded(const Real* src, Real* dst1, Real* dst2, Real* dst3) {
 
 	const int gx = threadIdx.x + blockIdx.x*BX; 
@@ -812,8 +823,8 @@ __constant__ Real LAP_ISO_3D[27] = {  1.f/30.f,3.f/30.f,1.f/30.f,3.f/30.f,14.f/3
 
 __constant__ Real  KinVisc;
 
-template<int Halo, int Order, int NFDGrid>                    
-__global__ void Shear_Stress(const Real* w, const Real* u, const int* hs, Real* grad, Real* smag) {
+template<int Halo, int Order, int NFDGrid>
+__global__ void Shear_Stress(const Real* w, const Real* u, const int* hs, Real* grad, Real* smag, Real* qcrit) {
 
 // Declare shared memory arrays
 __shared__ Real wx[NFDGrid];
@@ -893,7 +904,8 @@ for (int i=0; i<NHIT; i++){
 //------- Calculate finite differences
 
 Real duxdx = Real(0.), duxdy = Real(0.), duxdz = Real(0.), duydx = Real(0.), duydy = Real(0.), duydz = Real(0.), duzdx = Real(0.), duzdy = Real(0.), duzdz = Real(0.);    // Nabla U
-Real sgs = Real(0.);																																// Smagorinksi term
+Real sgs = Real(0.);
+Real qc = Real(0.);																													// Smagorinksi term
 Real lx = Real(0.), ly = Real(0.), lz = Real(0.);                                                                                                     	// Laplacian of Omega
 const bool mxx = (gx>(Halo-1) && gx<(NX-Halo));
 const bool mxy = (gy>(Halo-1) && gy<(NY-Halo));
@@ -986,19 +998,30 @@ if (mxx && mxy && mxz){
 	duzdz *= invhz;  
 	
 	// Calculate subgrid scale term for this grid node
-	const Real s11 = duxdx;
-    const Real s12 = Real(0.5)*(duxdy + duydx);
-    const Real s13 = Real(0.5)*(duxdz + duzdx);
-    const Real s21 = s12;
-    const Real s22 = duydy;
-    const Real s23 = Real(0.5)*(duydz + duzdy);
-    const Real s31 = s13;
-    const Real s32 = s23;
-    const Real s33 = duzdz;
+    // const Real s11 = duxdx;
+    // const Real s12 = Real(0.5)*(duxdy + duydx);
+    // const Real s13 = Real(0.5)*(duxdz + duzdx);
+    // const Real s21 = s12;
+    // const Real s22 = duydy;
+    // const Real s23 = Real(0.5)*(duydz + duzdy);
+    // const Real s31 = s13;
+    // const Real s32 = s23;
+    // const Real s33 = duzdz;
+    // const Real s_ij2 = s11*s11 + s12*s12 + s13*s13 + s21*s21 + s22*s22 + s23*s23 + s31*s31 + s32*s32 + s33*s33;
+    const Real s11 = duxdx                    , q11 = Real(0.0);
+    const Real s12 = Real(0.5)*(duxdy + duydx), q12 = Real(0.5)*(duxdy - duydx)  ;
+    const Real s13 = Real(0.5)*(duxdz + duzdx), q13 = Real(0.5)*(duxdz - duzdx)  ;
+    const Real s21 = Real(0.5)*(duydx + duxdy), q21 = Real(0.5)*(duydx - duxdy)  ;
+    const Real s22 = duydy                    , q22 = Real(0.0);
+    const Real s23 = Real(0.5)*(duydz + duzdy), q23 = Real(0.5)*(duydz - duzdy)  ;
+    const Real s31 = Real(0.5)*(duzdx + duxdz), q31 = Real(0.5)*(duzdx - duxdz)  ;
+    const Real s32 = Real(0.5)*(duzdy + duydz), q32 = Real(0.5)*(duzdy - duydz)  ;
+    const Real s33 = duzdz                    , q33 = Real(0.0);
     const Real s_ij2 = s11*s11 + s12*s12 + s13*s13 + s21*s21 + s22*s22 + s23*s23 + s31*s31 + s32*s32 + s33*s33;
-	// This assumes uniform grid spacing!
+    const Real q_ij2 = q11*q11 + q12*q12 + q13*q13 + q21*q21 + q22*q22 + q23*q23 + q31*q31 + q32*q32 + q33*q33;
+    // This assumes uniform grid spacing!
     sgs = hx*hx*sqrt(Real(2.0)*s_ij2);
-	
+    qc = Real(0.5)*(q_ij2-s_ij2);
 
 	//--- Calculate Laplacian
 	if (Order==2){ 
@@ -1100,6 +1123,7 @@ grad[bid]      = sx;
 grad[bid+NT]   = sy;
 grad[bid+2*NT] = sz;
 smag[bid]	   = sgs;
+qcrit[bid]   = qc;
 
 }
 

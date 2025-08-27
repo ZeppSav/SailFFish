@@ -26,8 +26,8 @@
 #define TEST_RINGS_H
 
 #include "../src/SailFFish_Math_Types.h"
-#include "../src/VPM_Solver/VPM3D_cpu.h"
-// #include "../src/VPM_Solver/VPM3D_cuda.h"
+// #include "../src/VPM_Solver/VPM3D_cpu.h"
+#include "../src/VPM_Solver/VPM3D_cuda.h"
 
 using namespace SailFFish;
 
@@ -39,8 +39,8 @@ void Vortex_Ring_Evolution_Test()
     // Note: Make sure the Saffman centroid is being calculated in the diagnostics calculations
 
     // --- VPM solver
-    SailFFish::VPM3D_cpu *VPM = new SailFFish::VPM3D_cpu(SailFFish::STAGGERED, SailFFish::HEJ_G8);
-    // SailFFish::VPM3D_cuda *VPM = new SailFFish::VPM3D_cuda(SailFFish::STAGGERED, SailFFish::HEJ_G8);
+    // SailFFish::VPM3D_cpu *VPM = new SailFFish::VPM3D_cpu(SailFFish::STAGGERED, SailFFish::HEJ_G8);
+    SailFFish::VPM3D_cuda *VPM = new SailFFish::VPM3D_cuda(SailFFish::STAGGERED, SailFFish::HEJ_G8);
 
     //--- Initialize with VPM_Input
     SailFFish::VPM_Input I;

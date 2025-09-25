@@ -312,12 +312,12 @@ public:
 
     //--- Fourier transforms (Note: Backward FFT/iFFT should not be called if Fused Kernel most employed!)
     VkFFTResult FFT_DFT(bool Forward);
-    void Forward_FFT_R2R()  override;//    {FFT_DFT(true);}
-    void Backward_FFT_R2R() override;//    {if (!FusedKernel) FFT_DFT(false);}
-    void Forward_FFT_DFT()  override;//    {FFT_DFT(true);}
-    void Backward_FFT_DFT() override;//    {if (!FusedKernel) FFT_DFT(false);}
-    // void Forward_FFT_R2C()  override    {FFT_DFT(true);}
-    // void Backward_FFT_C2R() override    {if (!FusedKernel) FFT_DFT(false);}
+    void Forward_FFT_R2R()  override;
+    void Backward_FFT_R2R() override;
+    void Forward_FFT_DFT()  override;
+    void Backward_FFT_DFT() override;
+    void Forward_FFT_R2C()  override;
+    void Backward_FFT_C2R() override;
 
     //--- Convolution
     // We can completely avoid the convolution step if we are using a VkFFT backend, as we will exploit the

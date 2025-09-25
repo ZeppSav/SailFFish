@@ -230,8 +230,8 @@ SFStatus DataType_VkFFT::Allocate_Arrays()
 
     // Arrays for Green's function & spectral operators arrays
     if      (Transform==DFT_C2C)    Allocate_Buffer(c_FG,   c_bufferSizeNTM);   // Periodic
-    else if (Transform==DFT_R2C)    Allocate_Buffer(c_FG,   c_bufferSizeNTM);   // Unbounded
-    else                            Allocate_Buffer(cl_r_FG, bufferSizeNT);     // R2R
+    else                            Allocate_Buffer(cl_r_FG, bufferSizeNT);     // R2R + R2C (unbounded)
+    if      (Transform==DFT_R2C)    Allocate_Buffer(c_FG,   c_bufferSizeNTM);   // R2C (unbounded)
     if (c_fg_i)     Allocate_Buffer(c_FGi, c_bufferSizeNTM);
     if (c_fg_j)     Allocate_Buffer(c_FGj, c_bufferSizeNTM);
     if (c_fg_k)     Allocate_Buffer(c_FGk, c_bufferSizeNTM);
@@ -352,6 +352,18 @@ SFStatus DataType_VkFFT::Prepare_Plan(VkFFTConfiguration &Config)
     // Specify input buffer (Note: This must be corrected if using fused convolution step)
     Config.bufferSize = &InputbufferSize;   // Specify config buffer size
     Config.buffer = &InputBuffer;           // Specify input buffer
+
+
+    // In the case of DFT- a separate out of place buffer must be specified to ensure accurate execution
+    // Main buffer: Config.buffer ::must always be provided. All calculations done here and is always overwritten
+    // Config.inputBuffer- data will ONLY be read from input buffer- all operatoins/work carried out on Config.buffer
+    // Config.outputBuffer- only the absolute last write of the VkFFT write will be written to this.
+    // I can use ALL three if I want.... real input, complex domain manipulation, real output
+    // Eg C2C:
+    // input_buffer: cl_r_Inputi
+    // buffer: c_FG
+    // output buffer: if in-place- cl_r_Inputi,      configuration.inverseReturnToInputBuffer = 1; -> isInputFormatted
+    // output buffer: if out-of-place cl_r_Outputi
 
     // Specify presision
     // if (std::is_same<Real,float>::value)    Config.doublePrecision = 0;  // Standard!
@@ -502,16 +514,15 @@ SFStatus DataType_VkFFT::Set_Input(RVector &I1, RVector &I2, RVector &I3)
 
 SFStatus DataType_VkFFT::Set_Input_Unbounded_1D(RVector &I)
 {
-    // This function takes the input vector and stores this in the appropriate cuda input array
+    // This function takes the input vector and stores this in the appropriate cl input array
     int NXH = NX/2;
     if (size(I)!=size_t(NXH)){
         std::cout << "Input array has incorrect dimension." << std::endl;
         return DimError;
     }
     RVector R1(NT,0);
-    if (r_in1) memcpy(R1.data(), I.data(), NXH*sizeof(Real));       // HEREE!!!!
+    if (r_in1) memcpy(R1.data(), I.data(), NXH*sizeof(Real));
     if (c_in1)  {}// Not yet implemented!
-    // Create dummy arrays to pass in one block to cuda buffers
 
     VkFFTResult res = VKFFT_SUCCESS;
     if (r_in1)  res = transferDataFromCPU(vkGPU, R1.data(), &cl_r_Input1, bufferSizeNT);
@@ -565,7 +576,7 @@ void DataType_VkFFT::Get_Output_Unbounded_1D(RVector &I)
     // Create dummy arrays if required
     if (c_out_1)  {}// Not yet implemented!
 
-    // Copy memory from cuda buffer
+    // Copy memory from cl buffer
     VkFFTResult res = VKFFT_SUCCESS;
     if (r_out_1) res = transferDataToCPU(vkGPU, I.data(), &cl_r_Input1, bufferSizeNTM);
     if (c_out_1)  {}// Not yet implemented!
@@ -592,6 +603,8 @@ void DataType_VkFFT::Prep_Greens_Function(FTType TF)
     if (NX>0)                   Dim = 1;
     if (NX>0 && NY>0)           Dim = 2;
     if (NX>0 && NY>0 && NZ>0)   Dim = 3;
+
+    std::cout << "Dim = " << Dim << std::endl;
 
     // Step 1: Pass Greens function to cl buffer
     if (TF==DFT_R2R){       // Real Green's kernel
@@ -804,6 +817,25 @@ void DataType_VkFFT::Backward_FFT_DFT()
     if (c_in2 && (resFFT==VKFFT_SUCCESS))  {launchParams.buffer = &c_Input2;   resFFT = FFT_DFT(false); }
     if (c_in3 && (resFFT==VKFFT_SUCCESS))  {launchParams.buffer = &c_Input3;   resFFT = FFT_DFT(false); }
     ConvertVkFFTError(resFFT);
+}
+
+void DataType_VkFFT::Forward_FFT_R2C()
+{
+    VkFFTResult resFFT = VKFFT_SUCCESS;
+    if (r_in1 && (resFFT==VKFFT_SUCCESS))  {launchParams.buffer = &cl_r_Input1;   resFFT = FFT_DFT(true); } // Assumes in-place!
+    if (r_in2 && (resFFT==VKFFT_SUCCESS))  {launchParams.buffer = &cl_r_Input2;   resFFT = FFT_DFT(true); } // Assumes in-place!
+    if (r_in3 && (resFFT==VKFFT_SUCCESS))  {launchParams.buffer = &cl_r_Input3;   resFFT = FFT_DFT(true); } // Assumes in-place!
+    // ConvertVkFFTError(resFFT);
+}
+
+void DataType_VkFFT::Backward_FFT_C2R()
+{
+    // if (FusedKernel) return;
+    // VkFFTResult resFFT = VKFFT_SUCCESS;
+    // if (c_in1 && (resFFT==VKFFT_SUCCESS))  {launchParams.buffer = &c_Input1;   resFFT = FFT_DFT(false); }
+    // if (c_in2 && (resFFT==VKFFT_SUCCESS))  {launchParams.buffer = &c_Input2;   resFFT = FFT_DFT(false); }
+    // if (c_in3 && (resFFT==VKFFT_SUCCESS))  {launchParams.buffer = &c_Input3;   resFFT = FFT_DFT(false); }
+    // ConvertVkFFTError(resFFT);
 }
 
 //--- Convolution

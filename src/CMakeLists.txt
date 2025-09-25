@@ -53,6 +53,7 @@ target_sources(SailFFish_lib PRIVATE
 target_sources(SailFFish_lib PUBLIC
     FILE_SET HEADERS
     FILES
+    SailFFish_Math_Types.h
     DataTypes/DataType_Base.h
     DataTypes/DataType_CUDA.h 
     DataTypes/DataType_FFTW.h 

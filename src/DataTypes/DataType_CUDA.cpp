@@ -770,7 +770,7 @@ SFStatus DataType_CUDA::Set_Input_Unbounded_1D(RVector &I)
     }
 
     // Create dummy arrays to pass in one block to cuda buffers
-    RVector R1;
+    // RVector R1;
     CVector C1;
     // if (r_in1) R1 = RVector(NT,0);
     memset(r_Input1, 0, NT*sizeof(Real));

@@ -6,8 +6,7 @@ option(BUILD_SHARED_LIBS "Build shared library" OFF)
 option(BUILD_FFTW "Build FFTW version" ON)  	# Option to build SailFFish to use FFTW backend (https://www.fftw.org/)
 option(BUILD_CUFFT "Build CUDA version" OFF)  	# Option to build SailFFish to use CUFFT backend
 option(BUILD_VKFFT "Build VKFFT version" OFF)  	# Option to build SailFFish to use VKFFT backend (https://github.com/DTolm/VkFFT)
-option(BUILD_VPM "Build VPM solver" ON)  		# Option to build the vortex particle mesh library
-
+option(BUILD_VPM "Build VPM solver" OFF)  		# Option to build the vortex particle mesh library
 
 IF(NOT DEFINED CMAKE_BUILD_TYPE)
   SET(CMAKE_BUILD_TYPE Release)

@@ -21,6 +21,8 @@ void DataType_VkFFT::Datatype_Setup()
 
     // Enable fused kernel convolution
     // FusedKernel = true;
+
+    InPlace = true;
 }
 
 // Options:
@@ -197,6 +199,17 @@ SFStatus DataType_VkFFT::Allocate_Arrays()
     if (c_ft_in2)   Allocate_Buffer(c_FTInput2, c_bufferSizeNTM);
     if (c_ft_in3)   Allocate_Buffer(c_FTInput3, c_bufferSizeNTM);
 
+    if (InPlace){
+        if (c_ft_in1) c_FTOutput1 = c_FTInput1;
+        if (c_ft_in2) c_FTOutput2 = c_FTInput2;
+        if (c_ft_in3) c_FTOutput3 = c_FTInput3;
+    }
+    else{
+        if (c_ft_in1) Allocate_Buffer(c_FTOutput1, c_bufferSizeNTM);
+        if (c_ft_in2) Allocate_Buffer(c_FTOutput2, c_bufferSizeNTM);
+        if (c_ft_in3) Allocate_Buffer(c_FTOutput3, c_bufferSizeNTM);
+    }
+
     // if (c_ft_in1)   cudaMalloc((void**)&c_FTInput1, sizeof(CUDAComplex)*NTM);
     // if (c_ft_in2)   cudaMalloc((void**)&c_FTInput2, sizeof(CUDAComplex)*NTM);
     // if (c_ft_in3)   cudaMalloc((void**)&c_FTInput3, sizeof(CUDAComplex)*NTM);
@@ -205,17 +218,6 @@ SFStatus DataType_VkFFT::Allocate_Arrays()
     // c_ft_out1 = c_ft_in1;
     // c_ft_out2 = c_ft_in2;
     // c_ft_out3 = c_ft_in3;
-
-    // if (InPlace){
-    //     if (c_ft_out1) c_FTOutput1 = c_FTInput1;
-    //     if (c_ft_out2) c_FTOutput2 = c_FTInput2;
-    //     if (c_ft_out3) c_FTOutput3 = c_FTInput3;
-    // }
-    // else{
-    //     if (c_ft_out1) cudaMalloc((void**)&c_FTOutput1, sizeof(CUDAComplex)*NTM);
-    //     if (c_ft_out2) cudaMalloc((void**)&c_FTOutput2, sizeof(CUDAComplex)*NTM);
-    //     if (c_ft_out3) cudaMalloc((void**)&c_FTOutput3, sizeof(CUDAComplex)*NTM);
-    // }
 
     // result = cuMemGetInfo(&free_mem, &total_mem);
     // std::cout << "Used GPU memory: c_FTOutput1 " << (total_mem - free_mem) / (1024.0 * 1024.0) << " MB" << std::endl;
@@ -258,65 +260,7 @@ SFStatus DataType_VkFFT::Deallocate_Arrays()
     // Depending on the type of solver and the chosen operator/outputs, the arrays which must be allocated vary.
     // This is simply controlled here by specifying the necessary flags during solver initialization
 
-    // // Cpu arrays
-    // if (r_Input1)       free(r_Input1);
-    // if (r_Input2)       free(r_Input2);
-    // if (r_Input3)       free(r_Input3);
-
-    // // Real-valued arrays
-    // if (r_Input1)      cudaFreeHost(cuda_r_Input1);
-    // if (r_Input2)      cudaFreeHost(cuda_r_Input2);
-    // if (r_Input3)      cudaFreeHost(cuda_r_Input3);
-
-    // //    if (r_FTInput1)   cudaFree(r_FTInput1);
-    // //    if (r_FTInput2)   cudaFree(r_FTInput2);
-    // //    if (r_FTInput3)   cudaFree(r_FTInput3);
-
-    // if (r_Output1)    free(r_Output1);
-    // if (r_Output2)    free(r_Output2);
-    // if (r_Output3)    free(r_Output3);
-
-    // if (r_Output1)    cudaFree(cuda_r_Output1);
-    // if (r_Output2)    cudaFree(cuda_r_Output2);
-    // if (r_Output3)    cudaFree(cuda_r_Output3);
-
-    // // Arrays for real Green's function
-    // if (r_FG)       free(r_FG);
-
-    // // Complex-valued arrays
-    // if (c_Input1)      cudaFree(c_Input1);
-    // if (c_Input2)      cudaFree(c_Input2);
-    // if (c_Input3)      cudaFree(c_Input3);
-
-    // if (c_FTInput1)   cudaFree(c_FTInput1);
-    // if (c_FTInput2)   cudaFree(c_FTInput2);
-    // if (c_FTInput3)   cudaFree(c_FTInput3);
-
-    // if (!InPlace && c_FTOutput1)    {cudaFree(c_FTOutput1);}
-    // if (!InPlace && c_FTOutput2)    {cudaFree(c_FTOutput2);}
-    // if (!InPlace && c_FTOutput3)    {cudaFree(c_FTOutput3);}
-
-    // if (c_vel_1)    cudaFree(c_FTVel1);
-    // if (c_vel_2)    cudaFree(c_FTVel2);
-    // if (c_vel_3)    cudaFree(c_FTVel3);
-
-    // if (c_Output1)    cudaFree(c_Output1);
-    // if (c_Output2)    cudaFree(c_Output2);
-    // if (c_Output3)    cudaFree(c_Output3);
-
-    // // Arrays for complex Green's function & spectral operators arrays
-    // if (c_FG)       cudaFree(c_FG);
-    // if (c_FGi)      cudaFree(c_FGi);
-    // if (c_FGj)      cudaFree(c_FGj);
-    // if (c_FGk)      cudaFree(c_FGk);
-
-    // if (c_DummyBuffer1)    cudaFree(c_DummyBuffer1);
-    // if (c_DummyBuffer2)    cudaFree(c_DummyBuffer2);
-    // if (c_DummyBuffer3)    cudaFree(c_DummyBuffer3);
-    // if (c_DummyBuffer4)    cudaFree(c_DummyBuffer4);
-    // if (c_DummyBuffer5)    cudaFree(c_DummyBuffer5);
-    // if (c_DummyBuffer6)    cudaFree(c_DummyBuffer6);
-
+    std::cout << "DataType_VkFFT::Deallocate_Arrays() NOT YET IMPLEMENTEDDDD!!!!" << std::endl;
     return NoError;
 }
 
@@ -353,19 +297,43 @@ SFStatus DataType_VkFFT::Prepare_Plan(VkFFTConfiguration &Config)
     Config.bufferSize = &InputbufferSize;   // Specify config buffer size
     Config.buffer = &InputBuffer;           // Specify input buffer
 
-
-    // In the case of DFT- a separate out of place buffer must be specified to ensure accurate execution
     // Main buffer: Config.buffer ::must always be provided. All calculations done here and is always overwritten
-    // Config.inputBuffer- data will ONLY be read from input buffer- all operatoins/work carried out on Config.buffer
+    // Config.inputBuffer- data will ONLY be read from input buffer- all operations/work carried out on Config.buffer
     // Config.outputBuffer- only the absolute last write of the VkFFT write will be written to this.
-    // I can use ALL three if I want.... real input, complex domain manipulation, real output
-    // Eg C2C:
-    // input_buffer: cl_r_Inputi
-    // buffer: c_FG
-    // output buffer: if in-place- cl_r_Inputi,      configuration.inverseReturnToInputBuffer = 1; -> isInputFormatted
-    // output buffer: if out-of-place cl_r_Outputi
 
-    // Specify presision
+    // TESTS: 1D: Out-of-place FFT to buffer c_FTInputi:    (isInputFormatted=1)                                ---- WORKING ----
+    // TESTS: 1D: In-place FFT + iFFT to buffer c_FTInputi: (isInputFormatted=1,inverseReturnToInputBuffer=1);  ---- WORKING ---- + scaling!
+    // TESTS: 1D: Out-of-place FFT + iFFT to outputbuffer (isInputFormatted=1,inverseReturnToInputBuffer=1)
+
+    if (Transform==DFT_R2C){
+        // Trial first out-of-place transform.
+        Config.inputBuffer = &InputBuffer;
+        Config.inputBufferSize = &InputbufferSize;
+        Config.buffer = &c_FTInput1;
+        Config.bufferSize = &c_bufferSizeNTM;
+
+        // To denote that it is NOT padded... specify this here with the following flag:
+        Config.isInputFormatted = true;
+        Config.inverseReturnToInputBuffer = true;           // Only valid if in-place
+
+        // Out of place Option 1          ---- WORKING ----
+        // Copy c_FTInputi to c_FTOutputi
+        // Change launch.buffer to c_FTOutputi
+        // Change launch.inputbuffer to cl_r_Outputi
+
+        // Out of place Option 2:  ---- WORKING ----
+        if (!InPlace){
+            Config.isOutputFormatted = true;
+            Config.outputBuffer = &c_FTOutput1;
+            Config.outputBufferSize = &c_bufferSizeNTM;
+
+            // Directly priod to C2R step, define the following:
+            // if (!InPlace) launchParams.outputBuffer = &cl_r_Output1;
+        }
+    }
+
+
+    // Specify precision
     // if (std::is_same<Real,float>::value)    Config.doublePrecision = 0;  // Standard!
     // if (std::is_same<Real,double>::value)   Config.doublePrecision = 1;
 
@@ -524,9 +492,19 @@ SFStatus DataType_VkFFT::Set_Input_Unbounded_1D(RVector &I)
     if (r_in1) memcpy(R1.data(), I.data(), NXH*sizeof(Real));
     if (c_in1)  {}// Not yet implemented!
 
+    // std::cout << "Outputting real inputs arrays" << std::endl;
+    // for (auto i : R1) std::cout << i << std::endl;
+
     VkFFTResult res = VKFFT_SUCCESS;
     if (r_in1)  res = transferDataFromCPU(vkGPU, R1.data(), &cl_r_Input1, bufferSizeNT);
     if (c_in1)  {}// Not yet implemented!
+
+    // Data is being transferred to cl_r_Input1 array!
+    // std::cout << "Outputting real input arrays" << std::endl;
+    // RVector R1out(NT,0);
+    // VkFFTResult resout = transferDataToCPU(vkGPU, R1out.data(), &cl_r_Input1, bufferSizeNT);
+    // for (auto i : R1out) std::cout << i << std::endl;
+
     return ConvertVkFFTError(res);
 }
 
@@ -574,13 +552,25 @@ void DataType_VkFFT::Get_Output_Unbounded_1D(RVector &I)
     if (size(I)!=size_t(NXH))   I.assign(NXH,0);
 
     // Create dummy arrays if required
-    if (c_out_1)  {}// Not yet implemented!
+    RVector R1;
+    CVector C1;
+    if (r_out_1) R1 = RVector(NT,0);
+    if (c_out_1) C1 = CVector(NT,ComplexNull);
 
     // Copy memory from cl buffer
     VkFFTResult res = VKFFT_SUCCESS;
-    if (r_out_1) res = transferDataToCPU(vkGPU, I.data(), &cl_r_Input1, bufferSizeNTM);
+    if (r_out_1)    res = transferDataToCPU(vkGPU, R1.data(), &cl_r_Output1, bufferSizeNT);
     if (c_out_1)  {}// Not yet implemented!
     SFStatus ressf = ConvertVkFFTError(res);
+
+    // Copy to output arrays
+    std::memcpy(I.data(), R1.data(), NXH*sizeof(Real));   // Just copy over
+
+    // // Hacked output for testing ONLY FFT (forward):
+    // std::cout << "Outputting complex arrays" << std::endl;
+    // std::vector<cl_complex> O(NTM,CLC0);
+    // VkFFTResult res2 = transferDataToCPU(vkGPU, O.data(), &c_FTOutput1, c_bufferSizeNTM);
+    // for (auto i : O) std::cout << i.x csp i.y << std::endl;
 }
 
 //--- Greens functions prep
@@ -822,20 +812,28 @@ void DataType_VkFFT::Backward_FFT_DFT()
 void DataType_VkFFT::Forward_FFT_R2C()
 {
     VkFFTResult resFFT = VKFFT_SUCCESS;
-    if (r_in1 && (resFFT==VKFFT_SUCCESS))  {launchParams.buffer = &cl_r_Input1;   resFFT = FFT_DFT(true); } // Assumes in-place!
-    if (r_in2 && (resFFT==VKFFT_SUCCESS))  {launchParams.buffer = &cl_r_Input2;   resFFT = FFT_DFT(true); } // Assumes in-place!
-    if (r_in3 && (resFFT==VKFFT_SUCCESS))  {launchParams.buffer = &cl_r_Input3;   resFFT = FFT_DFT(true); } // Assumes in-place!
-    // ConvertVkFFTError(resFFT);
+    // InPlace means: cl_r_Input1 = cl_r_Output1 &  c_FTInputi = c_FTOutputi
+    // So for this case, we will always use specify inputBuffer & buffer separately
+    if (r_in1 && (resFFT==VKFFT_SUCCESS))  {launchParams.inputBuffer = &cl_r_Input1; launchParams.buffer = &c_FTInput1;  resFFT = FFT_DFT(true); }
+    if (r_in2 && (resFFT==VKFFT_SUCCESS))  {launchParams.inputBuffer = &cl_r_Input2; launchParams.buffer = &c_FTInput2;  resFFT = FFT_DFT(true); }
+    if (r_in3 && (resFFT==VKFFT_SUCCESS))  {launchParams.inputBuffer = &cl_r_Input3; launchParams.buffer = &c_FTInput3;  resFFT = FFT_DFT(true); }
+    SFStatus stat = ConvertVkFFTError(resFFT);
 }
 
 void DataType_VkFFT::Backward_FFT_C2R()
 {
-    // if (FusedKernel) return;
-    // VkFFTResult resFFT = VKFFT_SUCCESS;
-    // if (c_in1 && (resFFT==VKFFT_SUCCESS))  {launchParams.buffer = &c_Input1;   resFFT = FFT_DFT(false); }
-    // if (c_in2 && (resFFT==VKFFT_SUCCESS))  {launchParams.buffer = &c_Input2;   resFFT = FFT_DFT(false); }
-    // if (c_in3 && (resFFT==VKFFT_SUCCESS))  {launchParams.buffer = &c_Input3;   resFFT = FFT_DFT(false); }
-    // ConvertVkFFTError(resFFT);
+    if (FusedKernel) return;
+
+    //---- HACK TO TEST OUT_OF_PLACE
+    // if (!InPlace) launchParams.outputBuffer = &cl_r_Output1;
+    //---- HACK TO TEST OUT_OF_PLACE
+
+    VkFFTResult resFFT = VKFFT_SUCCESS;
+    // Note: Specifying outputBuffer means something else...
+    if (r_out_1 && (resFFT==VKFFT_SUCCESS))  {launchParams.inputBuffer = &cl_r_Output1; launchParams.buffer = &c_FTOutput1;  resFFT = FFT_DFT(false); }
+    if (r_out_2 && (resFFT==VKFFT_SUCCESS))  {launchParams.inputBuffer = &cl_r_Output2; launchParams.buffer = &c_FTOutput2;  resFFT = FFT_DFT(false); }
+    if (r_out_3 && (resFFT==VKFFT_SUCCESS))  {launchParams.inputBuffer = &cl_r_Output3; launchParams.buffer = &c_FTOutput3;  resFFT = FFT_DFT(false); }
+    SFStatus stat = ConvertVkFFTError(resFFT);
 }
 
 //--- Convolution

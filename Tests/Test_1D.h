@@ -25,7 +25,7 @@
 #ifndef TEST_1D_H
 #define TEST_1D_H
 
-#include "SailFFish.h"
+#include "../src/SailFFish.h"
 #include "Test_Functions.h"
 
 //---------------------
@@ -322,20 +322,37 @@ void Test_Unbounded_1D(int NX)
         Input.push_back(    UTest_Omega(fabs(XGrid[i])));       // Input field
         Solution.push_back( UTest_Phi(fabs(XGrid[i])));         // Solution field
     }
+
     Status = Solver->Set_Input_Unbounded_1D(Input);
     if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
     unsigned int t3 = stopwatch();  // Timer
 
     // Carry out execution
     Solver->Forward_Transform();
-    Solver->Convolution();
+
+    // Solver->Convolution();
     Solver->Backward_Transform();
     unsigned int t4 = stopwatch();
-
     // Retrieve solution & collect final timings
     Solver->Get_Output_Unbounded_1D(Output);
     unsigned int t5 = stopwatch();
     Real tTot = Real(t2+t3+t4+t5);
+
+    // Test for equivalent input-output after FFT + iFFT-> In-place
+    for (int i=0; i<NXM; i++) std::cout << XGrid[i] csp Input[i] csp Output[i]/(2*NX) << std::endl;
+
+
+    return;
+
+    // Trials:
+    // FFT forward-> input buffer + buffer...-> Does this agree with FFTW FFT?            ---- WORKING ----
+    // FFT + iFFT Are inputs/outputs the same? -> Does this agree with FFTW FFT?
+    // Identity convolution: Are inputs/outputs the same?
+    // FFT does arrays return the same value as FFTW?
+    // FFT does convolution kernel returns the same value as FFTW?
+    // FFT does forward + multiplication return the same values as FFTW?
+
+    // for (int 09)
 
     std::cout << "Trial Calculation: Solution of the unbounded 1D Poisson equation." << std::endl;
     std::cout << std::scientific;

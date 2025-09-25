@@ -485,6 +485,10 @@ void DataType_FFTW::Get_Output_Unbounded_1D(RVector &I)
         if (r_out_1) I[i] = r_Output1[i];
         if (c_out_1) I[i] = c_Output1[i][0];
     }
+
+    // Hack to check output array
+    std::cout << "Outputting complex arrays" << std::endl;
+    for (int i=0; i<NTM; i++) std::cout << c_FTInput1[i][0] csp c_FTInput1[i][1] << std::endl;
 }
 
 void DataType_FFTW::Get_Output_Unbounded_2D(RVector &I)

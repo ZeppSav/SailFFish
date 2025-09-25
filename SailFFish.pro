@@ -46,45 +46,45 @@ LIBS += -fopenmp
 # unix: LIBS += -lfftw3f -lfftw3f_threads -lfftw3 -lfftw3_threads
 # ##----------------------------------------------
 
-# #----------------------------------------------
-# # DataType cuFFT
-# #----------------------------------------------
-# DEFINES += CUFFT
-# #----------------------------------------------
-# # include path to cuda & cuda Libraries
-# #----------------------------------------------
-# INCLUDEPATH += "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.8\include"
-# CUDAPFAD = "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.8"
-# win32: LIBS += -L$$CUDAPFAD\bin -lcudart64_110 -lcufft64_10 -lcufftw64_10 -lcublas64_11
+#----------------------------------------------
+# DataType cuFFT
+#----------------------------------------------
+DEFINES += CUFFT
+#----------------------------------------------
+# include path to cuda & cuda Libraries
+#----------------------------------------------
+INCLUDEPATH += "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.8\include"
+CUDAPFAD = "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.8"
+win32: LIBS += -L$$CUDAPFAD\bin -lcudart64_110 -lcufft64_10 -lcufftw64_10 -lcublas64_11
+win32: LIBS += -L$$CUDAPFAD\lib\x64 -lcuda -lnvrtc
+# win32: LIBS += -L$$CUDAPFAD\bin -lcudart64_12 -lcufft64_11 -lcufftw64_11 -lcublas64_12
 # win32: LIBS += -L$$CUDAPFAD\lib\x64 -lcuda -lnvrtc
-# # win32: LIBS += -L$$CUDAPFAD\bin -lcudart64_12 -lcufft64_11 -lcufftw64_11 -lcublas64_12
-# # win32: LIBS += -L$$CUDAPFAD\lib\x64 -lcuda -lnvrtc
-# unix: LIBS += -L$$CUDAPFAD\bin -lcudart64_110 -lcufft64_10 -lcufftw64_10 -lcublas64_11
-# unix: LIBS += -L$$CUDAPFAD\lib\x64 -lcuda -lnvrtc
+unix: LIBS += -L$$CUDAPFAD\bin -lcudart64_110 -lcufft64_10 -lcufftw64_10 -lcublas64_11
+unix: LIBS += -L$$CUDAPFAD\lib\x64 -lcuda -lnvrtc
+#----------------------------------------------
+
 # #----------------------------------------------
+# # DataType VkFFT
+# #----------------------------------------------
+# DEFINES += VKFFT
+# #----------------------------------------------
+# # include path to OpenCL headers & VkFFT
+# #----------------------------------------------
+# INCLUDEPATH += $$PWD/..     # Add path for CL headers
+# INCLUDEPATH += $$PWD/../VkFFT           # Add path for vkFFT library
+# INCLUDEPATH += $$PWD/../VkFFT/VkFFT     # Add path for vkFFT library
+# INCLUDEPATH += $$PWD/../VkFFT/half_lib  # Add path for half precision library
+# INCLUDEPATH += $$PWD/../VkFFT/benchmark_scripts/
+# INCLUDEPATH += $$PWD/../VkFFT/benchmark_scripts/vkFFT_scripts
+# INCLUDEPATH += $$PWD/../VkFFT/benchmark_scripts/vkFFT_scripts/include  # Add path for tests and utilities
+# INCLUDEPATH += $$PWD/../VkFFT/benchmark_scripts/vkFFT_scripts/src      # Add path for tests and utilities sources
 
-#----------------------------------------------
-# DataType VkFFT
-#----------------------------------------------
-DEFINES += VKFFT
-#----------------------------------------------
-# include path to OpenCL headers & VkFFT
-#----------------------------------------------
-INCLUDEPATH += $$PWD/..     # Add path for CL headers
-INCLUDEPATH += $$PWD/../VkFFT           # Add path for vkFFT library
-INCLUDEPATH += $$PWD/../VkFFT/VkFFT     # Add path for vkFFT library
-INCLUDEPATH += $$PWD/../VkFFT/half_lib  # Add path for half precision library
-INCLUDEPATH += $$PWD/../VkFFT/benchmark_scripts/
-INCLUDEPATH += $$PWD/../VkFFT/benchmark_scripts/vkFFT_scripts
-INCLUDEPATH += $$PWD/../VkFFT/benchmark_scripts/vkFFT_scripts/include  # Add path for tests and utilities
-INCLUDEPATH += $$PWD/../VkFFT/benchmark_scripts/vkFFT_scripts/src      # Add path for tests and utilities sources
+# #--- Include OpenCL lib
+# win32: LIBS += -L$$PWD/libswin64 -lOpenCL
+# DEFINES += VKFFT_BACKEND=3
 
-#--- Include OpenCL lib
-win32: LIBS += -L$$PWD/libswin64 -lOpenCL
-DEFINES += VKFFT_BACKEND=3
-
-SOURCES += $$PWD/../VkFFT/benchmark_scripts/vkFFT_scripts/src/utils_VkFFT.cpp
-# # ----------------------------------------------
+# SOURCES += $$PWD/../VkFFT/benchmark_scripts/vkFFT_scripts/src/utils_VkFFT.cpp
+# # # ----------------------------------------------
 
 #----------------------------------------------
 # Eigen support

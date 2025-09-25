@@ -233,6 +233,7 @@ protected:
     cl_mem c_DummyBuffer4, c_DummyBuffer5, c_DummyBuffer6;
     cl_mem c_FG, c_FGi, c_FGj, c_FGk;
     cl_mem InputBuffer;
+    // cl_mem Buffer;  // This is the interim buffer for R2C transforms
 
     //--- VkFFT Objects
     int FFTDim = 1;

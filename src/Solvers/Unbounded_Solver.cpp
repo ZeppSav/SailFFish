@@ -235,7 +235,8 @@ void Unbounded_Solver_2D::Specify_Greens_Function()
             if (2*j<NY)     y = j*Hy;
             else            y = (NY-j)*Hy;
             Real r = sqrt(x*x + y*y);
-            r_FG[GID(i,j,NX,NY)] = ScaleFac*Gk(r,sigma);       // NY < NX
+            // r_FG[GID(i,j,NX,NY)] = ScaleFac*Gk(r,sigma);       // FFTW,CUFFT
+            r_FG[GID(j,i,NY,NX)] = ScaleFac*Gk(r,sigma);       // VKFFT
         }
     }
 

@@ -47,7 +47,8 @@ SFStatus DataType::Setup_2D(int iNX, int iNY)
 
     NXM = iNX;
     NYM = iNY;
-    if (Transform==DFT_R2C) NYM = iNY/2 + 1;
+    // if (Transform==DFT_R2C) NYM = iNY/2 + 1;        // FFTW, CUFFT
+    if (Transform==DFT_R2C) NXM = iNX/2 + 1;        // VKFFT
     NTM = NXM*NYM;
 
     //--- Memory allocation

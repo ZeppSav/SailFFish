@@ -288,7 +288,7 @@ public:
     SFStatus Set_Input(RVector &I) override;
     SFStatus Set_Input(RVector &I1, RVector &I2, RVector &I3)   override;
     SFStatus Set_Input_Unbounded_1D(RVector &I)                 override;
-    // virtual SFStatus Set_Input_Unbounded_2D(RVector &I)                             override;
+    SFStatus Set_Input_Unbounded_2D(RVector &I)                 override;
     // virtual SFStatus Set_Input_Unbounded_3D(RVector &I)                             override;
     // virtual SFStatus Set_Input_Unbounded_3D(RVector &I1, RVector &I2, RVector &I3)  override;
     // virtual SFStatus Transfer_Data_Device()                                         override;
@@ -297,12 +297,14 @@ public:
     void Get_Output(RVector &I)         override;
     void Get_Output(RVector &I1, RVector &I2, RVector &I3)  override;
     void Get_Output_Unbounded_1D(RVector &I)                override;
-    // virtual void Get_Output_Unbounded_2D(RVector &I)                                {}
-    // virtual void Get_Output_Unbounded_2D(RVector &I1, RVector &I2)                  {}
+    void Get_Output_Unbounded_2D(RVector &I)                override;
+    void Get_Output_Unbounded_2D(RVector &I1, RVector &I2)  override {}// Not yet implemented!
     // virtual void Get_Output_Unbounded_3D(RVector &I)                                {}
     // virtual void Get_Output_Unbounded_3D(RVector &I1, RVector &I2, RVector &I3)     {}
 
     //--- Greens functions prep
+    void Prepare_Fused_Kernel(FTType TF);
+    void Compile_Convolution_Kernel(FTType TF);
     void Prep_Greens_Function(FTType TF);
     void Prep_Greens_Function_R2R()     override    {Prep_Greens_Function(DFT_R2R);};
     void Prep_Greens_Function_C2C()     override    {Prep_Greens_Function(DFT_C2C);};

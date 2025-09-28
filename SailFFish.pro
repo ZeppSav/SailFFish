@@ -4,11 +4,21 @@ CONFIG -= app_bundle
 CONFIG -= qt
 
 #----------------------------------------------
+# Specify backend
+#----------------------------------------------
+
+# CONFIG += FFTWBackend
+# CONFIG += CUDABackend
+CONFIG += VKFFTBackend
+
+# CONFIG += VPMSolver
+
+#----------------------------------------------
 # Specify floating point precision
 #----------------------------------------------
 
-DEFINES += SinglePrec
-# DEFINES += DoublePrec
+# DEFINES += SinglePrec
+DEFINES += DoublePrec
 
 #----------------------------------------------
 # Configuration flags
@@ -31,65 +41,65 @@ QMAKE_CXXFLAGS += -march=native     # Activate all optimisation flags
 QMAKE_CXXFLAGS += -fopenmp
 LIBS += -fopenmp
 
-# #----------------------------------------------
-# # DataType FFTW
-# #----------------------------------------------
-# DEFINES += FFTW
-# #----------------------------------------------
-# # include path to FFTW & FFTW Libraries
-# #----------------------------------------------
-# win32{
-#     FFTW_DIR = $$PWD/../FFTW/fftw-3.3.5-dll64
-#     INCLUDEPATH += $$FFTW_DIR
-#     LIBS += -L$$FFTW_DIR -llibfftw3-3 -llibfftw3f-3
-# }
-# unix: LIBS += -lfftw3f -lfftw3f_threads -lfftw3 -lfftw3_threads
-# ##----------------------------------------------
+#----------------------------------------------
+# DataType FFTW
+#----------------------------------------------
+CONFIG(FFTWBackend){
+    DEFINES += FFTW
+    #----------------------------------------------
+    # include path to FFTW & FFTW Libraries
+    #----------------------------------------------
+    win32{
+        FFTW_DIR = $$PWD/../FFTW/fftw-3.3.5-dll64
+        INCLUDEPATH += $$FFTW_DIR
+        LIBS += -L$$FFTW_DIR -llibfftw3-3 -llibfftw3f-3
+    }
+    unix: LIBS += -lfftw3f -lfftw3f_threads -lfftw3 -lfftw3_threads
+    #----------------------------------------------
+}
 
 #----------------------------------------------
 # DataType cuFFT
 #----------------------------------------------
-DEFINES += CUFFT
-#----------------------------------------------
-# include path to cuda & cuda Libraries
-#----------------------------------------------
-INCLUDEPATH += "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.8\include"
-CUDAPFAD = "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.8"
-win32: LIBS += -L$$CUDAPFAD\bin -lcudart64_110 -lcufft64_10 -lcufftw64_10 -lcublas64_11
-win32: LIBS += -L$$CUDAPFAD\lib\x64 -lcuda -lnvrtc
-# win32: LIBS += -L$$CUDAPFAD\bin -lcudart64_12 -lcufft64_11 -lcufftw64_11 -lcublas64_12
-# win32: LIBS += -L$$CUDAPFAD\lib\x64 -lcuda -lnvrtc
-unix: LIBS += -L$$CUDAPFAD\bin -lcudart64_110 -lcufft64_10 -lcufftw64_10 -lcublas64_11
-unix: LIBS += -L$$CUDAPFAD\lib\x64 -lcuda -lnvrtc
-#----------------------------------------------
-
-# #----------------------------------------------
-# # DataType VkFFT
-# #----------------------------------------------
-# DEFINES += VKFFT
-# #----------------------------------------------
-# # include path to OpenCL headers & VkFFT
-# #----------------------------------------------
-# INCLUDEPATH += $$PWD/..     # Add path for CL headers
-# INCLUDEPATH += $$PWD/../VkFFT           # Add path for vkFFT library
-# INCLUDEPATH += $$PWD/../VkFFT/VkFFT     # Add path for vkFFT library
-# INCLUDEPATH += $$PWD/../VkFFT/half_lib  # Add path for half precision library
-# INCLUDEPATH += $$PWD/../VkFFT/benchmark_scripts/
-# INCLUDEPATH += $$PWD/../VkFFT/benchmark_scripts/vkFFT_scripts
-# INCLUDEPATH += $$PWD/../VkFFT/benchmark_scripts/vkFFT_scripts/include  # Add path for tests and utilities
-# INCLUDEPATH += $$PWD/../VkFFT/benchmark_scripts/vkFFT_scripts/src      # Add path for tests and utilities sources
-
-# #--- Include OpenCL lib
-# win32: LIBS += -L$$PWD/libswin64 -lOpenCL
-# DEFINES += VKFFT_BACKEND=3
-
-# SOURCES += $$PWD/../VkFFT/benchmark_scripts/vkFFT_scripts/src/utils_VkFFT.cpp
-# # # ----------------------------------------------
+CONFIG(CUDABackend) {
+    DEFINES += CUFFT
+    #----------------------------------------------
+    # include path to cuda & cuda Libraries
+    #----------------------------------------------
+    INCLUDEPATH += "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.8\include"
+    CUDAPFAD = "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v11.8"
+    win32: LIBS += -L$$CUDAPFAD\bin -lcudart64_110 -lcufft64_10 -lcufftw64_10 -lcublas64_11
+    win32: LIBS += -L$$CUDAPFAD\lib\x64 -lcuda -lnvrtc
+    # win32: LIBS += -L$$CUDAPFAD\bin -lcudart64_12 -lcufft64_11 -lcufftw64_11 -lcublas64_12
+    # win32: LIBS += -L$$CUDAPFAD\lib\x64 -lcuda -lnvrtc
+    unix: LIBS += -L$$CUDAPFAD\bin -lcudart64_110 -lcufft64_10 -lcufftw64_10 -lcublas64_11
+    unix: LIBS += -L$$CUDAPFAD\lib\x64 -lcuda -lnvrtc
+    #----------------------------------------------
+}
 
 #----------------------------------------------
-# Eigen support
+# DataType VkFFT
 #----------------------------------------------
-INCLUDEPATH += ..\Eigen
+CONFIG(VKFFTBackend) {
+    DEFINES += VKFFT
+    #----------------------------------------------
+    # include path to OpenCL headers & VkFFT
+    #----------------------------------------------
+    INCLUDEPATH += $$PWD/..     # Add path for CL headers
+    INCLUDEPATH += $$PWD/../VkFFT           # Add path for vkFFT library
+    INCLUDEPATH += $$PWD/../VkFFT/VkFFT     # Add path for vkFFT library
+    INCLUDEPATH += $$PWD/../VkFFT/half_lib  # Add path for half precision library
+    INCLUDEPATH += $$PWD/../VkFFT/benchmark_scripts/
+    INCLUDEPATH += $$PWD/../VkFFT/benchmark_scripts/vkFFT_scripts
+    INCLUDEPATH += $$PWD/../VkFFT/benchmark_scripts/vkFFT_scripts/include  # Add path for tests and utilities
+    INCLUDEPATH += $$PWD/../VkFFT/benchmark_scripts/vkFFT_scripts/src      # Add path for tests and utilities sources
+
+    #--- Include OpenCL lib
+    win32: LIBS += -L$$PWD/libswin64 -lOpenCL
+    DEFINES += VKFFT_BACKEND=3
+
+    SOURCES += $$PWD/../VkFFT/benchmark_scripts/vkFFT_scripts/src/utils_VkFFT.cpp
+}
 
 #-----------------------------------
 # Source and header files SailFFish
@@ -123,26 +133,32 @@ HEADERS += \
     src/Solvers/Solver_Base.h \
     src/Solvers/Unbounded_Solver.h
 
-#-----------------------------------
-# Source and header files VPM Solver
-#-----------------------------------
+CONFIG(VPMSolver) {
 
-SOURCES += src/VPM_Solver/VPM_Solver.cpp
-HEADERS += src/VPM_Solver/VPM_Solver.h \
-    src/VPM_Solver/VPM3D_kernels_cpu.h
+    #----------------------------------------------
+    # Eigen support
+    #----------------------------------------------
+    INCLUDEPATH += ..\Eigen
 
-# #------------------------------------------
-# # Source and header files VPM Solver - FFTW
-# #------------------------------------------
+    #-----------------------------------
+    # Source and header files VPM Solver
+    #-----------------------------------
 
-# SOURCES += src/VPM_Solver/VPM3D_cpu.cpp
-# HEADERS += src/VPM_Solver/VPM3D_cpu.h
+    SOURCES += src/VPM_Solver/VPM_Solver.cpp
+    HEADERS += src/VPM_Solver/VPM_Solver.h \
+        src/VPM_Solver/VPM3D_kernels_cpu.h
 
-#------------------------------------------
-# Source and header files VPM Solver - cuda
-#------------------------------------------
+    # Source and header files VPM Solver - FFTW backend
+    CONFIG(FFTWBackend) {
+        SOURCES += src/VPM_Solver/VPM3D_cpu.cpp
+        HEADERS += src/VPM_Solver/VPM3D_cpu.h
+    }
 
-INCLUDEPATH += $$PWD/../jitify      #Add Jitify path for custom kernels
-SOURCES += src/VPM_Solver/VPM3D_cuda.cpp
-HEADERS += src/VPM_Solver/VPM3D_cuda.h \
-    src/VPM_Solver/VPM3D_kernels_cuda.h
+    # Source and header files VPM Solver - CUDA backend
+    CONFIG(CUDABackend) {
+        INCLUDEPATH += $$PWD/../jitify      #Add Jitify path for custom kernels
+        SOURCES += src/VPM_Solver/VPM3D_cuda.cpp
+        HEADERS += src/VPM_Solver/VPM3D_cuda.h \
+            src/VPM_Solver/VPM3D_kernels_cuda.h
+    }
+}

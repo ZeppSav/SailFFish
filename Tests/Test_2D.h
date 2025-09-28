@@ -453,6 +453,46 @@ void Test_Unbounded_2D(int NX, int NY, bool ExportVTK = false)
     unsigned int t5 = stopwatch();
     Real tTot = Real(t2+t3+t4+t5);
 
+    // Trials:
+    // Set input unbounded                                                          ---WORKING---
+    // Set output unbounded                                                         ---WORKING---
+    // FFT forward-> input buffer Does this agree with FFTW?            ???
+    // - Agree for 16 x 16
+    // - When I change scaling: e.g. 32 * 16-> Take every second row e.g. if (i%2==1) -> results agree well.... what the fuck?
+    // - Is my transformw workin properly?---NXM statt NYM....
+
+    // FFT forward-> convolution buffer Does this agree with FFTW?      ???
+    // FFT + iFFT Are inputs/outputs the same? ->                                   ---WORKING---
+    // Identity convolution: Are inputs/outputs the same?                           ---WORKING---
+    // Does full convolution/solution work?
+
+    // Notes: FFT + iFFT returns input for the case that NX >= NY.
+    // Need to sort the
+
+    // std::cout << "Solutions/outputs- " << std::endl;
+    // int count = 0;
+    // for (int i=0; i<NXM; i++){
+    //     for (int j=0; j<NYM; j++){
+    //         int ij = i*NYM + j;
+    //         // int ij = j*NXM + i;
+    //         // if (i%2==1){
+    //         std::cout << XGrid[i] csp YGrid[j] csp Input[ij] csp Solution[ij] csp Output[ij] << std::endl;
+    //         // }
+    //     }
+    // }
+    // // Is identity satisfied?
+    // Real T=0;
+    // int Count = 0;
+    // for (int i=0; i<NXM*NYM; i++){
+    //     if (Input[i]>1e-5){
+    //         T += Output[i]/Input[i];
+    //         Count++;
+    //     }
+    // }
+    // T *= 1.0/Count;
+    // std::cout << "Scale of input to output" csp T << std::endl;
+
+
     std::cout << "Trial Calculation: Solution of the unbounded 2D Poisson equation." << std::endl;
     std::cout << std::scientific;
     std::cout << "The grid was resolved with [" << NX <<" , "<< NY <<" , "<< 1 <<"] cells. " << std::endl;

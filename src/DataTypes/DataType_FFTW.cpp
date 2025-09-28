@@ -505,6 +505,10 @@ void DataType_FFTW::Get_Output_Unbounded_2D(RVector &I)
             if (c_out_1) I[idl] = c_Output1[idg][0];
         }
     }
+
+    // Hack:: output c_FTInput1 to check FFT inputs/outputs
+    // for (int i=0; i<NTM; i++) std::cout << c_FTInput1[i][0] csp c_FTInput1[i][1] << std::endl;
+    // for (int i=0; i<NTM; i++) std::cout << c_FG[i][0] csp c_FG[i][1] << std::endl;
 }
 
 void DataType_FFTW::Get_Output_Unbounded_3D(RVector &I)

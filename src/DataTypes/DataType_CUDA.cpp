@@ -808,7 +808,7 @@ SFStatus DataType_CUDA::Set_Input_Unbounded_2D(RVector &I)
 
     // Fill nonzero elements of dummy arrays
     OpenMPfor
-        for (int i=0; i<NXH; i++){
+    for (int i=0; i<NXH; i++){
         for (int j=0; j<NYH; j++){
             int idg = i*NY + j;
             int idl = i*NYH + j;

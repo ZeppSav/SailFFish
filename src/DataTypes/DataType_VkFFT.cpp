@@ -303,7 +303,7 @@ SFStatus DataType_VkFFT::Prepare_Plan(VkFFTConfiguration &Config)
 
     // TESTS: 1D: Out-of-place FFT to buffer c_FTInputi:    (isInputFormatted=1)                                ---- WORKING ----
     // TESTS: 1D: In-place FFT + iFFT to buffer c_FTInputi: (isInputFormatted=1,inverseReturnToInputBuffer=1);  ---- WORKING ---- + scaling!
-    // TESTS: 1D: Out-of-place FFT + iFFT to outputbuffer (isInputFormatted=1,inverseReturnToInputBuffer=1)
+    // TESTS: 1D: Out-of-place FFT + iFFT to outputbuffer (isInputFormatted=1,inverseReturnToInputBuffer=1)     ---- WORKING ----
 
     if (Transform==DFT_R2C){
         // Trial first out-of-place transform.
@@ -330,12 +330,29 @@ SFStatus DataType_VkFFT::Prepare_Plan(VkFFTConfiguration &Config)
             // Directly priod to C2R step, define the following:
             // if (!InPlace) launchParams.outputBuffer = &cl_r_Output1;
         }
+
+        // Config.disableMergeSequencesR2C=1;
+        // Config.disableReorderFourStep = 1;
+
+        // Config.inputBBufferStride[0] = NX;
+        // Config.bufferStride[0] = NXM;
+        // Config.inputBufferStride[1] = NY;
+        // Config.bufferStride[1] = NY;
+        // Config.inputBufferStride[0] = NX;
+        // Config.inputBufferStride[1] = NY*NX;
+
+
+        // Config.inputBufferStride[0] = 1;
+        // Config.inputBufferStride[1] = NX;
+        // Config.bufferStride[0] = 1;
+        // Config.bufferStride[1] = NXM;
+        // Config.outputBufferStride[0] = 1;
+        // Config.outputBufferStride[1] = NX;
     }
 
-
     // Specify precision
-    // if (std::is_same<Real,float>::value)    Config.doublePrecision = 0;  // Standard!
-    // if (std::is_same<Real,double>::value)   Config.doublePrecision = 1;
+    if (std::is_same<Real,float>::value)    Config.doublePrecision = 0;  // Standard!
+    if (std::is_same<Real,double>::value)   Config.doublePrecision = 1;
 
     return NoError;
 }
@@ -384,7 +401,7 @@ SFStatus DataType_VkFFT::Specify_2D_Plan()
         case DST1:        {InputBuffer = cl_r_Input1;   InputbufferSize = bufferSizeNT;     BFac = 1.0/(2.0*(NX+1)*2.0*(NY+1));     break;}
         case DST2:        {InputBuffer = cl_r_Input1;   InputbufferSize = bufferSizeNT;     BFac = 1.0/(2.0*NX*2.0*NY);             break;}
         case DFT_C2C:     {InputBuffer = c_Input1;      InputbufferSize = c_bufferSizeNT;   BFac = 1.0/NT;                          break;}
-        case DFT_R2C:     {InputBuffer = c_Input1;      InputbufferSize = c_bufferSizeNTM;  BFac = 1.0/NT;                          break;}
+        case DFT_R2C:     {InputBuffer = cl_r_Input1;   InputbufferSize = bufferSizeNT;     BFac = 1.0/NT;                          break;}
         default: {
             std::cout << "DataType_VkFFT::Specify_2D_Plan(): Transform not recognised. " << std::endl;
             return SetupError;
@@ -416,7 +433,7 @@ SFStatus DataType_VkFFT::Specify_3D_Plan()
         case DST1:        {InputBuffer = cl_r_Input1;   InputbufferSize = bufferSizeNT;     BFac = 1.0/(2.0*(NX+1)*2.0*(NY+1)*2.0*(NZ+1));  break;}
         case DST2:        {InputBuffer = cl_r_Input1;   InputbufferSize = bufferSizeNT;     BFac = 1.0/(2.0*NX*2.0*NY*2.0*NZ);              break;}
         case DFT_C2C:     {InputBuffer = c_Input1;      InputbufferSize = c_bufferSizeNT;   BFac = 1.0/NT;                                  break;}
-        case DFT_R2C:     {InputBuffer = c_Input1;      InputbufferSize = c_bufferSizeNTM;  BFac = 1.0/NT;                                  break;}
+        case DFT_R2C:     {InputBuffer = cl_r_Input1;   InputbufferSize = bufferSizeNT;     BFac = 1.0/NT;                                  break;}
         default: {
             std::cout << "DataType_VkFFT::Specify_3D_Plan(): Transform not recognised. " << std::endl;
             return SetupError;
@@ -497,7 +514,7 @@ SFStatus DataType_VkFFT::Set_Input_Unbounded_1D(RVector &I)
 
     VkFFTResult res = VKFFT_SUCCESS;
     if (r_in1)  res = transferDataFromCPU(vkGPU, R1.data(), &cl_r_Input1, bufferSizeNT);
-    if (c_in1)  {}// Not yet implemented!
+    if (c_in1)  {}  // Not yet implemented!
 
     // Data is being transferred to cl_r_Input1 array!
     // std::cout << "Outputting real input arrays" << std::endl;
@@ -505,6 +522,39 @@ SFStatus DataType_VkFFT::Set_Input_Unbounded_1D(RVector &I)
     // VkFFTResult resout = transferDataToCPU(vkGPU, R1out.data(), &cl_r_Input1, bufferSizeNT);
     // for (auto i : R1out) std::cout << i << std::endl;
 
+    return ConvertVkFFTError(res);
+}
+
+SFStatus DataType_VkFFT::Set_Input_Unbounded_2D(RVector &I)
+{
+    // This function takes the input vector and stores this in the appropriate cuda input array
+    int NXH = NX/2;
+    int NYH = NY/2;
+    if (int(I.size())!=NXH*NYH){
+        std::cout << "Input array has incorrect dimension." << std::endl;
+        return DimError;
+    }
+
+    // Create dummy arrays to pass in one block to cuda buffers
+    if (r_in1) memset(r_Input1, 0, NT*sizeof(Real));
+    if (c_in1) {}   // Not yet implemented!
+
+    // Fill nonzero elements of dummy arrays
+    OpenMPfor
+    for (int i=0; i<NXH; i++){
+        for (int j=0; j<NYH; j++){
+            // int idg = i*NY + j;
+            int idg = j*NX + i;         // HERE JOE
+            int idl = i*NYH + j;
+            if (r_in1) r_Input1[idg] = I[idl];
+            if (c_in1) {}   // Not yet implemented!
+        }
+    }
+
+    // Now transfer block arrays to cuda buffers
+    VkFFTResult res = VKFFT_SUCCESS;
+    if (r_in1)  res = transferDataFromCPU(vkGPU, r_Input1, &cl_r_Input1, bufferSizeNT);
+    if (c_in1)  {}  // Not yet implemented!
     return ConvertVkFFTError(res);
 }
 
@@ -573,6 +623,36 @@ void DataType_VkFFT::Get_Output_Unbounded_1D(RVector &I)
     // for (auto i : O) std::cout << i.x csp i.y << std::endl;
 }
 
+void DataType_VkFFT::Get_Output_Unbounded_2D(RVector &I)
+{
+    // Extracts appropriate output
+    int NXH = NX/2;
+    int NYH = NY/2;
+    if (I.empty()) I.assign(NXH*NYH,0);
+
+    // Retrieve data from cl buffer
+    VkFFTResult res = VKFFT_SUCCESS;
+    if (r_out_1)    res = transferDataToCPU(vkGPU, r_Output1, &cl_r_Output1, bufferSizeNT);
+    // if (c_out_1)    {}// Not yet implemented!
+    // Copy necessary memory into output arrays
+    OpenMPfor
+    for (int i=0; i<NXH; i++){
+        for (int j=0; j<NYH; j++){
+            // int idg = i*NY + j;
+            int idg = j*NX + i;     // HERE JOE
+            int idl = i*NYH + j;
+            if (r_out_1) I[idl] = r_Output1[idg];
+            // if (c_out_1)    {}// Not yet implemented!
+        }
+    }
+
+    // Hack:: read output array... did FFT work properly?
+    // std::vector<cl_complex> O(NTM,CLC0);
+    // VkFFTResult res2 = transferDataToCPU(vkGPU, O.data(), &c_FTInput1, c_bufferSizeNTM);    // FFT of input
+    // VkFFTResult res2 = transferDataToCPU(vkGPU, O.data(), &c_FG, c_bufferSizeNTM);          // FFT of Green's function
+    // for (auto i : O) std::cout << i.x csp i.y << std::endl;
+}
+
 //--- Greens functions prep
 
 // Notes:
@@ -583,6 +663,84 @@ void DataType_VkFFT::Get_Output_Unbounded_1D(RVector &I)
 // 3D transforms may be problematic
 // https://github.com/DTolm/VkFFT/issues/200
 // https://github.com/vincefn/pyvkfft/issues/33
+// initializeVkFFT can be carried out earlier than Prep_Greens_Function if we are not using a fused kernel..
+
+void DataType_VkFFT::Prepare_Fused_Kernel(FTType TF)
+{
+    // Untested: We shall exploit the fused kernel feature of VkFFT
+    VkFFTResult resFFT = initializeVkFFT(&kernel_app, kernel_configuration);
+
+    // If R2C transform is being executed, we need to carry out the FFT on the input data
+    if (TF==DFT_R2C){
+        launchParams.buffer = kernel_configuration.buffer;
+        resFFT = performVulkanFFT(vkGPU, &kernel_app, &launchParams, -1, 1);
+    }
+    std::cout << "Kernel app prepared for fused FFT-Conv-iFFT. " << std::endl;
+
+    // Exploit the in-built convolution capabilites of VkFFT
+    configuration.performConvolution = true;
+    // configuration.conjugateConvolution = 0;
+    configuration.kernel = kernel_configuration.buffer; // Pass convolution buffer
+    configuration.symmetricKernel = true;               // Specify if convolution kernel is symmetric.
+    configuration.matrixConvolution = 1;                // We do matrix convolution, so kernel is 9 numbers (3x3), but vector dimension is 3
+    configuration.coordinateFeatures = 1;               // Equal to matrixConvolution size
+    // configuration.kernelSize = &c_bufferSizeNT;
+    configuration.kernelSize = &InputbufferSize;
+
+    // configuration.numberBatches = 4;
+    // configuration.printMemoryLayout = true;
+    // configuration.disableReorderFourStep = 1;
+    // configuration.isInputFormatted = true;
+    // configuration.isOutputFormatted = true;
+    std::cout << "Application prepared for FUSED FFT-Conv-iFFT. " << std::endl;
+
+    std::cout << "Convolution VkFFT Plan: Axis split 1: " << kernel_app.localFFTPlan->axisSplit[0][0] csp kernel_app.localFFTPlan->axisSplit[0][1] << std::endl;
+    std::cout << "Convolution VkFFT Plan: Axis split 2: " << kernel_app.localFFTPlan->axisSplit[1][0] csp kernel_app.localFFTPlan->axisSplit[1][1] << std::endl;
+}
+
+void DataType_VkFFT::Compile_Convolution_Kernel(FTType TF)
+{
+    // A fused kernel setup of VkFFT is not being exploited
+    // We need to compile the kernel directly.
+
+    cl_int err;
+    std::string Source;
+    if (std::is_same<Real,float>::value)    Source.append(ocl_kernels_float);
+    if (std::is_same<Real,double>::value)   Source.append(ocl_kernels_double);
+    if (TF==DFT_R2R)    Source.append(ocl_multiply);
+    if (TF==DFT_C2C)    Source.append(ocl_complexmultiply);
+    if (TF==DFT_R2C)    Source.append(ocl_complexmultiply);
+    const char* source_str = Source.c_str();
+    // std::cout << Source << std::endl;
+    conv_program = clCreateProgramWithSource(vkGPU->context, 1, &source_str, NULL, &err);
+    err = clBuildProgram(conv_program, 1, &vkGPU->device, NULL, NULL, NULL);
+    if (err != CL_SUCCESS) {
+        size_t len;
+        char buffer[2048];
+        clGetProgramBuildInfo(conv_program, vkGPU->device, CL_PROGRAM_BUILD_LOG, sizeof(buffer), buffer, &len);
+        fprintf(stderr, "Build error:\n%s\n", buffer);
+    }
+
+    // Create kernel
+    if (TF==DFT_R2R)    conv_kernel = clCreateKernel(conv_program, "multiply_in_place", &err);
+    if (TF==DFT_C2C)    conv_kernel = clCreateKernel(conv_program, "complex_multiply_in_place", &err);
+    if (TF==DFT_R2C)    conv_kernel = clCreateKernel(conv_program, "complex_multiply_in_place", &err);
+
+    // Specify kernel arguments
+    if (TF==DFT_R2R){
+        clSetKernelArg(conv_kernel, 0, sizeof(cl_mem), &cl_r_Input1);
+        clSetKernelArg(conv_kernel, 1, sizeof(cl_mem), &cl_r_FG);
+    }
+    if (TF==DFT_C2C){
+        clSetKernelArg(conv_kernel, 0, sizeof(cl_mem), &c_Input1);
+        clSetKernelArg(conv_kernel, 1, sizeof(cl_mem), &c_FG);
+    }
+    if (TF==DFT_R2C){
+        clSetKernelArg(conv_kernel, 0, sizeof(cl_mem), &c_FTInput1);        // Input (post FFT)
+        clSetKernelArg(conv_kernel, 1, sizeof(cl_mem), &c_FG);              // Greens function (post FFT)
+    }
+    std::cout << "Application prepared for SEQUENTIAL FFT-Conv-iFFT. " << std::endl;
+}
 
 void DataType_VkFFT::Prep_Greens_Function(FTType TF)
 {
@@ -626,88 +784,18 @@ void DataType_VkFFT::Prep_Greens_Function(FTType TF)
         if (FusedKernel) kernel_configuration.buffer = &c_FG;
     }
     if (TF==DFT_R2C){       // Real Green's kernel
-        // for (int i=0; i<NT; i++) r_FG[i] = BFac;             // Trick for identity convolution (testing FFT-iFFT)
-        resFFT = transferDataFromCPU(vkGPU, r_FG, &cl_r_FG, InputbufferSize);     // Transfer cpu data from r_FG to GPU buffer
+        // for (int i=0; i<NT; i++) r_FG[i] = BFac;                             // Trick for identity convolution (testing FFT-iFFT)
+        resFFT = transferDataFromCPU(vkGPU, r_FG, &cl_r_FG, InputbufferSize);   // Transfer cpu data from r_FG to GPU buffer
         if (FusedKernel) kernel_configuration.buffer = &cl_r_FG;
     }
 
-
     // Step 2: Prepare convolution plan
-    if (FusedKernel)
-    {
-        // Intiailze convolution
-        resFFT = initializeVkFFT(&kernel_app, kernel_configuration);
-
-        // If R2C transform is being executed, we need to carry out the FFT on the input data
-        if (TF==DFT_R2C){
-            launchParams.buffer = kernel_configuration.buffer;
-            resFFT = performVulkanFFT(vkGPU, &kernel_app, &launchParams, -1, 1);
-        }
-        std::cout << "Kernel app prepared for fused FFT-Conv-iFFT. " << std::endl;
-
-        // Exploit the in-built convolution capabilites of VkFFT
-        configuration.performConvolution = true;
-        // configuration.conjugateConvolution = 0;
-        configuration.kernel = kernel_configuration.buffer; // Pass convolution buffer
-        configuration.symmetricKernel = true;               // Specify if convolution kernel is symmetric.
-        configuration.matrixConvolution = 1;                // We do matrix convolution, so kernel is 9 numbers (3x3), but vector dimension is 3
-        configuration.coordinateFeatures = 1;               // Equal to matrixConvolution size
-        // configuration.kernelSize = &c_bufferSizeNT;
-        configuration.kernelSize = &InputbufferSize;
-
-        // configuration.numberBatches = 4;
-        // configuration.printMemoryLayout = true;
-        // configuration.disableReorderFourStep = 1;
-        // configuration.isInputFormatted = true;
-        // configuration.isOutputFormatted = true;
-        std::cout << "Application prepared for FUSED FFT-Conv-iFFT. " << std::endl;
-
-        std::cout << "Convolution VkFFT Plan: Axis split 1: " << kernel_app.localFFTPlan->axisSplit[0][0] csp kernel_app.localFFTPlan->axisSplit[0][1] << std::endl;
-        std::cout << "Convolution VkFFT Plan: Axis split 2: " << kernel_app.localFFTPlan->axisSplit[1][0] csp kernel_app.localFFTPlan->axisSplit[1][1] << std::endl;
-    }
-    else
-    {
-        // Compile a bespoke openCl kernel for the convolution
-        cl_int err;
-        std::string Source;
-        if (std::is_same<Real,float>::value)    Source.append(ocl_kernels_float);
-        if (std::is_same<Real,double>::value)   Source.append(ocl_kernels_double);
-        if (TF==DFT_R2R)    Source.append(ocl_multiply);
-        if (TF==DFT_C2C)    Source.append(ocl_complexmultiply);
-        if (TF==DFT_R2C)    Source.append(ocl_complexmultiply);
-        const char* source_str = Source.c_str();
-        // std::cout << Source << std::endl;
-        conv_program = clCreateProgramWithSource(vkGPU->context, 1, &source_str, NULL, &err);
-        err = clBuildProgram(conv_program, 1, &vkGPU->device, NULL, NULL, NULL);
-        if (err != CL_SUCCESS) {
-            size_t len;
-            char buffer[2048];
-            clGetProgramBuildInfo(conv_program, vkGPU->device, CL_PROGRAM_BUILD_LOG, sizeof(buffer), buffer, &len);
-            fprintf(stderr, "Build error:\n%s\n", buffer);
-        }
-
-        // Create kernel
-        if (TF==DFT_R2R)    conv_kernel = clCreateKernel(conv_program, "multiply_in_place", &err);
-        if (TF==DFT_C2C)    conv_kernel = clCreateKernel(conv_program, "complex_multiply_in_place", &err);
-        if (TF==DFT_R2C)    conv_kernel = clCreateKernel(conv_program, "complex_multiply_in_place", &err);
-
-        // Specify kernel arguments
-        if (TF==DFT_R2R){
-            clSetKernelArg(conv_kernel, 0, sizeof(cl_mem), &cl_r_Input1);
-            clSetKernelArg(conv_kernel, 1, sizeof(cl_mem), &cl_r_FG);
-        }
-        if (TF==DFT_C2C){
-            clSetKernelArg(conv_kernel, 0, sizeof(cl_mem), &c_Input1);
-            clSetKernelArg(conv_kernel, 1, sizeof(cl_mem), &c_FG);
-        }
-        if (TF==DFT_R2C){
-            clSetKernelArg(conv_kernel, 0, sizeof(cl_mem), &cl_r_Input1);
-            clSetKernelArg(conv_kernel, 1, sizeof(cl_mem), &cl_r_FG);
-        }
-        std::cout << "Application prepared for SEQUENTIAL FFT-Conv-iFFT. " << std::endl;
-    }
+    if (FusedKernel)    Prepare_Fused_Kernel(TF);
+    else                Compile_Convolution_Kernel(TF);
 
     // Step 3: Initialize FFT solver
+    // Note: If the fused kernel is not being selected, this can be done in an earlier step.
+
     // configuration.printMemoryLayout = true;
     // configuration.disableReorderFourStep = 1;
     resFFT = initializeVkFFT(&app, configuration);
@@ -724,6 +812,7 @@ void DataType_VkFFT::Prep_Greens_Function(FTType TF)
     std::cout << "VkFFT Plan: actualFFTSizePerAxis: " << app.localFFTPlan->actualFFTSizePerAxis[0][0] csp app.localFFTPlan->actualFFTSizePerAxis[0][1] << std::endl;
     std::cout << "VkFFT Plan: actualFFTSizePerAxis: " << app.localFFTPlan->actualFFTSizePerAxis[1][0] csp app.localFFTPlan->actualFFTSizePerAxis[1][1] << std::endl;
     std::cout << "VkFFT Plan: numAxisUploads: " << app.localFFTPlan->numAxisUploads[0] csp app.localFFTPlan->numAxisUploads[1] << std::endl;
+
     // if (TF==DFT_R2R){
     //     // Try reordering the data...
     //     int as0 = app.localFFTPlan->axisSplit[0][0];
@@ -755,9 +844,20 @@ void DataType_VkFFT::Prep_Greens_Function_R2C()
     // If a fused kernel is not being used, then the buffer for the Green's function contains the REAl Green's function.
     // The forward FFT must be taken of this to ensure that it is correctly defined for the convolution.
     if (!FusedKernel){
-        launchParams.buffer = &cl_r_FG;
+
+        // // Hack:: Delta Kernel
+        // std::vector<Real> I(NT,0);
+        // I[0] = 1.0;
+        // VkFFTResult res = transferDataFromCPU(vkGPU, I.data(), &cl_r_FG, bufferSizeNT);
+
+        launchParams.inputBuffer = &cl_r_FG;
+        launchParams.buffer = &c_FG;
         VkFFTResult resFFT = FFT_DFT(true);
         std::cout << "FFT plans configured for R2C convolution" << std::endl;
+
+        // // Hack:: Convolution to return input
+        // std::vector<Real> I(NTM,1.0/NT);
+        // ConvertArray_R2C(I, &c_FG, NTM);
     }
 }
 
@@ -845,7 +945,7 @@ cl_int DataType_VkFFT::Convolution()
     if (FusedKernel) return CL_SUCCESS;    // If exploiting the convolution feature of VkFFT, jump out here.
 
     // Now carry out execution with opencl kernel
-    size_t globalSize = NT;
+    size_t globalSize = NTM;
 
     // Option 1: Assign NULL to local work group size: Will automatically choose and ensure complete vector is multiplied
     // this enables us less options in specifying the size of the group-> Possibly less efficient, but dont require

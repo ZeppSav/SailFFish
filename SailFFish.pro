@@ -17,8 +17,8 @@ CONFIG += VKFFTBackend
 # Specify floating point precision
 #----------------------------------------------
 
-# DEFINES += SinglePrec
-DEFINES += DoublePrec
+DEFINES += SinglePrec
+# DEFINES += DoublePrec
 
 #----------------------------------------------
 # Configuration flags
@@ -40,6 +40,39 @@ QMAKE_CXXFLAGS += -march=native     # Activate all optimisation flags
 #----------------------------------------------
 QMAKE_CXXFLAGS += -fopenmp
 LIBS += -fopenmp
+
+
+#-----------------------------------
+# Source and header files SailFFish
+#-----------------------------------
+
+SOURCES += \
+    main.cpp \
+    src/DataTypes/DataType_Base.cpp \
+    src/DataTypes/DataType_CUDA.cpp \
+    src/DataTypes/DataType_FFTW.cpp \
+    src/DataTypes/DataType_MKL.cpp \
+    src/DataTypes/DataType_VkFFT.cpp \
+    src/Solvers/Dirichlet_Solver.cpp \
+    src/Solvers/Export_Grid.cpp \
+    src/Solvers/Neumann_Solver.cpp \
+    src/Solvers/Periodic_Solver.cpp \
+    src/Solvers/Solver_Base.cpp \
+    src/Solvers/Unbounded_Solver.cpp
+
+HEADERS += \
+    src/DataTypes/DataType_Base.h \
+    src/DataTypes/DataType_CUDA.h \
+    src/DataTypes/DataType_FFTW.h \
+    src/DataTypes/DataType_MKL.h \
+    src/DataTypes/DataType_VkFFT.h \
+    src/SailFFish.h \
+    src/Solvers/Dirichlet_Solver.h \
+    src/Solvers/Greens_Functions.h \
+    src/Solvers/Neumann_Solver.h \
+    src/Solvers/Periodic_Solver.h \
+    src/Solvers/Solver_Base.h \
+    src/Solvers/Unbounded_Solver.h
 
 #----------------------------------------------
 # DataType FFTW
@@ -85,53 +118,21 @@ CONFIG(VKFFTBackend) {
     #----------------------------------------------
     # include path to OpenCL headers & VkFFT
     #----------------------------------------------
-    INCLUDEPATH += $$PWD/..     # Add path for CL headers
+    INCLUDEPATH += $$PWD/..                 # Add path for CL headers
     INCLUDEPATH += $$PWD/../VkFFT           # Add path for vkFFT library
     INCLUDEPATH += $$PWD/../VkFFT/VkFFT     # Add path for vkFFT library
     INCLUDEPATH += $$PWD/../VkFFT/half_lib  # Add path for half precision library
-    INCLUDEPATH += $$PWD/../VkFFT/benchmark_scripts/
-    INCLUDEPATH += $$PWD/../VkFFT/benchmark_scripts/vkFFT_scripts
-    INCLUDEPATH += $$PWD/../VkFFT/benchmark_scripts/vkFFT_scripts/include  # Add path for tests and utilities
-    INCLUDEPATH += $$PWD/../VkFFT/benchmark_scripts/vkFFT_scripts/src      # Add path for tests and utilities sources
+    # INCLUDEPATH += $$PWD/../VkFFT/benchmark_scripts/
+    # INCLUDEPATH += $$PWD/../VkFFT/benchmark_scripts/vkFFT_scripts
+    # INCLUDEPATH += $$PWD/../VkFFT/benchmark_scripts/vkFFT_scripts/include  # Add path for tests and utilities
+    # INCLUDEPATH += $$PWD/../VkFFT/benchmark_scripts/vkFFT_scripts/src      # Add path for tests and utilities sources
 
     #--- Include OpenCL lib
     win32: LIBS += -L$$PWD/libswin64 -lOpenCL
     DEFINES += VKFFT_BACKEND=3
 
-    SOURCES += $$PWD/../VkFFT/benchmark_scripts/vkFFT_scripts/src/utils_VkFFT.cpp
+    # SOURCES += $$PWD/../VkFFT/benchmark_scripts/vkFFT_scripts/src/utils_VkFFT.cpp
 }
-
-#-----------------------------------
-# Source and header files SailFFish
-#-----------------------------------
-
-SOURCES += \
-    main.cpp \
-    src/DataTypes/DataType_Base.cpp \
-    src/DataTypes/DataType_CUDA.cpp \
-    src/DataTypes/DataType_FFTW.cpp \
-    src/DataTypes/DataType_MKL.cpp \
-    src/DataTypes/DataType_VkFFT.cpp \
-    src/Solvers/Dirichlet_Solver.cpp \
-    src/Solvers/Export_Grid.cpp \
-    src/Solvers/Neumann_Solver.cpp \
-    src/Solvers/Periodic_Solver.cpp \
-    src/Solvers/Solver_Base.cpp \
-    src/Solvers/Unbounded_Solver.cpp
-
-HEADERS += \
-    src/DataTypes/DataType_Base.h \
-    src/DataTypes/DataType_CUDA.h \
-    src/DataTypes/DataType_FFTW.h \
-    src/DataTypes/DataType_MKL.h \
-    src/DataTypes/DataType_VkFFT.h \
-    src/SailFFish.h \
-    src/Solvers/Dirichlet_Solver.h \
-    src/Solvers/Greens_Functions.h \
-    src/Solvers/Neumann_Solver.h \
-    src/Solvers/Periodic_Solver.h \
-    src/Solvers/Solver_Base.h \
-    src/Solvers/Unbounded_Solver.h
 
 CONFIG(VPMSolver) {
 

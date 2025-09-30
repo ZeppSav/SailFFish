@@ -341,6 +341,16 @@ void Test_Unbounded_3DV(int NX, int NY, int NZ, bool ExportVTI = false)
             }
         }
     }
+
+    // Scale input/output for LInf- otherwise we encounter floating point errors...
+    Real EFac = 1.0/exp(-Cbf);
+    for (auto& i : Input1)  i *= EFac;
+    for (auto& i : Input2)  i *= EFac;
+    for (auto& i : Input3)  i *= EFac;
+    for (auto& i : Solution1) i *= EFac;
+    for (auto& i : Solution2) i *= EFac;
+    for (auto& i : Solution3) i *= EFac;
+
     Status = Solver->Set_Input_Unbounded_3D(Input1,Input2,Input3);
     Status = Solver->Transfer_Data_Device();
     if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
@@ -348,7 +358,9 @@ void Test_Unbounded_3DV(int NX, int NY, int NZ, bool ExportVTI = false)
 
     // Carry out execution
     Solver->Forward_Transform();
+    unsigned int t32 = stopwatch();  // Timer
     Solver->Convolution();
+    unsigned int t33 = stopwatch();  // Timer
     // Solver->Spectral_Gradients_3DV_Curl();
     Solver->Backward_Transform();
     unsigned int t4 = stopwatch();
@@ -365,19 +377,26 @@ void Test_Unbounded_3DV(int NX, int NY, int NZ, bool ExportVTI = false)
     std::cout << "E_inf Error (y component) =" csp std::scientific << E_Inf(Output2,Solution2) << std::endl;
     std::cout << "E_inf Error (z component) =" csp std::scientific << E_Inf(Output3,Solution3) << std::endl;
     std::cout << std::fixed << std::setprecision(1);
+    // std::cout << "Execution Time:" <<  std::endl;
+    // std::cout << "Solver setup "     << std::setw(10) << t2 csp "ms. [" << 100.0*t2/tTot << " %]" << std::endl;
+    // std::cout << "Input spec.  "     << std::setw(10) << t3 csp "ms. [" << 100.0*t3/tTot << " %]" << std::endl;
+    // std::cout << "Execution    "     << std::setw(10) << t4 csp "ms. [" << 100.0*t4/tTot << " %]" << std::endl;
+    // std::cout << "Output spec. "     << std::setw(10) << t5 csp "ms. [" << 100.0*t5/tTot << " %]" << std::endl;
     std::cout << "Execution Time:" <<  std::endl;
     std::cout << "Solver setup "     << std::setw(10) << t2 csp "ms. [" << 100.0*t2/tTot << " %]" << std::endl;
     std::cout << "Input spec.  "     << std::setw(10) << t3 csp "ms. [" << 100.0*t3/tTot << " %]" << std::endl;
-    std::cout << "Execution    "     << std::setw(10) << t4 csp "ms. [" << 100.0*t4/tTot << " %]" << std::endl;
+    std::cout << "Forward FFT  "     << std::setw(10) << t32 csp "ms. [" << 100.0*t4/tTot << " %]" << std::endl;
+    std::cout << "Convolution  "     << std::setw(10) << t33 csp "ms. [" << 100.0*t4/tTot << " %]" << std::endl;
+    std::cout << "Backward FFT "     << std::setw(10) << t4 csp "ms. [" << 100.0*t4/tTot << " %]" << std::endl;
     std::cout << "Output spec. "     << std::setw(10) << t5 csp "ms. [" << 100.0*t5/tTot << " %]" << std::endl;
     std::cout << std::scientific;
 
     // If selected, export grid as VTI
-    if (ExportVTI) Solver->Create_vtk();
+    // if (ExportVTI)
+    Solver->Create_vtk();
 
     delete Solver;
 }
-
 
 void Test_Unbounded_3DV_Curl(int NX, int NY, int NZ, bool ExportVTI = false)
 {

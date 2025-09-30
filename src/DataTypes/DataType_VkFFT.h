@@ -28,7 +28,7 @@
 #ifdef VKFFT
 
 #include "DataType_Base.h"
-#include "utils_VkFFT.h"
+#include <vkFFT.h>
 
 namespace SailFFish
 {
@@ -147,25 +147,33 @@ inline SFStatus ConvertVkFFTError(VkFFTResult res){
     typedef cl_double2   cl_complex;
 #endif
 
+//--- Dimension & index structs & functions
+typedef unsigned uint;
+struct dim3  {uint x, y, z; dim3(int x_ = 1, int y_ = 1, int z_ = 1) : x(x_), y(y_), z(z_) {}}; // Equivalent def for cuda dim3
+struct dim3s {int x, y, z; dim3s(int x_ = 1, int y_ = 1, int z_ = 1) : x(x_), y(y_), z(z_) {}};
+inline uint GID(const uint &i, const uint &j, const uint &NX, const uint &NY)                                   {return i*NY + j;}
+inline uint GID(const uint &i, const uint &j, const uint &k, const uint &NX, const uint &NY, const uint &NZ)    {return i*NY*NZ + j*NZ + k;}
+
+// Grid ID for specifying Green's function
+inline uint GF_GID2(const uint &i, const uint &j, const uint &NX, const uint &NY) {return j*NX + i;}    // F-style ordering
+inline uint GF_GID3(const dim3 &P, const dim3 &D) {return P.z*D.x*D.y + P.y*D.x + P.x;}                 // F-style ordering
+
 static cl_real      CLR0 = 0.;
 static cl_complex   CLC0 = []{cl_complex V = {{0., 0.}}; return V;}();
 static cl_complex   CLC1 = []{cl_complex V = {{1., 0.}}; return V;}();
 // static cl_complex   CLC01 = []{cl_complex V = {{0., 1.}}; return V;}();
 
-//--- Dimension & index structs & functions
+static int const ForwardFFT = -1;
+static int const BackwardFFT = 1;
 
-typedef unsigned uint;
-struct dim3  {uint x, y, z; dim3(int x_ = 1, int y_ = 1, int z_ = 1) : x(x_), y(y_), z(z_) {}};
-struct dim3s {int x, y, z; dim3s(int x_ = 1, int y_ = 1, int z_ = 1) : x(x_), y(y_), z(z_) {}};
-inline uint GID(const uint &i, const uint &j, const uint &NX, const uint &NY)                                   {return i*NY + j;}
-inline uint GID(const uint &i, const uint &j, const uint &k, const uint &NX, const uint &NY, const uint &NZ)    {return i*NY*NZ + j*NZ + k;}
-inline uint GID(const uint &i, const uint &j, const uint &k, const dim3 &D)                                     {return i*D.y*D.z + j*D.z + k;}
-inline uint GID(const dim3 &P, const dim3 &D)                                                                   {return P.x*D.y*D.z + P.y*D.z + P.z;}
-inline uint GID(const uint &i, const uint &j, const uint &NX, const uint &NY, const Dim &D1)
-{
-    if (D1==EX) return i*NY + j;    // Row-major
-    else        return j*NX + i;    // Column-major
-}
+typedef struct {
+    cl_platform_id platform;
+    cl_device_id device;
+    cl_context context;
+    cl_command_queue commandQueue;
+    uint64_t device_id;//an id of a device, reported by Vulkan device list
+} VkGPU;//an example structure containing Vulkan primitives
+
 
 //--- OpenCL kernels for convolution
 
@@ -235,6 +243,16 @@ protected:
     cl_mem InputBuffer;
     // cl_mem Buffer;  // This is the interim buffer for R2C transforms
 
+    //--- Grid sizes for R2C transforms
+    void Set_NTM1D_R2C()   override {NXM = NX/2 + 1;                            NTM = NXM;          }
+    void Set_NTM2D_R2C()   override {NXM = NX/2 + 1;    NYM = NY;               NTM = NXM*NYM;      }
+    void Set_NTM3D_R2C()   override {NXM = NX/2 + 1;    NYM = NY;   NZM = NZ;   NTM = NXM*NYM*NZM;  }
+
+    //--- Utility functions
+    VkFFTResult transferDataToCPU(VkGPU* vkGPU, void* cpu_arr, void* output_buffer, uint64_t bufferSize);
+    VkFFTResult transferDataFromCPU(VkGPU* vkGPU, void* cpu_arr, void* input_buffer, uint64_t bufferSize);
+    VkFFTResult performVulkanFFT(VkGPU* vkGPU, VkFFTApplication* app, VkFFTLaunchParams* launchParams, int inverse);
+
     //--- VkFFT Objects
     int FFTDim = 1;
     bool FusedKernel = false; // Is convolution compiled into the FFT kernel? This is a feature of VkFFT
@@ -289,8 +307,8 @@ public:
     SFStatus Set_Input(RVector &I1, RVector &I2, RVector &I3)   override;
     SFStatus Set_Input_Unbounded_1D(RVector &I)                 override;
     SFStatus Set_Input_Unbounded_2D(RVector &I)                 override;
-    // virtual SFStatus Set_Input_Unbounded_3D(RVector &I)                             override;
-    // virtual SFStatus Set_Input_Unbounded_3D(RVector &I1, RVector &I2, RVector &I3)  override;
+    SFStatus Set_Input_Unbounded_3D(RVector &I)                 override;
+    SFStatus Set_Input_Unbounded_3D(RVector &I1, RVector &I2, RVector &I3)  override;
     // virtual SFStatus Transfer_Data_Device()                                         override;
 
     //--- Retrieve output array
@@ -299,8 +317,8 @@ public:
     void Get_Output_Unbounded_1D(RVector &I)                override;
     void Get_Output_Unbounded_2D(RVector &I)                override;
     void Get_Output_Unbounded_2D(RVector &I1, RVector &I2)  override {}// Not yet implemented!
-    // virtual void Get_Output_Unbounded_3D(RVector &I)                                {}
-    // virtual void Get_Output_Unbounded_3D(RVector &I1, RVector &I2, RVector &I3)     {}
+    void Get_Output_Unbounded_3D(RVector &I)                override ;
+    void Get_Output_Unbounded_3D(RVector &I1, RVector &I2, RVector &I3) override;
 
     //--- Greens functions prep
     void Prepare_Fused_Kernel(FTType TF);
@@ -314,7 +332,7 @@ public:
     // void Prepare_Dif_Operators_3D(Real Hx, Real Hy, Real Hz)    {}
 
     //--- Fourier transforms (Note: Backward FFT/iFFT should not be called if Fused Kernel most employed!)
-    VkFFTResult FFT_DFT(bool Forward);
+    VkFFTResult FFT_DFT(int FFTType);
     void Forward_FFT_R2R()  override;
     void Backward_FFT_R2R() override;
     void Forward_FFT_DFT()  override;

@@ -19,10 +19,8 @@ SFStatus DataType::Setup_1D(int iNX)
     //--- Prepare grid and scaling data
     NX = iNX;
     NT = NX;
-
-    NXM = iNX;
-    if (Transform==DFT_R2C) NXM = iNX/2 + 1;
-    NTM = NXM;
+    Set_NTM1D();
+    if (Transform==DFT_R2C)    Set_NTM1D_R2C();
 
     //--- Memory allocation
     Stat = Allocate_Arrays();
@@ -44,12 +42,8 @@ SFStatus DataType::Setup_2D(int iNX, int iNY)
     NX = iNX;
     NY = iNY;
     NT = NX*NY;
-
-    NXM = iNX;
-    NYM = iNY;
-    // if (Transform==DFT_R2C) NYM = iNY/2 + 1;        // FFTW, CUFFT
-    if (Transform==DFT_R2C) NXM = iNX/2 + 1;        // VKFFT
-    NTM = NXM*NYM;
+    Set_NTM2D();
+    if (Transform==DFT_R2C)    Set_NTM2D_R2C();
 
     //--- Memory allocation
     Stat = Allocate_Arrays();
@@ -72,12 +66,8 @@ SFStatus DataType::Setup_3D(int iNX, int iNY, int iNZ)
     NY = iNY;
     NZ = iNZ;
     NT = NX*NY*NZ;
-
-    NXM = iNX;
-    NYM = iNY;
-    NZM = iNZ;
-    if (Transform==DFT_R2C) NZM = iNZ/2 + 1;
-    NTM = NXM*NYM*NZM;
+    Set_NTM3D();
+    if (Transform==DFT_R2C) Set_NTM3D_R2C();
 
     //--- Memory allocation
     Stat = Allocate_Arrays();

@@ -1,7 +1,7 @@
 // #include "Tests/Test_1D.h"
-#include "Tests/Test_2D.h"
+// #include "Tests/Test_2D.h"
 // #include "Tests/Test_3D.h"
-// #include "Tests/Test_3DV.h"
+#include "Tests/Test_3DV.h"
 // #include "Tests/Test_Vortex_Rings.h"
 
 static const bool Export_VTK = true;
@@ -9,12 +9,21 @@ static const bool Export_VTK = true;
 int main()
 {
 
-    int nx = 67;
-    int ny = 213;
-    // int nz = 128;
+    int nx = 64*8;
+    int ny = 23*8;
+    int nz = 8*8;
 
-    // 83-27 works
-    // (8*64) * (8*12) works
+    // int nx = 64*4;
+    // int ny = 23*4;
+    // int nz = 8*8;
+
+    // int nx = 8*8;
+    // int ny = 64*8;
+    // int nz = 23*8;
+
+    // int nx = 23*8;
+    // int ny = 8*8;
+    // int nz = 64*8;
 
     // int nx = pow(2,10)+3;        // VkFFT tests
     // int nx = pow(2,10)*19;
@@ -34,7 +43,7 @@ int main()
     // Test_Neumann_2D(nx,ny);
     // Test_Neumann_2D_IHBC(nx,ny);
     // Test_Periodic_2D(nx,ny);
-    Test_Unbounded_2D(nx,ny);
+    // Test_Unbounded_2D(nx,ny);
 
     //--- 3D scalar solver tests
     // Test_Dirichlet_3D(nx,ny,nz);
@@ -48,7 +57,7 @@ int main()
     // Test_Dirichlet_3DV(nx,ny,nz);
     // Test_Neumann_3DV(nx,ny,nz);
     // Test_Periodic_3DV(nx,ny,nz);
-    // Test_Unbounded_3DV(nx,ny,nz);
+    Test_Unbounded_3DV(nx,ny,nz);
     // Test_Unbounded_3DV_Curl(nx,ny,nz);
 
     // --- VPM tests

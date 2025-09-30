@@ -89,17 +89,15 @@ namespace SailFFish
 #endif
 
 //--- Dimension & index structs & functions
-
 typedef unsigned uint;
 inline uint GID(const uint &i, const uint &j, const uint &NX, const uint &NY)                                   {return i*NY + j;}
 inline uint GID(const uint &i, const uint &j, const uint &k, const uint &NX, const uint &NY, const uint &NZ)    {return i*NY*NZ + j*NZ + k;}
-
-// If not compiling with cuda, a substitute definition for the dim3 struct must be supplied
-struct dim3 {uint x, y, z;  dim3(uint vx = 1, uint vy = 1, uint vz = 1) : x(vx), y(vy), z(vz) {}};
+struct dim3 {uint x, y, z;  dim3(uint vx = 1, uint vy = 1, uint vz = 1) : x(vx), y(vy), z(vz) {}};  // Equivalent def for cuda dim3
 struct dim3s {int x, y, z;  dim3s(int vx = 1, int vy = 1, int vz = 1)   : x(vx), y(vy), z(vz) {}};
-// Some additional helper GID functions are also defined here
-inline uint GID(const uint &i, const uint &j, const uint &k, const dim3 &D) {return i*D.y*D.z + j*D.z + k;}
-inline uint GID(const dim3 &P, const dim3 &D)                               {return P.x*D.y*D.z + P.y*D.z + P.z;}
+
+// Grid ID for specifying Green's function
+inline uint GF_GID2(const uint &i, const uint &j, const uint &NX, const uint &NY) {return i*NY + j;}    // C-style ordering
+inline uint GF_GID3(const dim3 &P, const dim3 &D) {return P.x*D.y*D.z + P.y*D.z + P.z;}                 // C-style ordering
 
 class DataType_FFTW : public DataType
 {

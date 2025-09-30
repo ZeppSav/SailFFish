@@ -70,18 +70,14 @@ static const cufftType_t    cufft_C2R = CUFFT_Z2D;
 #endif
 
 //--- Dimension & index structs & functions
-
 typedef unsigned uint;
 struct dim3s {int x, y, z; dim3s(int x_ = 1, int y_ = 1, int z_ = 1) : x(x_), y(y_), z(z_) {}};
 inline uint GID(const uint &i, const uint &j, const uint &NX, const uint &NY)                                   {return i*NY + j;}
 inline uint GID(const uint &i, const uint &j, const uint &k, const uint &NX, const uint &NY, const uint &NZ)    {return i*NY*NZ + j*NZ + k;}
-inline uint GID(const uint &i, const uint &j, const uint &k, const dim3 &D)                                     {return i*D.y*D.z + j*D.z + k;}
-inline uint GID(const dim3 &P, const dim3 &D)                                                                   {return P.x*D.y*D.z + P.y*D.z + P.z;}
-inline uint GID(const uint &i, const uint &j, const uint &NX, const uint &NY, const Dim &D1)
-{
-    if (D1==EX) return i*NY + j;    // Row-major
-    else        return j*NX + i;    // Column-major
-}
+
+// Grid ID for specifying Green's function
+inline uint GF_GID2(const uint &i, const uint &j, const uint &NX, const uint &NY) {return i*NY + j;}    // C-style ordering
+inline uint GF_GID3(const dim3 &P, const dim3 &D) {return P.x*D.y*D.z + P.y*D.z + P.z;}                 // C-style ordering
 
 class DataType_CUDA : public DataType
 {

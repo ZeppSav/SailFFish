@@ -69,6 +69,14 @@ protected:
     RVector fX, fY, fZ;         // X-Y values on FFT grid
     RVector gX, gY, gZ;         // X-Y values on solution grid
 
+    //--- Grid sizes for R2C transforms
+    void Set_NTM1D()   {NXM = NX;                           NTM = NXM;          }
+    void Set_NTM2D()   {NXM = NX;   NYM = NY;               NTM = NXM*NYM;      }
+    void Set_NTM3D()   {NXM = NX;   NYM = NY;   NZM = NZ;   NTM = NXM*NYM*NZM;  }
+    virtual void Set_NTM1D_R2C()   {NXM = NX/2 + 1;                             NTM = NXM;          }
+    virtual void Set_NTM2D_R2C()   {NXM = NX;   NYM = NY/2 + 1;                 NTM = NXM*NYM;      }
+    virtual void Set_NTM3D_R2C()   {NXM = NX;   NYM = NY;       NZM = NZ/2 + 1; NTM = NXM*NYM*NZM;  }
+
     //--- Scaling factors
     Real FFac = 1.0, BFac = 1.0;
 

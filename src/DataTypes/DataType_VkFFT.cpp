@@ -22,7 +22,7 @@ void DataType_VkFFT::Datatype_Setup()
     // Enable fused kernel convolution
     // FusedKernel = true;
 
-    InPlace = true;
+    InPlace = true;      // Issues with out of
 }
 
 // Options:
@@ -330,28 +330,10 @@ SFStatus DataType_VkFFT::Prepare_Plan(VkFFTConfiguration &Config)
             // Directly priod to C2R step, define the following:
             // if (!InPlace) launchParams.outputBuffer = &cl_r_Output1;
         }
-
-        // Config.disableMergeSequencesR2C=1;
-        // Config.disableReorderFourStep = 1;
-
-        // Config.inputBBufferStride[0] = NX;
-        // Config.bufferStride[0] = NXM;
-        // Config.inputBufferStride[1] = NY;
-        // Config.bufferStride[1] = NY;
-        // Config.inputBufferStride[0] = NX;
-        // Config.inputBufferStride[1] = NY*NX;
-
-
-        // Config.inputBufferStride[0] = 1;
-        // Config.inputBufferStride[1] = NX;
-        // Config.bufferStride[0] = 1;
-        // Config.bufferStride[1] = NXM;
-        // Config.outputBufferStride[0] = 1;
-        // Config.outputBufferStride[1] = NX;
     }
 
     // Specify precision
-    if (std::is_same<Real,float>::value)    Config.doublePrecision = 0;  // Standard!
+    if (std::is_same<Real,float>::value)    Config.doublePrecision = 0;
     if (std::is_same<Real,double>::value)   Config.doublePrecision = 1;
 
     return NoError;
@@ -453,6 +435,55 @@ SFStatus DataType_VkFFT::Specify_3D_Plan()
     return NoError;
 }
 
+//--- Utility functions
+//--- CPU-GPU Interface functions adapted directly from VkFFT/benchmark_scripts/vkFFT_scripts/src/utils_VkFFT.cpp
+
+VkFFTResult DataType_VkFFT::transferDataToCPU(VkGPU* vkGPU, void* cpu_arr, void* output_buffer, uint64_t transferSize) {
+    //a function that transfers data from the GPU to the CPU using staging buffer, because the GPU memory is not host-coherent
+    VkFFTResult resFFT = VKFFT_SUCCESS;
+    cl_int res = CL_SUCCESS;
+    cl_mem* buffer = (cl_mem*)output_buffer;
+    cl_command_queue commandQueue = clCreateCommandQueue(vkGPU->context, vkGPU->device, 0, &res);
+    if (res != CL_SUCCESS) return VKFFT_ERROR_FAILED_TO_CREATE_COMMAND_QUEUE;
+    res = clEnqueueReadBuffer(commandQueue, buffer[0], CL_TRUE, 0, transferSize, cpu_arr, 0, NULL, NULL);
+    if (res != CL_SUCCESS) {
+        return VKFFT_ERROR_FAILED_TO_COPY;
+    }
+    res = clReleaseCommandQueue(commandQueue);
+    if (res != CL_SUCCESS) return VKFFT_ERROR_FAILED_TO_RELEASE_COMMAND_QUEUE;
+    return resFFT;
+}
+
+VkFFTResult DataType_VkFFT::transferDataFromCPU(VkGPU* vkGPU, void* cpu_arr, void* input_buffer, uint64_t transferSize) {
+    VkFFTResult resFFT = VKFFT_SUCCESS;
+    cl_int res = CL_SUCCESS;
+    cl_mem* buffer = (cl_mem*)input_buffer;
+    cl_command_queue commandQueue = clCreateCommandQueue(vkGPU->context, vkGPU->device, 0, &res);
+    if (res != CL_SUCCESS) return VKFFT_ERROR_FAILED_TO_CREATE_COMMAND_QUEUE;
+    res = clEnqueueWriteBuffer(commandQueue, buffer[0], CL_TRUE, 0, transferSize, cpu_arr, 0, NULL, NULL);
+    if (res != CL_SUCCESS) {
+        return VKFFT_ERROR_FAILED_TO_COPY;
+    }
+    res = clReleaseCommandQueue(commandQueue);
+    if (res != CL_SUCCESS) return VKFFT_ERROR_FAILED_TO_RELEASE_COMMAND_QUEUE;
+    return resFFT;
+}
+
+VkFFTResult DataType_VkFFT::performVulkanFFT(VkGPU* vkGPU, VkFFTApplication* app, VkFFTLaunchParams* launchParams, int inverse)
+{
+    VkFFTResult resFFT = VKFFT_SUCCESS;
+    cl_int res = CL_SUCCESS;
+    launchParams->commandQueue = &vkGPU->commandQueue;
+    // std::chrono::steady_clock::time_point timeSubmit = std::chrono::steady_clock::now();
+    resFFT = VkFFTAppend(app, inverse, launchParams);
+    if (resFFT != VKFFT_SUCCESS) return resFFT;
+    res = clFinish(vkGPU->commandQueue);
+    if (res != CL_SUCCESS) return VKFFT_ERROR_FAILED_TO_SYNCHRONIZE;
+    // std::chrono::steady_clock::time_point timeEnd = std::chrono::steady_clock::now();
+    // double totTime = std::chrono::duration_cast<std::chrono::microseconds>(timeEnd - timeSubmit).count() * 0.001;
+    return resFFT;
+}
+
 //--- Prepare input array
 
 VkFFTResult DataType_VkFFT::ConvertArray_R2C(RVector &I, void* input_buffer, size_t N)
@@ -531,7 +562,7 @@ SFStatus DataType_VkFFT::Set_Input_Unbounded_2D(RVector &I)
     int NXH = NX/2;
     int NYH = NY/2;
     if (int(I.size())!=NXH*NYH){
-        std::cout << "Input array has incorrect dimension." << std::endl;
+        std::cout << "DataType_VkFFT::Set_Input_Unbounded_2D: Input array has incorrect dimension." << std::endl;
         return DimError;
     }
 
@@ -555,6 +586,91 @@ SFStatus DataType_VkFFT::Set_Input_Unbounded_2D(RVector &I)
     VkFFTResult res = VKFFT_SUCCESS;
     if (r_in1)  res = transferDataFromCPU(vkGPU, r_Input1, &cl_r_Input1, bufferSizeNT);
     if (c_in1)  {}  // Not yet implemented!
+    return ConvertVkFFTError(res);
+}
+
+SFStatus DataType_VkFFT::Set_Input_Unbounded_3D(RVector &I)
+{
+    // This function takes the input vector and stores this in the appropriate cuda input array
+    int NXH = NX/2;
+    int NYH = NY/2;
+    int NZH = NZ/2;
+    if (int(I.size())!=NXH*NYH*NZH){
+        std::cout << "DataType_VkFFT::Set_Input_Unbounded_3D: Input array has incorrect dimension." << std::endl;
+        return DimError;
+    }
+
+    // Create dummy arrays to pass in one block to cuda buffers
+    if (r_in1) memset(r_Input1, 0, NT*sizeof(Real));
+    if (c_in1) {}   // Not yet implemented!
+
+    // Fill nonzero elements of dummy arrays
+    OpenMPfor
+    for (int i=0; i<NXH; i++){
+        for (int j=0; j<NYH; j++){
+            for (int k=0; k<NZH; k++){
+                // int idg = i*NY*NZ + j*NZ + k;
+                int idg = k*NX*NY + j*NX + i;         // HERE JOE
+                int idl = i*NYH*NZH + j*NZH + k;
+                if (r_in1) r_Input1[idg] = I[idl];
+                // if (c_in1) C1[idg].real(I[idl]);
+            }
+        }
+    }
+    // Now transfer block arrays to cuda buffers
+    VkFFTResult res = VKFFT_SUCCESS;
+    if (r_in1)  res = transferDataFromCPU(vkGPU, r_Input1, &cl_r_Input1, bufferSizeNT);
+    if (c_in1)  {}  // Not yet implemented!
+    return ConvertVkFFTError(res);
+}
+
+SFStatus DataType_VkFFT::Set_Input_Unbounded_3D(RVector &I1, RVector &I2, RVector &I3)
+{
+    // This function takes the input vector and stores this in the appropriate cuda input array
+    int NXH = NX/2;
+    int NYH = NY/2;
+    int NZH = NZ/2;
+    if (int(I1.size())!=NXH*NYH*NZH || int(I2.size())!=NXH*NYH*NZH || int(I3.size())!=NXH*NYH*NZH){
+        std::cout << "DataType_VkFFT::Set_Input_Unbounded_3D: Input array has incorrect dimension." << std::endl;
+        return DimError;
+    }
+
+    // Create dummy arrays to pass in one block to cuda buffers
+    if (r_in1) memset(r_Input1, 0., NT*sizeof(Real));
+    if (r_in2) memset(r_Input2, 0., NT*sizeof(Real));
+    if (r_in3) memset(r_Input3, 0., NT*sizeof(Real));
+    // if (c_in1) {}   // Not yet implemented!
+    // if (c_in2) {}   // Not yet implemented!
+    // if (c_in3) {}   // Not yet implemented!
+
+
+    // Fill nonzero elements of dummy arrays
+    OpenMPfor
+    for (int i=0; i<NXH; i++){
+        for (int j=0; j<NYH; j++){
+            for (int k=0; k<NZH; k++){
+                // int idg = i*NY*NZ + j*NZ + k;
+                int idg = k*NX*NY + j*NX + i;         // HERE JOE
+                int idl = i*NYH*NZH + j*NZH + k;
+                r_Input1[idg] = I1[idl];
+                r_Input2[idg] = I2[idl];
+                r_Input3[idg] = I3[idl];
+                // if (c_in1) c_Input1[idg].real(I1[idl]);
+                // if (c_in2) c_Input2[idg].real(I2[idl]);
+                // if (c_in3) c_Input3[idg].real(I3[idl]);
+            }
+        }
+    }
+
+    // Now transfer block arrays to cuda buffers
+    VkFFTResult res = VKFFT_SUCCESS;
+    if (r_in1)  res = transferDataFromCPU(vkGPU, r_Input1, &cl_r_Input1, bufferSizeNT);
+    if (r_in2)  res = transferDataFromCPU(vkGPU, r_Input2, &cl_r_Input2, bufferSizeNT);
+    if (r_in3)  res = transferDataFromCPU(vkGPU, r_Input3, &cl_r_Input3, bufferSizeNT);
+    // if (c_in1)  {}  // Not yet implemented!
+    // if (c_in2)  {}  // Not yet implemented!
+    // if (c_in3)  {}  // Not yet implemented!
+
     return ConvertVkFFTError(res);
 }
 
@@ -634,12 +750,12 @@ void DataType_VkFFT::Get_Output_Unbounded_2D(RVector &I)
     VkFFTResult res = VKFFT_SUCCESS;
     if (r_out_1)    res = transferDataToCPU(vkGPU, r_Output1, &cl_r_Output1, bufferSizeNT);
     // if (c_out_1)    {}// Not yet implemented!
+
     // Copy necessary memory into output arrays
     OpenMPfor
     for (int i=0; i<NXH; i++){
         for (int j=0; j<NYH; j++){
-            // int idg = i*NY + j;
-            int idg = j*NX + i;     // HERE JOE
+            int idg = j*NX + i;
             int idl = i*NYH + j;
             if (r_out_1) I[idl] = r_Output1[idg];
             // if (c_out_1)    {}// Not yet implemented!
@@ -651,6 +767,68 @@ void DataType_VkFFT::Get_Output_Unbounded_2D(RVector &I)
     // VkFFTResult res2 = transferDataToCPU(vkGPU, O.data(), &c_FTInput1, c_bufferSizeNTM);    // FFT of input
     // VkFFTResult res2 = transferDataToCPU(vkGPU, O.data(), &c_FG, c_bufferSizeNTM);          // FFT of Green's function
     // for (auto i : O) std::cout << i.x csp i.y << std::endl;
+}
+
+void DataType_VkFFT::Get_Output_Unbounded_3D(RVector &I)
+{
+    // Extracts appropriate output
+    int NXH = NX/2;
+    int NYH = NY/2;
+    int NZH = NZ/2;
+    if (I.empty()) I.assign(NXH*NYH*NZH,0);
+
+    // Create dummy arrays if required
+    VkFFTResult res = VKFFT_SUCCESS;
+    if (r_out_1)    res = transferDataToCPU(vkGPU, r_Output1, &cl_r_Output1, bufferSizeNT);
+    // if (c_out_1)    {}// Not yet implemented!
+
+    // Copy necessary memory into output arrays
+    OpenMPfor
+    for (int i=0; i<NXH; i++){
+        for (int j=0; j<NYH; j++){
+            for (int k=0; k<NZH; k++){
+                int idg = k*NX*NY + j*NX + i;
+                int idl = i*NYH*NZH + j*NZH + k;
+                if (r_out_1) I[idl] = r_Output1[idg];
+                // if (c_out_1) I[idl] = C1[idg].real();
+            }
+        }
+    }
+}
+
+void DataType_VkFFT::Get_Output_Unbounded_3D(RVector &I1, RVector &I2, RVector &I3)
+{
+    // Extracts appropriate output
+    int NXH = NX/2;
+    int NYH = NY/2;
+    int NZH = NZ/2;
+    if (I1.empty()) I1.assign(NXH*NYH*NZH,0);
+    if (I2.empty()) I2.assign(NXH*NYH*NZH,0);
+    if (I3.empty()) I3.assign(NXH*NYH*NZH,0);
+
+    // Create dummy arrays if required
+    VkFFTResult res = VKFFT_SUCCESS;
+    if (r_out_1)    res = transferDataToCPU(vkGPU, r_Output1, &cl_r_Output1, bufferSizeNT);
+    if (r_out_2)    res = transferDataToCPU(vkGPU, r_Output2, &cl_r_Output2, bufferSizeNT);
+    if (r_out_3)    res = transferDataToCPU(vkGPU, r_Output3, &cl_r_Output3, bufferSizeNT);
+    // if (c_out_1)    {}// Not yet implemented!
+
+    // Copy necessary memory into output arrays
+    OpenMPfor
+    for (int i=0; i<NXH; i++){
+        for (int j=0; j<NYH; j++){
+            for (int k=0; k<NZH; k++){
+                int idg = k*NX*NY + j*NX + i;
+                int idl = i*NYH*NZH + j*NZH + k;
+                I1[idl] = r_Output1[idg];
+                I2[idl] = r_Output2[idg];
+                I3[idl] = r_Output3[idg];
+                // if (c_out_1) I1[idl] = C1[idg].real();
+                // if (c_out_2) I2[idl] = C2[idg].real();
+                // if (c_out_3) I3[idl] = C3[idg].real();
+            }
+        }
+    }
 }
 
 //--- Greens functions prep
@@ -673,7 +851,7 @@ void DataType_VkFFT::Prepare_Fused_Kernel(FTType TF)
     // If R2C transform is being executed, we need to carry out the FFT on the input data
     if (TF==DFT_R2C){
         launchParams.buffer = kernel_configuration.buffer;
-        resFFT = performVulkanFFT(vkGPU, &kernel_app, &launchParams, -1, 1);
+        resFFT = performVulkanFFT(vkGPU, &kernel_app, &launchParams, -1);
     }
     std::cout << "Kernel app prepared for fused FFT-Conv-iFFT. " << std::endl;
 
@@ -807,11 +985,11 @@ void DataType_VkFFT::Prep_Greens_Function(FTType TF)
     size_t preferredWorkGroupSizeMultiple;
     clGetKernelWorkGroupInfo(conv_kernel, vkGPU->device, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, sizeof(size_t), &preferredWorkGroupSizeMultiple, NULL);
     std::cout << "Convolution kernel: Preferred work-group size multiple: " << preferredWorkGroupSizeMultiple << std::endl;
-    std::cout << "VkFFT Plan: Axis split 1: " << app.localFFTPlan->axisSplit[0][0] csp app.localFFTPlan->axisSplit[0][1] csp app.localFFTPlan->axisSplit[0][2] << std::endl;
-    std::cout << "VkFFT Plan: Axis split 2: " << app.localFFTPlan->axisSplit[1][0] csp app.localFFTPlan->axisSplit[1][1] csp app.localFFTPlan->axisSplit[0][2] << std::endl;
-    std::cout << "VkFFT Plan: actualFFTSizePerAxis: " << app.localFFTPlan->actualFFTSizePerAxis[0][0] csp app.localFFTPlan->actualFFTSizePerAxis[0][1] << std::endl;
-    std::cout << "VkFFT Plan: actualFFTSizePerAxis: " << app.localFFTPlan->actualFFTSizePerAxis[1][0] csp app.localFFTPlan->actualFFTSizePerAxis[1][1] << std::endl;
-    std::cout << "VkFFT Plan: numAxisUploads: " << app.localFFTPlan->numAxisUploads[0] csp app.localFFTPlan->numAxisUploads[1] << std::endl;
+    // std::cout << "VkFFT Plan: Axis split 1: " << app.localFFTPlan->axisSplit[0][0] csp app.localFFTPlan->axisSplit[0][1] csp app.localFFTPlan->axisSplit[0][2] << std::endl;
+    // std::cout << "VkFFT Plan: Axis split 2: " << app.localFFTPlan->axisSplit[1][0] csp app.localFFTPlan->axisSplit[1][1] csp app.localFFTPlan->axisSplit[0][2] << std::endl;
+    // std::cout << "VkFFT Plan: actualFFTSizePerAxis: " << app.localFFTPlan->actualFFTSizePerAxis[0][0] csp app.localFFTPlan->actualFFTSizePerAxis[0][1] << std::endl;
+    // std::cout << "VkFFT Plan: actualFFTSizePerAxis: " << app.localFFTPlan->actualFFTSizePerAxis[1][0] csp app.localFFTPlan->actualFFTSizePerAxis[1][1] << std::endl;
+    // std::cout << "VkFFT Plan: numAxisUploads: " << app.localFFTPlan->numAxisUploads[0] csp app.localFFTPlan->numAxisUploads[1] << std::endl;
 
     // if (TF==DFT_R2R){
     //     // Try reordering the data...
@@ -852,7 +1030,7 @@ void DataType_VkFFT::Prep_Greens_Function_R2C()
 
         launchParams.inputBuffer = &cl_r_FG;
         launchParams.buffer = &c_FG;
-        VkFFTResult resFFT = FFT_DFT(true);
+        VkFFTResult resFFT = FFT_DFT(ForwardFFT);
         std::cout << "FFT plans configured for R2C convolution" << std::endl;
 
         // // Hack:: Convolution to return input
@@ -863,20 +1041,30 @@ void DataType_VkFFT::Prep_Greens_Function_R2C()
 
 //--- Fourier transforms
 
-VkFFTResult DataType_VkFFT::FFT_DFT(bool Forward)
+VkFFTResult DataType_VkFFT::FFT_DFT(int FFTType)
 {
     // Keep in mind here: The convolution step has already been prepared in preprocessing within VkFFT.
     // We only need to execute the FFT with the specified plan.
-    if (Forward)    return performVulkanFFT(vkGPU, &app, &launchParams, -1, 1);
-    else            return performVulkanFFT(vkGPU, &app, &launchParams,  1, 1);
+
+    VkFFTResult resFFT = VKFFT_SUCCESS;
+    cl_int res = CL_SUCCESS;
+    launchParams.commandQueue = &vkGPU->commandQueue;
+    // std::chrono::steady_clock::time_point timeSubmit = std::chrono::steady_clock::now();
+    res = VkFFTAppend(&app, FFTType, &launchParams);
+    if (resFFT != VKFFT_SUCCESS) return resFFT;
+    res = clFinish(vkGPU->commandQueue);
+    if (res != CL_SUCCESS) return VKFFT_ERROR_FAILED_TO_SYNCHRONIZE;
+    // std::chrono::steady_clock::time_point timeEnd = std::chrono::steady_clock::now();
+    // double totTime = std::chrono::duration_cast<std::chrono::microseconds>(timeEnd - timeSubmit).count() * 0.001;
+    return resFFT;
 }
 
 void DataType_VkFFT::Forward_FFT_R2R()
 {
     VkFFTResult resFFT = VKFFT_SUCCESS;
-    if (r_in1 && (resFFT==VKFFT_SUCCESS))  {launchParams.buffer = &cl_r_Input1;   resFFT = FFT_DFT(true); }
-    if (r_in2 && (resFFT==VKFFT_SUCCESS))  {launchParams.buffer = &cl_r_Input2;   resFFT = FFT_DFT(true); }
-    if (r_in3 && (resFFT==VKFFT_SUCCESS))  {launchParams.buffer = &cl_r_Input3;   resFFT = FFT_DFT(true); }
+    if (r_in1 && (resFFT==VKFFT_SUCCESS))  {launchParams.buffer = &cl_r_Input1;   resFFT = FFT_DFT(ForwardFFT); }
+    if (r_in2 && (resFFT==VKFFT_SUCCESS))  {launchParams.buffer = &cl_r_Input2;   resFFT = FFT_DFT(ForwardFFT); }
+    if (r_in3 && (resFFT==VKFFT_SUCCESS))  {launchParams.buffer = &cl_r_Input3;   resFFT = FFT_DFT(ForwardFFT); }
     ConvertVkFFTError(resFFT);
 }
 
@@ -884,18 +1072,18 @@ void DataType_VkFFT::Backward_FFT_R2R()
 {
     if (FusedKernel) return;
     VkFFTResult resFFT = VKFFT_SUCCESS;
-    if (r_in1 && (resFFT==VKFFT_SUCCESS))  {launchParams.buffer = &cl_r_Input1;   resFFT = FFT_DFT(false); }
-    if (r_in2 && (resFFT==VKFFT_SUCCESS))  {launchParams.buffer = &cl_r_Input2;   resFFT = FFT_DFT(false); }
-    if (r_in3 && (resFFT==VKFFT_SUCCESS))  {launchParams.buffer = &cl_r_Input3;   resFFT = FFT_DFT(false); }
+    if (r_in1 && (resFFT==VKFFT_SUCCESS))  {launchParams.buffer = &cl_r_Input1;   resFFT = FFT_DFT(BackwardFFT); }
+    if (r_in2 && (resFFT==VKFFT_SUCCESS))  {launchParams.buffer = &cl_r_Input2;   resFFT = FFT_DFT(BackwardFFT); }
+    if (r_in3 && (resFFT==VKFFT_SUCCESS))  {launchParams.buffer = &cl_r_Input3;   resFFT = FFT_DFT(BackwardFFT); }
     ConvertVkFFTError(resFFT);
 }
 
 void DataType_VkFFT::Forward_FFT_DFT()
 {
     VkFFTResult resFFT = VKFFT_SUCCESS;
-    if (c_in1 && (resFFT==VKFFT_SUCCESS))  {launchParams.buffer = &c_Input1;   resFFT = FFT_DFT(true); }
-    if (c_in2 && (resFFT==VKFFT_SUCCESS))  {launchParams.buffer = &c_Input2;   resFFT = FFT_DFT(true); }
-    if (c_in3 && (resFFT==VKFFT_SUCCESS))  {launchParams.buffer = &c_Input3;   resFFT = FFT_DFT(true); }
+    if (c_in1 && (resFFT==VKFFT_SUCCESS))  {launchParams.buffer = &c_Input1;   resFFT = FFT_DFT(ForwardFFT); }
+    if (c_in2 && (resFFT==VKFFT_SUCCESS))  {launchParams.buffer = &c_Input2;   resFFT = FFT_DFT(ForwardFFT); }
+    if (c_in3 && (resFFT==VKFFT_SUCCESS))  {launchParams.buffer = &c_Input3;   resFFT = FFT_DFT(ForwardFFT); }
     ConvertVkFFTError(resFFT);
 }
 
@@ -903,9 +1091,9 @@ void DataType_VkFFT::Backward_FFT_DFT()
 {
     if (FusedKernel) return;
     VkFFTResult resFFT = VKFFT_SUCCESS;
-    if (c_in1 && (resFFT==VKFFT_SUCCESS))  {launchParams.buffer = &c_Input1;   resFFT = FFT_DFT(false); }
-    if (c_in2 && (resFFT==VKFFT_SUCCESS))  {launchParams.buffer = &c_Input2;   resFFT = FFT_DFT(false); }
-    if (c_in3 && (resFFT==VKFFT_SUCCESS))  {launchParams.buffer = &c_Input3;   resFFT = FFT_DFT(false); }
+    if (c_in1 && (resFFT==VKFFT_SUCCESS))  {launchParams.buffer = &c_Input1;   resFFT = FFT_DFT(BackwardFFT); }
+    if (c_in2 && (resFFT==VKFFT_SUCCESS))  {launchParams.buffer = &c_Input2;   resFFT = FFT_DFT(BackwardFFT); }
+    if (c_in3 && (resFFT==VKFFT_SUCCESS))  {launchParams.buffer = &c_Input3;   resFFT = FFT_DFT(BackwardFFT); }
     ConvertVkFFTError(resFFT);
 }
 
@@ -914,9 +1102,9 @@ void DataType_VkFFT::Forward_FFT_R2C()
     VkFFTResult resFFT = VKFFT_SUCCESS;
     // InPlace means: cl_r_Input1 = cl_r_Output1 &  c_FTInputi = c_FTOutputi
     // So for this case, we will always use specify inputBuffer & buffer separately
-    if (r_in1 && (resFFT==VKFFT_SUCCESS))  {launchParams.inputBuffer = &cl_r_Input1; launchParams.buffer = &c_FTInput1;  resFFT = FFT_DFT(true); }
-    if (r_in2 && (resFFT==VKFFT_SUCCESS))  {launchParams.inputBuffer = &cl_r_Input2; launchParams.buffer = &c_FTInput2;  resFFT = FFT_DFT(true); }
-    if (r_in3 && (resFFT==VKFFT_SUCCESS))  {launchParams.inputBuffer = &cl_r_Input3; launchParams.buffer = &c_FTInput3;  resFFT = FFT_DFT(true); }
+    if (r_in1 && (resFFT==VKFFT_SUCCESS))  {launchParams.inputBuffer = &cl_r_Input1; launchParams.buffer = &c_FTInput1;  resFFT = FFT_DFT(ForwardFFT); }
+    if (r_in2 && (resFFT==VKFFT_SUCCESS))  {launchParams.inputBuffer = &cl_r_Input2; launchParams.buffer = &c_FTInput2;  resFFT = FFT_DFT(ForwardFFT); }
+    if (r_in3 && (resFFT==VKFFT_SUCCESS))  {launchParams.inputBuffer = &cl_r_Input3; launchParams.buffer = &c_FTInput3;  resFFT = FFT_DFT(ForwardFFT); }
     SFStatus stat = ConvertVkFFTError(resFFT);
 }
 
@@ -930,9 +1118,9 @@ void DataType_VkFFT::Backward_FFT_C2R()
 
     VkFFTResult resFFT = VKFFT_SUCCESS;
     // Note: Specifying outputBuffer means something else...
-    if (r_out_1 && (resFFT==VKFFT_SUCCESS))  {launchParams.inputBuffer = &cl_r_Output1; launchParams.buffer = &c_FTOutput1;  resFFT = FFT_DFT(false); }
-    if (r_out_2 && (resFFT==VKFFT_SUCCESS))  {launchParams.inputBuffer = &cl_r_Output2; launchParams.buffer = &c_FTOutput2;  resFFT = FFT_DFT(false); }
-    if (r_out_3 && (resFFT==VKFFT_SUCCESS))  {launchParams.inputBuffer = &cl_r_Output3; launchParams.buffer = &c_FTOutput3;  resFFT = FFT_DFT(false); }
+    if (r_out_1 && (resFFT==VKFFT_SUCCESS))  {launchParams.inputBuffer = &cl_r_Output1; launchParams.buffer = &c_FTOutput1;  resFFT = FFT_DFT(BackwardFFT); }
+    if (r_out_2 && (resFFT==VKFFT_SUCCESS))  {launchParams.inputBuffer = &cl_r_Output2; launchParams.buffer = &c_FTOutput2;  resFFT = FFT_DFT(BackwardFFT); }
+    if (r_out_3 && (resFFT==VKFFT_SUCCESS))  {launchParams.inputBuffer = &cl_r_Output3; launchParams.buffer = &c_FTOutput3;  resFFT = FFT_DFT(BackwardFFT); }
     SFStatus stat = ConvertVkFFTError(resFFT);
 }
 
@@ -954,11 +1142,11 @@ cl_int DataType_VkFFT::Convolution()
 
     // Option 2: Explicitly assign local work group size. Possibly more efficient, but requires catches in kernel
     // This is not working for now... avoid
-    // size_t localSize = 128;
+    // size_t localSize = 1024;
     // cl_int err = clEnqueueNDRangeKernel(vkGPU->commandQueue, conv_kernel, 1, NULL, &globalSize, &localSize, 0, NULL, NULL);
 
     // Ensure process completes
-    err = clFinish(vkGPU->commandQueue);
+    // err = clFinish(vkGPU->commandQueue);
     return err;
 }
 
@@ -972,7 +1160,6 @@ void DataType_VkFFT::Convolution_Real3()
     if (r_in2 & (res==CL_SUCCESS)) {clSetKernelArg(conv_kernel, 0, sizeof(cl_mem), &cl_r_Input2);  res = Convolution();}
     if (r_in3 & (res==CL_SUCCESS)) {clSetKernelArg(conv_kernel, 0, sizeof(cl_mem), &cl_r_Input3);  res = Convolution();}
     ConvertClError(res);
-    std::cout << "Convolution executed" << std::endl;
 }
 
 void DataType_VkFFT::Convolution_Complex3()
@@ -980,12 +1167,14 @@ void DataType_VkFFT::Convolution_Complex3()
     // Carry out convolution for three arrays
     if (FusedKernel) return;    // If exploiting the convolution feature of VkFFT, jump out here.
 
+    // std::cout << "CHECKING FLAGS " << c_in1 csp c_in2 csp c_in3 << std::endl;
+
     cl_int res = CL_SUCCESS;
-    if (c_in1 & (res==CL_SUCCESS)) {clSetKernelArg(conv_kernel, 0, sizeof(cl_mem), &c_Input1);  res = Convolution();}
-    if (c_in2 & (res==CL_SUCCESS)) {clSetKernelArg(conv_kernel, 0, sizeof(cl_mem), &c_Input2);  res = Convolution();}
-    if (c_in3 & (res==CL_SUCCESS)) {clSetKernelArg(conv_kernel, 0, sizeof(cl_mem), &c_Input3);  res = Convolution();}
+    if (r_in1 && res==CL_SUCCESS) {clSetKernelArg(conv_kernel, 0, sizeof(cl_mem), &c_FTInput1);  res = Convolution();}
+    if (r_in2 && res==CL_SUCCESS) {clSetKernelArg(conv_kernel, 0, sizeof(cl_mem), &c_FTInput2);  res = Convolution();}
+    if (r_in3 && res==CL_SUCCESS) {clSetKernelArg(conv_kernel, 0, sizeof(cl_mem), &c_FTInput3);  res = Convolution();}
+    res = clFinish(vkGPU->commandQueue);
     ConvertClError(res);
-    std::cout << "Convolution executed" << std::endl;
 }
 
 //--- Test case
@@ -1078,7 +1267,7 @@ VkFFTResult DataType_VkFFT::Test_Case()
     // std::cout << "HERE T2" << std::endl;
 
     //Uncomment the line below if you want to perform kernel FFT. In this sample we use predefined identitiy kernel.
-    //performVulkanFFT(vkGPU, &app_kernel, -1, 1);
+    //performVulkanFFT(vkGPU, &app_kernel, -1);
 
     //The kernel has been trasnformed.
 
@@ -1138,7 +1327,7 @@ VkFFTResult DataType_VkFFT::Test_Case()
     // std::cout << "HERE T5" << std::endl;
 
     VkFFTLaunchParams launchParams = {};
-    resFFT = performVulkanFFT(vkGPU, &app_convolution, &launchParams, -1, 1);
+    resFFT = performVulkanFFT(vkGPU, &app_convolution, &launchParams, -1);
     if (resFFT != VKFFT_SUCCESS) return resFFT;
 
     // std::cout << "HERE T6" << std::endl;

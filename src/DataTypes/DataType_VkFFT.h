@@ -154,8 +154,9 @@ struct dim3s {int x, y, z; dim3s(int x_ = 1, int y_ = 1, int z_ = 1) : x(x_), y(
 inline uint GID(const uint &i, const uint &j, const uint &NX, const uint &NY)                                   {return i*NY + j;}
 inline uint GID(const uint &i, const uint &j, const uint &k, const uint &NX, const uint &NY, const uint &NZ)    {return i*NY*NZ + j*NZ + k;}
 
-// Grid ID for specifying Green's function
+// Grid ID for specifying Green's function (F-style ordering)
 inline uint GF_GID2(const uint &i, const uint &j, const uint &NX, const uint &NY) {return j*NX + i;}    // F-style ordering
+inline uint GF_GID3(const uint &i, const uint &j, const uint &k, const uint &NX, const uint &NY, const uint &NZ) {return k*NX*NY + j*NX + i;}                 // F-style ordering
 inline uint GF_GID3(const dim3 &P, const dim3 &D) {return P.z*D.x*D.y + P.y*D.x + P.x;}                 // F-style ordering
 
 static cl_real      CLR0 = 0.;
@@ -302,6 +303,7 @@ public:
 
     //--- Specify Input
     VkFFTResult ConvertArray_R2C(RVector &I, void* input_buffer, size_t N);
+    VkFFTResult ConvertArray_R2C(Real* IR, void* input_buffer, size_t N);
     VkFFTResult ConvertArray_C2R(RVector &I, void* input_buffer, size_t N);
     SFStatus Set_Input(RVector &I) override;
     SFStatus Set_Input(RVector &I1, RVector &I2, RVector &I3)   override;
@@ -311,6 +313,12 @@ public:
     SFStatus Set_Input_Unbounded_3D(RVector &I1, RVector &I2, RVector &I3)  override;
     // virtual SFStatus Transfer_Data_Device()                                         override;
 
+    //--- F-style ordering require additional input/output routines for VkFFT
+    SFStatus Set_Input_1D(RVector &I);
+    SFStatus Set_Input_2D(RVector &I);
+    SFStatus Set_Input_3D(RVector &I);
+    SFStatus Set_Input_3DV(RVector &I1, RVector &I2, RVector &I3);
+
     //--- Retrieve output array
     void Get_Output(RVector &I)         override;
     void Get_Output(RVector &I1, RVector &I2, RVector &I3)  override;
@@ -319,6 +327,11 @@ public:
     void Get_Output_Unbounded_2D(RVector &I1, RVector &I2)  override {}// Not yet implemented!
     void Get_Output_Unbounded_3D(RVector &I)                override ;
     void Get_Output_Unbounded_3D(RVector &I1, RVector &I2, RVector &I3) override;
+
+    //--- F-style ordering require additional input/output routines for VkFFT
+    SFStatus Get_Output_1D(RVector &I);
+    SFStatus Get_Output_2D(RVector &I);
+    SFStatus Get_Output_3D(RVector &I);
 
     //--- Greens functions prep
     void Prepare_Fused_Kernel(FTType TF);

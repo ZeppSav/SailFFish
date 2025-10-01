@@ -187,13 +187,19 @@ SFStatus DataType_VkFFT::Allocate_Arrays()
 
     // Arrays for real Green's function
     // if (r_fg)       cudaMalloc((void**)&r_FG, sizeof(CUDAReal)*NT);
-    //    if (r_fg)       cudaMalloc((void**)&cu_r_FG, sizeof(CUDAReal)*NT);          // Not necessary!
+    //    if (r_fg)       cudaMalloc((void**)&cu_r_FG, sizeof(CUDAReal)*NT);    // Not necessary!
     if (r_fg)       r_FG = (Real*)malloc(NT*sizeof(Real));                      // Allocate memory for real data on CPU
 
     // Complex-valued arrays
     if (c_in1)      Allocate_Buffer(c_Input1, c_bufferSizeNTM);
     if (c_in2)      Allocate_Buffer(c_Input2, c_bufferSizeNTM);
     if (c_in3)      Allocate_Buffer(c_Input3, c_bufferSizeNTM);
+
+    // These are allocated to simplify data transfer in the case of a periodic (complex) solve
+    if (c_in1)      r_Input1 = (Real*)malloc(NT*sizeof(Real));
+    if (c_in2)      r_Input2 = (Real*)malloc(NT*sizeof(Real));
+    if (c_in3)      r_Input3 = (Real*)malloc(NT*sizeof(Real));
+
 
     if (c_ft_in1)   Allocate_Buffer(c_FTInput1, c_bufferSizeNTM);
     if (c_ft_in2)   Allocate_Buffer(c_FTInput2, c_bufferSizeNTM);
@@ -494,6 +500,15 @@ VkFFTResult DataType_VkFFT::ConvertArray_R2C(RVector &I, void* input_buffer, siz
     return transferDataFromCPU(vkGPU, IC.data(), input_buffer, sizeof(cl_complex)*N);
 }
 
+VkFFTResult DataType_VkFFT::ConvertArray_R2C(Real* IR, void* input_buffer, size_t N)
+{
+    // Helper function for complex array inputs
+    std::vector<Real> I(IR, IR+N);
+    std::vector<cl_complex> IC(N);
+    std::transform(I.begin(), I.end(), IC.begin(), [](Real val) {return cl_complex{{val, 0.}};});
+    return transferDataFromCPU(vkGPU, IC.data(), input_buffer, sizeof(cl_complex)*N);
+}
+
 SFStatus DataType_VkFFT::Set_Input(RVector &I)
 {
     // Transfers input array to opencl buffer
@@ -502,10 +517,48 @@ SFStatus DataType_VkFFT::Set_Input(RVector &I)
         return DimError;
     }
 
+
+    if (NZ>0 && NY>0)   Set_Input_3D(I);
+    else if (NY>0)      Set_Input_2D(I);
+    else                Set_Input_1D(I);
+
     VkFFTResult res = VKFFT_SUCCESS;
-    if (r_in1)  res = transferDataFromCPU(vkGPU, I.data(), &cl_r_Input1, bufferSizeNT);
-    if (c_in1)  res = ConvertArray_R2C(I,&c_Input1,NT);
+    if (r_in1)  res = transferDataFromCPU(vkGPU, r_Input1, &cl_r_Input1, bufferSizeNT);
+    if (c_in1)  res = ConvertArray_R2C(r_Input1,&c_Input1,NT);
     return ConvertVkFFTError(res);
+}
+
+SFStatus DataType_VkFFT::Set_Input_1D(RVector &I)
+{
+    // Simply transfer data between arrays
+    memcpy(r_Input1, I.data(), NT*sizeof(Real));
+    return NoError;
+}
+
+SFStatus DataType_VkFFT::Set_Input_2D(RVector &I)
+{
+    // Transfers input array to opencl r_Input1 buffer
+
+    // Fill nonzero elements of dummy arrays
+    OpenMPfor
+    for (int i=0; i<NX; i++){
+        for (int j=0; j<NY; j++) r_Input1[GF_GID2(i,j,NX,NY)] = I[GID(i,j,NX,NY)];
+    }
+    return NoError;
+}
+
+SFStatus DataType_VkFFT::Set_Input_3D(RVector &I)
+{
+    // Transfers input array to opencl r_Input1 buffer
+
+    // Fill nonzero elements of dummy arrays
+    OpenMPfor
+    for (int i=0; i<NX; i++){
+        for (int j=0; j<NY; j++){
+            for (int k=0; k<NZ; k++) r_Input1[GF_GID3(i,j,k,NX,NY,NZ)] = I[GID(i,j,k,NX,NY,NZ)];
+        }
+    }
+    return NoError;
 }
 
 SFStatus DataType_VkFFT::Set_Input(RVector &I1, RVector &I2, RVector &I3)
@@ -518,13 +571,25 @@ SFStatus DataType_VkFFT::Set_Input(RVector &I1, RVector &I2, RVector &I3)
         return DimError;
     }
 
+    OpenMPfor
+    for (int i=0; i<NX; i++){
+        for (int j=0; j<NY; j++){
+            for (int k=0; k<NZ; k++){
+                r_Input1[GF_GID3(i,j,k,NX,NY,NZ)] = I1[GID(i,j,k,NX,NY,NZ)];
+                r_Input2[GF_GID3(i,j,k,NX,NY,NZ)] = I2[GID(i,j,k,NX,NY,NZ)];
+                r_Input3[GF_GID3(i,j,k,NX,NY,NZ)] = I3[GID(i,j,k,NX,NY,NZ)];
+                // if (c_in1) {}   // Not yet implemented!
+            }
+        }
+    }
+
     VkFFTResult res = VKFFT_SUCCESS;
-    if (r_in1)  res = transferDataFromCPU(vkGPU, I1.data(), &cl_r_Input1, bufferSizeNT);
-    if (r_in2)  res = transferDataFromCPU(vkGPU, I2.data(), &cl_r_Input2, bufferSizeNT);
-    if (r_in3)  res = transferDataFromCPU(vkGPU, I3.data(), &cl_r_Input3, bufferSizeNT);
-    if (c_in1)  res = ConvertArray_R2C(I1,&c_Input1,NT);
-    if (c_in2)  res = ConvertArray_R2C(I2,&c_Input2,NT);
-    if (c_in3)  res = ConvertArray_R2C(I3,&c_Input3,NT);
+    if (r_in1)  res = transferDataFromCPU(vkGPU, r_Input1, &cl_r_Input1, bufferSizeNT);
+    if (r_in2)  res = transferDataFromCPU(vkGPU, r_Input2, &cl_r_Input2, bufferSizeNT);
+    if (r_in3)  res = transferDataFromCPU(vkGPU, r_Input3, &cl_r_Input3, bufferSizeNT);
+    if (c_in1)  res = ConvertArray_R2C(r_Input1,&c_Input1,NT);
+    if (c_in2)  res = ConvertArray_R2C(r_Input2,&c_Input2,NT);
+    if (c_in3)  res = ConvertArray_R2C(r_Input3,&c_Input3,NT);
     return ConvertVkFFTError(res);
 }
 
@@ -690,25 +755,79 @@ void DataType_VkFFT::Get_Output(RVector &I)
     // This function converts the output array into an easily accesible format
     if (I.empty()) I.assign(NT,0);
     VkFFTResult res = VKFFT_SUCCESS;
-    if (r_out_1)    res = transferDataToCPU(vkGPU, I.data(), &cl_r_Input1, bufferSizeNT);
-    if (c_out_1)    res = ConvertArray_C2R(I,&c_Input1,NT);
+    if (r_out_1)    res = transferDataToCPU(vkGPU, r_Output1, &cl_r_Output1, bufferSizeNT);
+    // if (c_out_1)    res = ConvertArray_C2R(r_Output1,&c_Output1,NT);
+
+    if (NZ>0 && NY>0)   Get_Output_3D(I);
+    else if (NY>0)      Get_Output_2D(I);
+    else                Get_Output_1D(I);
+
     SFStatus ressf = ConvertVkFFTError(res);
+}
+
+SFStatus DataType_VkFFT::Get_Output_1D(RVector &I)
+{
+    // Simply transfer data between arrays
+    if (r_in1)  memcpy(I.data(), r_Output1, NT*sizeof(Real));
+    // if (c_in1)  memcpy(I.data(), r_Output1, NT*sizeof(Real));
+    return NoError;
+}
+
+SFStatus DataType_VkFFT::Get_Output_2D(RVector &I)
+{
+    // Transfers input array to opencl r_Input1 buffer
+
+    // Fill nonzero elements of dummy arrays
+    OpenMPfor
+    for (int i=0; i<NX; i++){
+        for (int j=0; j<NY; j++){
+            if (r_in1) I[GID(i,j,NX,NY)] = r_Output1[GF_GID2(i,j,NX,NY)];
+            // if (c_in1) {}   // Not yet implemented!
+        }
+    }
+    return NoError;
+}
+
+SFStatus DataType_VkFFT::Get_Output_3D(RVector &I)
+{
+    // Transfers input array to opencl r_Input1 buffer
+
+    // Fill nonzero elements of dummy arrays
+    OpenMPfor
+    for (int i=0; i<NX; i++){
+        for (int j=0; j<NY; j++){
+            for (int k=0; k<NZ; k++){
+                if (r_in1) I[GID(i,j,k,NX,NY,NZ)] = r_Output1[GF_GID3(i,j,k,NX,NY,NZ)];
+                // if (c_in1) {}   // Not yet implemented!
+            }
+        }
+    }
+    return NoError;
 }
 
 void DataType_VkFFT::Get_Output(RVector &I1, RVector &I2, RVector &I3)
 {
-    // This function converts the output array into an easily accesible format
+    // Transfers input array to opencl buffer
     if (I1.empty()) I1.assign(NT,0);
     if (I2.empty()) I2.assign(NT,0);
     if (I3.empty()) I3.assign(NT,0);
     VkFFTResult res = VKFFT_SUCCESS;
-    if (r_out_1)    res = transferDataToCPU(vkGPU, I1.data(), &cl_r_Input1, bufferSizeNT);
-    if (r_out_2)    res = transferDataToCPU(vkGPU, I2.data(), &cl_r_Input2, bufferSizeNT);
-    if (r_out_3)    res = transferDataToCPU(vkGPU, I3.data(), &cl_r_Input3, bufferSizeNT);
-    if (c_out_1)    res = ConvertArray_C2R(I1,&c_Input1,NT);
-    if (c_out_2)    res = ConvertArray_C2R(I2,&c_Input2,NT);
-    if (c_out_3)    res = ConvertArray_C2R(I3,&c_Input3,NT);
-    SFStatus ressf = ConvertVkFFTError(res);
+    if (r_out_1)    res = transferDataToCPU(vkGPU, r_Output1, &cl_r_Output1, bufferSizeNT);
+    if (r_out_2)    res = transferDataToCPU(vkGPU, r_Output2, &cl_r_Output2, bufferSizeNT);
+    if (r_out_3)    res = transferDataToCPU(vkGPU, r_Output3, &cl_r_Output3, bufferSizeNT);
+    // if (c_out_1)    res = ConvertArray_C2R(I,&c_Input1,NT);
+
+    OpenMPfor
+    for (int i=0; i<NX; i++){
+        for (int j=0; j<NY; j++){
+            for (int k=0; k<NZ; k++){
+                I1[GID(i,j,k,NX,NY,NZ)] = r_Output1[GF_GID3(i,j,k,NX,NY,NZ)];
+                I2[GID(i,j,k,NX,NY,NZ)] = r_Output2[GF_GID3(i,j,k,NX,NY,NZ)];
+                I3[GID(i,j,k,NX,NY,NZ)] = r_Output3[GF_GID3(i,j,k,NX,NY,NZ)];
+                // if (c_in1) {}   // Not yet implemented!
+            }
+        }
+    }
 }
 
 void DataType_VkFFT::Get_Output_Unbounded_1D(RVector &I)

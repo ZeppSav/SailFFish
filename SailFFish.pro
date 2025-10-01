@@ -24,7 +24,7 @@ DEFINES += SinglePrec
 # Configuration flags
 #----------------------------------------------
 
-# The following define makes your compiler emit warnings if you useA
+# The following define makes your compiler emit warnings if you use
 # any feature of Qt which as been marked as deprecated (the exact warnings
 # depend on your compiler). Please consult the documentation of the
 # deprecated API in order to know how to port your code away from it.
@@ -121,7 +121,7 @@ CONFIG(VKFFTBackend) {
     INCLUDEPATH += $$PWD/..                 # Add path for CL headers
     INCLUDEPATH += $$PWD/../VkFFT           # Add path for vkFFT library
     INCLUDEPATH += $$PWD/../VkFFT/VkFFT     # Add path for vkFFT library
-    INCLUDEPATH += $$PWD/../VkFFT/half_lib  # Add path for half precision library
+    # INCLUDEPATH += $$PWD/../VkFFT/half_lib  # Add path for half precision library
     # INCLUDEPATH += $$PWD/../VkFFT/benchmark_scripts/
     # INCLUDEPATH += $$PWD/../VkFFT/benchmark_scripts/vkFFT_scripts
     # INCLUDEPATH += $$PWD/../VkFFT/benchmark_scripts/vkFFT_scripts/include  # Add path for tests and utilities

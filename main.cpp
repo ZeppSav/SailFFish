@@ -9,9 +9,9 @@ static const bool Export_VTK = true;
 int main()
 {
 
-    int nx = 64*8;
-    int ny = 23*8;
-    int nz = 8*8;
+    int nx = 4*32;
+    int ny = 4*32;
+    int nz = 4*32;
 
     // int nx = 64*4;
     // int ny = 23*4;

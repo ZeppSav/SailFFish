@@ -115,7 +115,7 @@ void Poisson_Periodic_2D::Specify_Greens_Function()
 
     OpenMPfor
     for (int i=0; i<NX; i++){
-        for (int j=0; j<NY; j++) r_FG[GID(i,j,NX,NY)] = BFac/(fx[i]+fy[j]);
+        for (int j=0; j<NY; j++) r_FG[GF_GID2(i,j,NX,NY)] = BFac/(fx[i]+fy[j]);
     }
     r_FG[0] = 0.0;
 
@@ -141,7 +141,7 @@ void Poisson_Periodic_3D::Specify_Greens_Function()
     OpenMPfor
     for (int i=0; i<NX; i++){
         for (int j=0; j<NY; j++){
-            for (int k=0; k<NZ; k++)    r_FG[GID(i,j,k,NX,NY,NZ)] = BFac/(fx[i]+fy[j]+fz[k]);
+            for (int k=0; k<NZ; k++)    r_FG[GF_GID3(i,j,k,NX,NY,NZ)] = BFac/(fx[i]+fy[j]+fz[k]);
         }
     }
     r_FG[0] = 0.0;
@@ -168,7 +168,7 @@ void Poisson_Periodic_3DV::Specify_Greens_Function()
     OpenMPfor
     for (int i=0; i<NX; i++){
         for (int j=0; j<NY; j++){
-            for (int k=0; k<NZ; k++)    r_FG[GID(i,j,k,NX,NY,NZ)] = BFac/(fx[i]+fy[j]+fz[k]);
+            for (int k=0; k<NZ; k++)    r_FG[GF_GID3(i,j,k,NX,NY,NZ)] = BFac/(fx[i]+fy[j]+fz[k]);
         }
     }
     r_FG[0] = 0.0;

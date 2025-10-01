@@ -318,8 +318,7 @@ void Poisson_Dirichlet_2D::Specify_Greens_Function()
 
     OpenMPfor
     for (int i=0; i<NX; i++){
-        for (int j=0; j<NY; j++) r_FG[i*NY+j] = BFac/(fx[i]+fy[j]);
-        // for (int j=0; j<NY; j++) r_FG[GF_GID2(i,j,NX,NY)] = BFac/(fx[i]+fy[j]);
+        for (int j=0; j<NY; j++) r_FG[GF_GID2(i,j,NX,NY)] = BFac/(fx[i]+fy[j]);
     }
 
     // Datatype-specific prep for the convolution
@@ -361,9 +360,7 @@ void Poisson_Dirichlet_3D::Specify_Greens_Function()
     OpenMPfor
     for (int i=0; i<NX; i++){
         for (int j=0; j<NY; j++){
-            for (int k=0; k<NZ; k++) r_FG[GID(i,j,k,NX,NY,NZ)] = BFac/(fx[i]+fy[j]+fz[k]);
-            // int vk = i + j*NX
-            // for (int k=0; k<NZ; k++) r_FG[GID(k,j,i,NZ,NY,NX)] = BFac/(fx[i]+fy[j]+fz[k]);
+            for (int k=0; k<NZ; k++) r_FG[GF_GID3(i,j,k,NX,NY,NZ)] = BFac/(fx[i]+fy[j]+fz[k]);
         }
     }
 
@@ -406,7 +403,7 @@ void Poisson_Dirichlet_3DV::Specify_Greens_Function()
     OpenMPfor
     for (int i=0; i<NX; i++){
         for (int j=0; j<NY; j++){
-            for (int k=0; k<NZ; k++) r_FG[GID(i,j,k,NX,NY,NZ)] = BFac/(fx[i]+fy[j]+fz[k]);
+            for (int k=0; k<NZ; k++) r_FG[GF_GID3(i,j,k,NX,NY,NZ)] = BFac/(fx[i]+fy[j]+fz[k]);
         }
     }
 

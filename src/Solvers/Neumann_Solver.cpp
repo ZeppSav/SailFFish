@@ -327,8 +327,8 @@ void Poisson_Neumann_2D::Specify_Greens_Function()
     for (int i=0; i<NX; i++){
         for (int j=0; j<NY; j++)
         {
-            if ((i+j)>0)    r_FG[GID(i,j,NX,NY)] = BFac/(fx[i]+fy[j]);
-            else            r_FG[GID(i,j,NX,NY)] = 0.0;
+            if ((i+j)>0)    r_FG[GF_GID2(i,j,NX,NY)] = BFac/(fx[i]+fy[j]);
+            else            r_FG[GF_GID2(i,j,NX,NY)] = 0.0;
         }
     }
 
@@ -375,8 +375,8 @@ void Poisson_Neumann_3D::Specify_Greens_Function()
     for (int i=0; i<NX; i++){
         for (int j=0; j<NY; j++){
             for (int k=0; k<NZ; k++){
-                if ((i+j+k)>0)  r_FG[GID(i,j,k,NX,NY,NZ)] = BFac/(fx[i]+fy[j]+fz[k]);
-                else            r_FG[GID(i,j,k,NX,NY,NZ)] = 0.0;
+                if ((i+j+k)>0)  r_FG[GF_GID3(i,j,k,NX,NY,NZ)] = BFac/(fx[i]+fy[j]+fz[k]);
+                else            r_FG[GF_GID3(i,j,k,NX,NY,NZ)] = 0.0;
             }
         }
     }
@@ -421,8 +421,8 @@ void Poisson_Neumann_3DV::Specify_Greens_Function()
     for (int i=0; i<NX; i++){
         for (int j=0; j<NY; j++){
             for (int k=0; k<NZ; k++){
-                if ((i+j+k)>0)  r_FG[GID(i,j,k,NX,NY,NZ)] = BFac/(fx[i]+fy[j]+fz[k]);
-                else            r_FG[GID(i,j,k,NX,NY,NZ)] = 0.0;
+                if ((i+j+k)>0)  r_FG[GF_GID3(i,j,k,NX,NY,NZ)] = BFac/(fx[i]+fy[j]+fz[k]);
+                else            r_FG[GF_GID3(i,j,k,NX,NY,NZ)] = 0.0;
             }
         }
     }

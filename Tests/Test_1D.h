@@ -257,7 +257,7 @@ void Test_Periodic_1D(int NX)
 
     // Generate Input & Solution Arrays
     RVector Input, Output, Solution;
-    for (int i=0; i<NX; i++){                     // Shifted: with the Periodic (regular) solver we have 1 less unknown than grid nodes
+    for (int i=0; i<NX; i++){                       // Shifted: with the Periodic (regular) solver we have 1 less unknown than grid nodes
         Real xs = XGrid[i];                         // For periodic solve, this doesn't need to be shifted
         Input.push_back(    CTest_Omega(xs,Lx));    // Input field
         Solution.push_back( CTest_Phi(xs,Lx));      // Solution field

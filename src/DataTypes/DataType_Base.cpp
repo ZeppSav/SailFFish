@@ -78,4 +78,93 @@ SFStatus DataType::Setup_3D(int iNX, int iNY, int iNZ)
     return Stat;
 }
 
+//--- Mapping functions
+
+void DataType::Map_C2F_2D(const RVector &Src, RVector &Dest)
+{
+    // Map C-Style array to F-Style array
+    OpenMPfor
+    for (int i=0; i<NX; i++){
+        for (int j=0; j<NY; j++){
+            Dest[GID(j,i,NY,NX)] = Src[GID(i,j,NX,NY)];
+        }
+    }
 }
+
+void DataType::Map_F2C_2D(const RVector &Src, RVector &Dest)
+{
+    // Map F-Style array to C-Style array
+    OpenMPfor
+    for (int i=0; i<NX; i++){
+        for (int j=0; j<NY; j++){
+            Dest[GID(i,j,NX,NY)] = Src[GID(j,i,NY,NX)];
+        }
+    }
+}
+
+void DataType::Map_C2F_3D(const RVector &Src, RVector &Dest)
+{
+    // Map C-Style array to F-Style array
+    OpenMPfor
+    for (int i=0; i<NX; i++){
+        for (int j=0; j<NY; j++){
+            for (int k=0; k<NZ; k++){
+                Dest[GID(k,j,i,NZ,NY,NX)] = Src[GID(i,j,k,NX,NY,NZ)];
+            }
+        }
+    }
+}
+
+void DataType::Map_F2C_3D(const RVector &Src, RVector &Dest)
+{
+    // Map F-Style array to C-Style array
+    OpenMPfor
+    for (int i=0; i<NX; i++){
+        for (int j=0; j<NY; j++){
+            for (int k=0; k<NZ; k++){
+                Dest[GID(i,j,k,NX,NY,NZ)] = Src[GID(k,j,i,NZ,NY,NX)];
+            }
+        }
+    }
+}
+
+//--- Map grid
+
+void DataType::Map_C2F_3DV(const RVector &Src1, const RVector &Src2, const RVector &Src3,
+                                RVector &Dest1, RVector &Dest2, RVector &Dest3)
+{
+    // Map C-Style array to F-Style array
+    OpenMPfor
+    for (int i=0; i<NX; i++){
+        for (int j=0; j<NY; j++){
+            for (int k=0; k<NZ; k++){
+                int cid = GID(i,j,k,NX,NY,NZ);
+                int fid = GID(k,j,i,NZ,NY,NX);
+                Dest1[fid] = Src1[cid];
+                Dest2[fid] = Src2[cid];
+                Dest3[fid] = Src3[cid];
+            }
+        }
+    }
+}
+
+void DataType::Map_F2C_3DV( const RVector &Src1, const RVector &Src2, const RVector &Src3,
+                                RVector &Dest1, RVector &Dest2, RVector &Dest3)
+{
+    // Map F-Style array to C-Style array
+    OpenMPfor
+    for (int i=0; i<NX; i++){
+        for (int j=0; j<NY; j++){
+            for (int k=0; k<NZ; k++){
+                int cid = GID(i,j,k,NX,NY,NZ);
+                int fid = GID(k,j,i,NZ,NY,NX);
+                Dest1[cid] = Src1[fid];
+                Dest2[cid] = Src2[fid];
+                Dest3[cid] = Src3[fid];
+            }
+        }
+    }
+}
+
+}
+

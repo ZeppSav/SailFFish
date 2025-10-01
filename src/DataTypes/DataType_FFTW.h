@@ -89,9 +89,6 @@ namespace SailFFish
 #endif
 
 //--- Dimension & index structs & functions
-typedef unsigned uint;
-inline uint GID(const uint &i, const uint &j, const uint &NX, const uint &NY)                                   {return i*NY + j;}
-inline uint GID(const uint &i, const uint &j, const uint &k, const uint &NX, const uint &NY, const uint &NZ)    {return i*NY*NZ + j*NZ + k;}
 struct dim3 {uint x, y, z;  dim3(uint vx = 1, uint vy = 1, uint vz = 1) : x(vx), y(vy), z(vz) {}};  // Equivalent def for cuda dim3
 struct dim3s {int x, y, z;  dim3s(int vx = 1, int vy = 1, int vz = 1)   : x(vx), y(vy), z(vz) {}};
 

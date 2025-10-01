@@ -70,10 +70,7 @@ static const cufftType_t    cufft_C2R = CUFFT_Z2D;
 #endif
 
 //--- Dimension & index structs & functions
-typedef unsigned uint;
 struct dim3s {int x, y, z; dim3s(int x_ = 1, int y_ = 1, int z_ = 1) : x(x_), y(y_), z(z_) {}};
-inline uint GID(const uint &i, const uint &j, const uint &NX, const uint &NY)                                   {return i*NY + j;}
-inline uint GID(const uint &i, const uint &j, const uint &k, const uint &NX, const uint &NY, const uint &NZ)    {return i*NY*NZ + j*NZ + k;}
 
 // Grid ID for specifying Green's function
 inline uint GF_GID2(const uint &i, const uint &j, const uint &NX, const uint &NY) {return i*NY + j;}    // C-style ordering

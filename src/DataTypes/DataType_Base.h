@@ -40,9 +40,16 @@ enum OperatorType   {NONE, DIV, CURL, GRAD, NABLA};
 enum Component      {XComp, YComp, ZComp};
 enum Dim            {EX, EY, EZ};
 
+typedef unsigned uint;
+inline uint GID(const uint &i, const uint &j, const uint &NX, const uint &NY)                                   {return i*NY + j;}
+inline uint GID(const uint &i, const uint &j, const uint &k, const uint &NX, const uint &NY, const uint &NZ)    {return i*NY*NZ + j*NZ + k;}
+
 class DataType
 {
 protected:
+
+    //--- Dimension
+    uint Dimension = 0;
 
     //--- Fourier transform vars
     FTType Transform = DFT_C2C;
@@ -103,6 +110,17 @@ protected:
 
     //--- Memory objects (Real)
     Real *r_FG;
+
+    //--- Mapping functions
+    virtual void Map_C2F_1D(const RVector &Src, RVector &Dest)  {StdAppend(Dest,Src);}
+    virtual void Map_F2C_1D(const RVector &Src, RVector &Dest)  {StdAppend(Dest,Src);}
+    virtual void Map_C2F_2D(const RVector &Src, RVector &Dest);
+    virtual void Map_F2C_2D(const RVector &Src, RVector &Dest);
+    virtual void Map_C2F_3D(const RVector &Src, RVector &Dest);
+    virtual void Map_F2C_3D(const RVector &Src, RVector &Dest);
+    virtual void Map_C2F_3DV(const RVector &Src1, const RVector &Src2, const RVector &Src3, RVector &Dest1, RVector &Dest2, RVector &Dest3);
+    virtual void Map_F2C_3DV(const RVector &Src1, const RVector &Src2, const RVector &Src3, RVector &Dest1, RVector &Dest2, RVector &Dest3);
+
 
     //--- Solver status
     SFStatus Status = NoError;

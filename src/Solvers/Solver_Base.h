@@ -111,13 +111,10 @@ protected:
 public:
 
     //--- Constructor
-    Solver_1D_Scalar()        {}
+    Solver_1D_Scalar()        {Dimension = 1;}
 
     //--- Solver setup
     virtual SFStatus Setup(Real X[2], int iNX);
-
-    //--- Prepare input array
-    virtual void Input_Test_Function()      {}
 };
 
 //--- 2D Scalar solver
@@ -131,13 +128,10 @@ protected:
 public:
 
     //--- Constructor
-    Solver_2D_Scalar()        {}
+    Solver_2D_Scalar()        {Dimension = 2;}
 
     //--- Solver setup
     virtual SFStatus Setup(Real X[2], Real Y[2], int iNX, int iNY);
-
-    //--- Prepare input array
-    virtual void Input_Test_function()      {}
 
     //--- Grid visualisation
     virtual void Create_vtk();
@@ -154,13 +148,10 @@ protected:
 public:
 
     //--- Constructor
-    Solver_3D_Scalar()        {}
+    Solver_3D_Scalar()        {Dimension = 3;}
 
     //--- Solver setup
     virtual SFStatus Setup(Real X[2], Real Y[2], Real Z[2], int iNX, int iNY, int iNZ);
-
-    //--- Prepare input array
-    virtual void Input_Test_function()      {}
 
     //--- Grid visualisation
     virtual void Create_vtk();
@@ -177,13 +168,10 @@ protected:
 public:
 
     //--- Constructor
-    Solver_3D_Vector()        {}
+    Solver_3D_Vector()        {Dimension = 3;}
 
     //--- Solver setup
     virtual SFStatus Setup(Real X[2], Real Y[2], Real Z[2], int iNX, int iNY, int iNZ);
-
-    //--- Prepare input array
-    virtual void Input_Test_function()      {}
 
     //--- Grid visualisation
     virtual void Create_vtk();

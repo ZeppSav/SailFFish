@@ -303,14 +303,6 @@ SFStatus DataType_VkFFT::Prepare_Plan(VkFFTConfiguration &Config)
     Config.bufferSize = &InputbufferSize;   // Specify config buffer size
     Config.buffer = &InputBuffer;           // Specify input buffer
 
-    // Main buffer: Config.buffer ::must always be provided. All calculations done here and is always overwritten
-    // Config.inputBuffer- data will ONLY be read from input buffer- all operations/work carried out on Config.buffer
-    // Config.outputBuffer- only the absolute last write of the VkFFT write will be written to this.
-
-    // TESTS: 1D: Out-of-place FFT to buffer c_FTInputi:    (isInputFormatted=1)                                ---- WORKING ----
-    // TESTS: 1D: In-place FFT + iFFT to buffer c_FTInputi: (isInputFormatted=1,inverseReturnToInputBuffer=1);  ---- WORKING ---- + scaling!
-    // TESTS: 1D: Out-of-place FFT + iFFT to outputbuffer (isInputFormatted=1,inverseReturnToInputBuffer=1)     ---- WORKING ----
-
     if (Transform==DFT_R2C){
         // Trial first out-of-place transform.
         Config.inputBuffer = &InputBuffer;
@@ -321,6 +313,17 @@ SFStatus DataType_VkFFT::Prepare_Plan(VkFFTConfiguration &Config)
         // To denote that it is NOT padded... specify this here with the following flag:
         Config.isInputFormatted = true;
         Config.inverseReturnToInputBuffer = true;           // Only valid if in-place
+
+        // // Trial zero padding feature
+        // Config.performZeropadding[0] = true; //Perform padding with zeros on GPU. Still need to properly align input data (no need to fill padding area with meaningful data) but this will increase performance due to the lower amount of the memory reads/writes and omitting sequences only consisting of zeros.
+        // Config.performZeropadding[1] = true;
+        // Config.performZeropadding[2] = true;
+        // Config.fft_zeropad_left[0] = (uint64_t)ceil(Config.size[0] / 2.0);
+        // Config.fft_zeropad_right[0] = Config.size[0];
+        // Config.fft_zeropad_left[1] = (uint64_t)ceil(Config.size[1] / 2.0);
+        // Config.fft_zeropad_right[1] = Config.size[1];
+        // Config.fft_zeropad_left[2] = (uint64_t)ceil(Config.size[2] / 2.0);
+        // Config.fft_zeropad_right[2] = Config.size[2];
 
         // Out of place Option 1          ---- WORKING ----
         // Copy c_FTInputi to c_FTOutputi
@@ -517,48 +520,19 @@ SFStatus DataType_VkFFT::Set_Input(RVector &I)
         return DimError;
     }
 
-
-    if (NZ>0 && NY>0)   Set_Input_3D(I);
-    else if (NY>0)      Set_Input_2D(I);
-    else                Set_Input_1D(I);
+    RVector I2(NT);
+    switch (Dimension)
+    {
+        case 1: {Map_C2F_1D(I,I2);  break;}
+        case 2: {Map_C2F_2D(I,I2);  break;}
+        case 3: {Map_C2F_3D(I,I2);  break;}
+        default: {break;}
+    }
 
     VkFFTResult res = VKFFT_SUCCESS;
-    if (r_in1)  res = transferDataFromCPU(vkGPU, r_Input1, &cl_r_Input1, bufferSizeNT);
-    if (c_in1)  res = ConvertArray_R2C(r_Input1,&c_Input1,NT);
+    if (r_in1)  res = transferDataFromCPU(vkGPU, I2.data(), &cl_r_Input1, bufferSizeNT);
+    if (c_in1)  res = ConvertArray_R2C(I2,&c_Input1,NT);
     return ConvertVkFFTError(res);
-}
-
-SFStatus DataType_VkFFT::Set_Input_1D(RVector &I)
-{
-    // Simply transfer data between arrays
-    memcpy(r_Input1, I.data(), NT*sizeof(Real));
-    return NoError;
-}
-
-SFStatus DataType_VkFFT::Set_Input_2D(RVector &I)
-{
-    // Transfers input array to opencl r_Input1 buffer
-
-    // Fill nonzero elements of dummy arrays
-    OpenMPfor
-    for (int i=0; i<NX; i++){
-        for (int j=0; j<NY; j++) r_Input1[GF_GID2(i,j,NX,NY)] = I[GID(i,j,NX,NY)];
-    }
-    return NoError;
-}
-
-SFStatus DataType_VkFFT::Set_Input_3D(RVector &I)
-{
-    // Transfers input array to opencl r_Input1 buffer
-
-    // Fill nonzero elements of dummy arrays
-    OpenMPfor
-    for (int i=0; i<NX; i++){
-        for (int j=0; j<NY; j++){
-            for (int k=0; k<NZ; k++) r_Input1[GF_GID3(i,j,k,NX,NY,NZ)] = I[GID(i,j,k,NX,NY,NZ)];
-        }
-    }
-    return NoError;
 }
 
 SFStatus DataType_VkFFT::Set_Input(RVector &I1, RVector &I2, RVector &I3)
@@ -571,25 +545,17 @@ SFStatus DataType_VkFFT::Set_Input(RVector &I1, RVector &I2, RVector &I3)
         return DimError;
     }
 
-    OpenMPfor
-    for (int i=0; i<NX; i++){
-        for (int j=0; j<NY; j++){
-            for (int k=0; k<NZ; k++){
-                r_Input1[GF_GID3(i,j,k,NX,NY,NZ)] = I1[GID(i,j,k,NX,NY,NZ)];
-                r_Input2[GF_GID3(i,j,k,NX,NY,NZ)] = I2[GID(i,j,k,NX,NY,NZ)];
-                r_Input3[GF_GID3(i,j,k,NX,NY,NZ)] = I3[GID(i,j,k,NX,NY,NZ)];
-                // if (c_in1) {}   // Not yet implemented!
-            }
-        }
-    }
+    // Map to F-style ordering
+    RVector mI1(NT), mI2(NT), mI3(NT);
+    Map_C2F_3DV(I1,I2,I3,mI1,mI2,mI3);
 
     VkFFTResult res = VKFFT_SUCCESS;
-    if (r_in1)  res = transferDataFromCPU(vkGPU, r_Input1, &cl_r_Input1, bufferSizeNT);
-    if (r_in2)  res = transferDataFromCPU(vkGPU, r_Input2, &cl_r_Input2, bufferSizeNT);
-    if (r_in3)  res = transferDataFromCPU(vkGPU, r_Input3, &cl_r_Input3, bufferSizeNT);
-    if (c_in1)  res = ConvertArray_R2C(r_Input1,&c_Input1,NT);
-    if (c_in2)  res = ConvertArray_R2C(r_Input2,&c_Input2,NT);
-    if (c_in3)  res = ConvertArray_R2C(r_Input3,&c_Input3,NT);
+    if (r_in1)  res = transferDataFromCPU(vkGPU, mI1.data(), &cl_r_Input1, bufferSizeNT);
+    if (r_in2)  res = transferDataFromCPU(vkGPU, mI2.data(), &cl_r_Input2, bufferSizeNT);
+    if (r_in3)  res = transferDataFromCPU(vkGPU, mI3.data(), &cl_r_Input3, bufferSizeNT);
+    if (c_in1)  res = ConvertArray_R2C(mI1,&c_Input1,NT);
+    if (c_in2)  res = ConvertArray_R2C(mI2,&c_Input2,NT);
+    if (c_in3)  res = ConvertArray_R2C(mI3,&c_Input3,NT);
     return ConvertVkFFTError(res);
 }
 
@@ -754,80 +720,38 @@ void DataType_VkFFT::Get_Output(RVector &I)
 {
     // This function converts the output array into an easily accesible format
     if (I.empty()) I.assign(NT,0);
+
+    RVector mI(NT);
     VkFFTResult res = VKFFT_SUCCESS;
-    if (r_out_1)    res = transferDataToCPU(vkGPU, r_Output1, &cl_r_Output1, bufferSizeNT);
-    // if (c_out_1)    res = ConvertArray_C2R(r_Output1,&c_Output1,NT);
+    if (r_out_1)    res = transferDataToCPU(vkGPU, mI.data(), &cl_r_Output1, bufferSizeNT);
+    if (c_out_1)    res = ConvertArray_C2R(mI,&c_Output1,NT);
 
-    if (NZ>0 && NY>0)   Get_Output_3D(I);
-    else if (NY>0)      Get_Output_2D(I);
-    else                Get_Output_1D(I);
-
-    SFStatus ressf = ConvertVkFFTError(res);
-}
-
-SFStatus DataType_VkFFT::Get_Output_1D(RVector &I)
-{
-    // Simply transfer data between arrays
-    if (r_in1)  memcpy(I.data(), r_Output1, NT*sizeof(Real));
-    // if (c_in1)  memcpy(I.data(), r_Output1, NT*sizeof(Real));
-    return NoError;
-}
-
-SFStatus DataType_VkFFT::Get_Output_2D(RVector &I)
-{
-    // Transfers input array to opencl r_Input1 buffer
-
-    // Fill nonzero elements of dummy arrays
-    OpenMPfor
-    for (int i=0; i<NX; i++){
-        for (int j=0; j<NY; j++){
-            if (r_in1) I[GID(i,j,NX,NY)] = r_Output1[GF_GID2(i,j,NX,NY)];
-            // if (c_in1) {}   // Not yet implemented!
-        }
+    switch (Dimension)
+    {
+        case 1: {Map_F2C_1D(mI,I);  break;}
+        case 2: {Map_F2C_2D(mI,I);  break;}
+        case 3: {Map_F2C_3D(mI,I);  break;}
+        default: {break;}
     }
-    return NoError;
-}
-
-SFStatus DataType_VkFFT::Get_Output_3D(RVector &I)
-{
-    // Transfers input array to opencl r_Input1 buffer
-
-    // Fill nonzero elements of dummy arrays
-    OpenMPfor
-    for (int i=0; i<NX; i++){
-        for (int j=0; j<NY; j++){
-            for (int k=0; k<NZ; k++){
-                if (r_in1) I[GID(i,j,k,NX,NY,NZ)] = r_Output1[GF_GID3(i,j,k,NX,NY,NZ)];
-                // if (c_in1) {}   // Not yet implemented!
-            }
-        }
-    }
-    return NoError;
 }
 
 void DataType_VkFFT::Get_Output(RVector &I1, RVector &I2, RVector &I3)
 {
     // Transfers input array to opencl buffer
+    VkFFTResult res = VKFFT_SUCCESS;
+    RVector mI1(NT), mI2(NT), mI3(NT);
+    if (r_out_1)    res = transferDataToCPU(vkGPU, mI1.data(), &cl_r_Output1, bufferSizeNT);
+    if (r_out_2)    res = transferDataToCPU(vkGPU, mI2.data(), &cl_r_Output2, bufferSizeNT);
+    if (r_out_3)    res = transferDataToCPU(vkGPU, mI3.data(), &cl_r_Output3, bufferSizeNT);
+    if (c_out_1)    res = ConvertArray_C2R(mI1,&c_Output1,NT);
+    if (c_out_2)    res = ConvertArray_C2R(mI2,&c_Output2,NT);
+    if (c_out_3)    res = ConvertArray_C2R(mI3,&c_Output3,NT);
+
+    // Map to C-style ordering
     if (I1.empty()) I1.assign(NT,0);
     if (I2.empty()) I2.assign(NT,0);
     if (I3.empty()) I3.assign(NT,0);
-    VkFFTResult res = VKFFT_SUCCESS;
-    if (r_out_1)    res = transferDataToCPU(vkGPU, r_Output1, &cl_r_Output1, bufferSizeNT);
-    if (r_out_2)    res = transferDataToCPU(vkGPU, r_Output2, &cl_r_Output2, bufferSizeNT);
-    if (r_out_3)    res = transferDataToCPU(vkGPU, r_Output3, &cl_r_Output3, bufferSizeNT);
-    // if (c_out_1)    res = ConvertArray_C2R(I,&c_Input1,NT);
-
-    OpenMPfor
-    for (int i=0; i<NX; i++){
-        for (int j=0; j<NY; j++){
-            for (int k=0; k<NZ; k++){
-                I1[GID(i,j,k,NX,NY,NZ)] = r_Output1[GF_GID3(i,j,k,NX,NY,NZ)];
-                I2[GID(i,j,k,NX,NY,NZ)] = r_Output2[GF_GID3(i,j,k,NX,NY,NZ)];
-                I3[GID(i,j,k,NX,NY,NZ)] = r_Output3[GF_GID3(i,j,k,NX,NY,NZ)];
-                // if (c_in1) {}   // Not yet implemented!
-            }
-        }
-    }
+    Map_F2C_3DV(mI1,mI2,mI3,I1,I2,I3);
 }
 
 void DataType_VkFFT::Get_Output_Unbounded_1D(RVector &I)
@@ -951,16 +875,6 @@ void DataType_VkFFT::Get_Output_Unbounded_3D(RVector &I1, RVector &I2, RVector &
 }
 
 //--- Greens functions prep
-
-// Notes:
-// With identity kernel, output is always scaled and returns the EXACT input... no additioanl scaling.
-// With Forward/Backward FFT + normalize,  output is always scaled and returns the EXACT input
-// No support for 1D R2C convolutions
-// 1D transforms kernel compilations fail (see the notebook below)
-// 3D transforms may be problematic
-// https://github.com/DTolm/VkFFT/issues/200
-// https://github.com/vincefn/pyvkfft/issues/33
-// initializeVkFFT can be carried out earlier than Prep_Greens_Function if we are not using a fused kernel..
 
 void DataType_VkFFT::Prepare_Fused_Kernel(FTType TF)
 {

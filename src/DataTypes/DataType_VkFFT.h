@@ -148,11 +148,8 @@ inline SFStatus ConvertVkFFTError(VkFFTResult res){
 #endif
 
 //--- Dimension & index structs & functions
-typedef unsigned uint;
 struct dim3  {uint x, y, z; dim3(int x_ = 1, int y_ = 1, int z_ = 1) : x(x_), y(y_), z(z_) {}}; // Equivalent def for cuda dim3
 struct dim3s {int x, y, z; dim3s(int x_ = 1, int y_ = 1, int z_ = 1) : x(x_), y(y_), z(z_) {}};
-inline uint GID(const uint &i, const uint &j, const uint &NX, const uint &NY)                                   {return i*NY + j;}
-inline uint GID(const uint &i, const uint &j, const uint &k, const uint &NX, const uint &NY, const uint &NZ)    {return i*NY*NZ + j*NZ + k;}
 
 // Grid ID for specifying Green's function (F-style ordering)
 inline uint GF_GID2(const uint &i, const uint &j, const uint &NX, const uint &NY) {return j*NX + i;}    // F-style ordering
@@ -311,13 +308,6 @@ public:
     SFStatus Set_Input_Unbounded_2D(RVector &I)                 override;
     SFStatus Set_Input_Unbounded_3D(RVector &I)                 override;
     SFStatus Set_Input_Unbounded_3D(RVector &I1, RVector &I2, RVector &I3)  override;
-    // virtual SFStatus Transfer_Data_Device()                                         override;
-
-    //--- F-style ordering require additional input/output routines for VkFFT
-    SFStatus Set_Input_1D(RVector &I);
-    SFStatus Set_Input_2D(RVector &I);
-    SFStatus Set_Input_3D(RVector &I);
-    SFStatus Set_Input_3DV(RVector &I1, RVector &I2, RVector &I3);
 
     //--- Retrieve output array
     void Get_Output(RVector &I)         override;
@@ -328,11 +318,6 @@ public:
     void Get_Output_Unbounded_3D(RVector &I)                override ;
     void Get_Output_Unbounded_3D(RVector &I1, RVector &I2, RVector &I3) override;
 
-    //--- F-style ordering require additional input/output routines for VkFFT
-    SFStatus Get_Output_1D(RVector &I);
-    SFStatus Get_Output_2D(RVector &I);
-    SFStatus Get_Output_3D(RVector &I);
-
     //--- Greens functions prep
     void Prepare_Fused_Kernel(FTType TF);
     void Compile_Convolution_Kernel(FTType TF);
@@ -340,9 +325,6 @@ public:
     void Prep_Greens_Function_R2R()     override    {Prep_Greens_Function(DFT_R2R);};
     void Prep_Greens_Function_C2C()     override    {Prep_Greens_Function(DFT_C2C);};
     void Prep_Greens_Function_R2C()     override    ;
-    // void Prepare_Dif_Operators_1D(Real Hx)                      {}
-    // void Prepare_Dif_Operators_2D(Real Hx, Real Hy)             {}
-    // void Prepare_Dif_Operators_3D(Real Hx, Real Hy, Real Hz)    {}
 
     //--- Fourier transforms (Note: Backward FFT/iFFT should not be called if Fused Kernel most employed!)
     VkFFTResult FFT_DFT(int FFTType);

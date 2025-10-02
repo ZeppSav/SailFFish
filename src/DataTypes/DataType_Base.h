@@ -112,8 +112,8 @@ protected:
     Real *r_FG;
 
     //--- Mapping functions
-    virtual void Map_C2F_1D(const RVector &Src, RVector &Dest)  {StdAppend(Dest,Src);}
-    virtual void Map_F2C_1D(const RVector &Src, RVector &Dest)  {StdAppend(Dest,Src);}
+    virtual void Map_C2F_1D(const RVector &Src, RVector &Dest)  {std::copy(Src.begin(), Src.end(), Dest.begin());}
+    virtual void Map_F2C_1D(const RVector &Src, RVector &Dest)  {std::copy(Src.begin(), Src.end(), Dest.begin());}
     virtual void Map_C2F_2D(const RVector &Src, RVector &Dest);
     virtual void Map_F2C_2D(const RVector &Src, RVector &Dest);
     virtual void Map_C2F_3D(const RVector &Src, RVector &Dest);

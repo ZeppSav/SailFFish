@@ -34,7 +34,7 @@ static int const vtkWidth = 11;        // Width for parsing low precision number
 void Solver_2D_Scalar::Create_vtk()
 {
     // When the solver has run, the grid values are stored as a vtk file.
-    // This allows the user to visualise the grid in LabVIEW.
+    // This allows the user to visualise the grid in Paraview.
 
     // Grid sizes
     int CX = gNX;
@@ -174,7 +174,7 @@ void Solver_2D_Scalar::Create_vtk()
 void Solver_3D_Scalar::Create_vtk()
 {
     // When the solver has run, the grid values are stored as a vtk file.
-    // This allows the user to visualise the grid in LabVIEW.
+    // This allows the user to visualise the grid in Paraview.
 
     // Grid sizes
     int CX = gNX;
@@ -263,7 +263,7 @@ void Solver_3D_Scalar::Create_vtk()
 void Solver_3D_Vector::Create_vtk()
 {
     // When the solver has run, the grid values are stored as a vtk file.
-    // This allows the user to visualise the grid in LabVIEW.
+    // This allows the user to visualise the grid in ParaVIEW.
 
     // Grid sizes
     int CX = gNX;
@@ -295,9 +295,8 @@ void Solver_3D_Vector::Create_vtk()
     for(int k=0; k<nz; k++){
         for(int j=0; j<ny; j++){
             for(int i=0; i<nx; i++){
-                int id = GID(i,j,k,NX,NY,NZ);       // Global id of unbounded box
-                // int id = GID(k,j,i,nz,ny,nx);      // Row-major ordering of paraview input
-                int idb = GID(k,j,i,nz,ny,nx);      // Row-major ordering of paraview input
+                int id = GF_GID3(i,j,k,NX,NY,NZ);       // F_Style Global id of unbounded box (VkFFT)
+                int idb = GID(k,j,i,nz,ny,nx);          // Row-major ordering of paraview input
                 binaryBuffer[idb * 3 + 0] = r_Input1[id]; // x-component
                 binaryBuffer[idb * 3 + 1] = r_Input2[id]; // y-component
                 binaryBuffer[idb * 3 + 2] = r_Input3[id]; // z-component

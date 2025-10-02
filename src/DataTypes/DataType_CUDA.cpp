@@ -895,16 +895,21 @@ SFStatus DataType_CUDA::Set_Input_Unbounded_3D(RVector &I1, RVector &I2, RVector
                 r_Input1[idg] = I1[idl];
                 r_Input2[idg] = I2[idl];
                 r_Input3[idg] = I3[idl];
-
-                // if (r_in1) r_Input1[idg] = I1[idl];
-                // if (r_in2) r_Input2[idg] = I2[idl];
-                // if (r_in3) r_Input3[idg] = I3[idl];
                 // if (c_in1) c_Input1[idg].real(I1[idl]);
                 // if (c_in2) c_Input2[idg].real(I2[idl]);
                 // if (c_in3) c_Input3[idg].real(I3[idl]);
             }
         }
     }
+
+    // Now transfer block arrays to cuda buffers
+    // if (r_in1) cudaMemcpy(cuda_r_Input1, R1.data(), NT*sizeof(CUDAReal), cudaMemcpyHostToDevice);
+    if (r_in1) cudaMemcpy(cuda_r_Input1, r_Input1, NT*sizeof(CUDAReal), cudaMemcpyHostToDevice);
+    if (r_in2) cudaMemcpy(cuda_r_Input2, r_Input2, NT*sizeof(CUDAReal), cudaMemcpyHostToDevice);
+    if (r_in3) cudaMemcpy(cuda_r_Input3, r_Input3, NT*sizeof(CUDAReal), cudaMemcpyHostToDevice);
+    if (c_in1) cudaMemcpy(c_Input1, C1.data(), NT*sizeof(CUDAComplex), cudaMemcpyHostToDevice);
+    if (c_in2) cudaMemcpy(c_Input2, C2.data(), NT*sizeof(CUDAComplex), cudaMemcpyHostToDevice);
+    if (c_in3) cudaMemcpy(c_Input3, C3.data(), NT*sizeof(CUDAComplex), cudaMemcpyHostToDevice);
     return NoError;
 }
 

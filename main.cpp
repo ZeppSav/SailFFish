@@ -9,26 +9,9 @@ static const bool Export_VTK = true;
 int main()
 {
 
-    int nx = 4*32;
-    int ny = 4*32;
-    int nz = 4*32;
-
-    // int nx = 64*4;
-    // int ny = 23*4;
-    // int nz = 8*8;
-
-    // int nx = 8*8;
-    // int ny = 64*8;
-    // int nz = 23*8;
-
-    // int nx = 23*8;
-    // int ny = 8*8;
-    // int nz = 64*8;
-
-    // int nx = pow(2,10)+3;        // VkFFT tests
-    // int nx = pow(2,10)*19;
-    // int nx = 8192;
-    // int nx = 16384*2;
+    int nx = 8*16;
+    int ny = 8*8;
+    int nz = 8*8;
 
     // --- 1D solver tests
     // Test_Dirichlet_1D(nx);
@@ -56,7 +39,7 @@ int main()
     //--- 3D vector solver tests
     // Test_Dirichlet_3DV(nx,ny,nz);
     // Test_Neumann_3DV(nx,ny,nz);
-    // Test_Periodic_3DV(nx,ny,nz);
+    // Test_Periodic_3DV(nx,ny,nz);        // Not working VKFFT-> Convolution?
     Test_Unbounded_3DV(nx,ny,nz);
     // Test_Unbounded_3DV_Curl(nx,ny,nz);
 

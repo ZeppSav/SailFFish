@@ -41,6 +41,7 @@ void Test_Dirichlet_3D(int NX, int NY, int NZ, bool ExportVTK = false)
 
     // Define solver
     SailFFish::Poisson_Dirichlet_3D *Solver = new SailFFish::Poisson_Dirichlet_3D(SailFFish::STAGGERED, SailFFish::PS);
+    // SailFFish::Poisson_Dirichlet_3D *Solver = new SailFFish::Poisson_Dirichlet_3D(SailFFish::REGULAR, SailFFish::PS);
     Status = Solver->Setup(UnitX,UnitY,UnitZ,NX,NY,NZ);
     if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
     unsigned int t2 = stopwatch();  // Timer
@@ -200,7 +201,8 @@ void Test_Neumann_3D(int NX, int NY, int NZ, bool ExportVTK = false)
     stopwatch();                                        // Begin timer for profiling
 
     // Define solver
-    SailFFish::Poisson_Neumann_3D *Solver = new SailFFish::Poisson_Neumann_3D();
+    SailFFish::Poisson_Neumann_3D *Solver = new SailFFish::Poisson_Neumann_3D(SailFFish::STAGGERED, SailFFish::PS);
+    // SailFFish::Poisson_Neumann_3D *Solver = new SailFFish::Poisson_Neumann_3D(SailFFish::REGULAR, SailFFish::PS);
     Status = Solver->Setup(UnitX,UnitY,UnitZ,NX,NY,NZ);
     if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
     unsigned int t2 = stopwatch();  // Timer

@@ -191,9 +191,20 @@ SFStatus DataType_VkFFT::Allocate_Arrays()
     if (r_fg)       r_FG = (Real*)malloc(NT*sizeof(Real));                      // Allocate memory for real data on CPU
 
     // Complex-valued arrays
-    if (c_in1)      Allocate_Buffer(c_Input1, c_bufferSizeNTM);
-    if (c_in2)      Allocate_Buffer(c_Input2, c_bufferSizeNTM);
-    if (c_in3)      Allocate_Buffer(c_Input3, c_bufferSizeNTM);
+    if (c_in1)      Allocate_Buffer(c_Input1, c_bufferSizeNT);
+    if (c_in2)      Allocate_Buffer(c_Input2, c_bufferSizeNT);
+    if (c_in3)      Allocate_Buffer(c_Input3, c_bufferSizeNT);
+
+    if (InPlace){
+        if (c_out_1)    c_Output1 = c_Input1;
+        if (c_out_2)    c_Output2 = c_Input2;
+        if (c_out_3)    c_Output3 = c_Input3;
+    }
+    else{
+        if (c_out_1)    Allocate_Buffer(c_Output1, c_bufferSizeNT);
+        if (c_out_2)    Allocate_Buffer(c_Output2, c_bufferSizeNT);
+        if (c_out_3)    Allocate_Buffer(c_Output3, c_bufferSizeNT);
+    }
 
     // These are allocated to simplify data transfer in the case of a periodic (complex) solve
     if (c_in1)      r_Input1 = (Real*)malloc(NT*sizeof(Real));
@@ -503,15 +514,6 @@ VkFFTResult DataType_VkFFT::ConvertArray_R2C(RVector &I, void* input_buffer, siz
     return transferDataFromCPU(vkGPU, IC.data(), input_buffer, sizeof(cl_complex)*N);
 }
 
-VkFFTResult DataType_VkFFT::ConvertArray_R2C(Real* IR, void* input_buffer, size_t N)
-{
-    // Helper function for complex array inputs
-    std::vector<Real> I(IR, IR+N);
-    std::vector<cl_complex> IC(N);
-    std::transform(I.begin(), I.end(), IC.begin(), [](Real val) {return cl_complex{{val, 0.}};});
-    return transferDataFromCPU(vkGPU, IC.data(), input_buffer, sizeof(cl_complex)*N);
-}
-
 SFStatus DataType_VkFFT::Set_Input(RVector &I)
 {
     // Transfers input array to opencl buffer
@@ -571,19 +573,9 @@ SFStatus DataType_VkFFT::Set_Input_Unbounded_1D(RVector &I)
     if (r_in1) memcpy(R1.data(), I.data(), NXH*sizeof(Real));
     if (c_in1)  {}// Not yet implemented!
 
-    // std::cout << "Outputting real inputs arrays" << std::endl;
-    // for (auto i : R1) std::cout << i << std::endl;
-
     VkFFTResult res = VKFFT_SUCCESS;
     if (r_in1)  res = transferDataFromCPU(vkGPU, R1.data(), &cl_r_Input1, bufferSizeNT);
     if (c_in1)  {}  // Not yet implemented!
-
-    // Data is being transferred to cl_r_Input1 array!
-    // std::cout << "Outputting real input arrays" << std::endl;
-    // RVector R1out(NT,0);
-    // VkFFTResult resout = transferDataToCPU(vkGPU, R1out.data(), &cl_r_Input1, bufferSizeNT);
-    // for (auto i : R1out) std::cout << i << std::endl;
-
     return ConvertVkFFTError(res);
 }
 
@@ -605,8 +597,7 @@ SFStatus DataType_VkFFT::Set_Input_Unbounded_2D(RVector &I)
     OpenMPfor
     for (int i=0; i<NXH; i++){
         for (int j=0; j<NYH; j++){
-            // int idg = i*NY + j;
-            int idg = j*NX + i;         // HERE JOE
+            int idg = j*NX + i;
             int idl = i*NYH + j;
             if (r_in1) r_Input1[idg] = I[idl];
             if (c_in1) {}   // Not yet implemented!
@@ -680,8 +671,7 @@ SFStatus DataType_VkFFT::Set_Input_Unbounded_3D(RVector &I1, RVector &I2, RVecto
     for (int i=0; i<NXH; i++){
         for (int j=0; j<NYH; j++){
             for (int k=0; k<NZH; k++){
-                // int idg = i*NY*NZ + j*NZ + k;
-                int idg = k*NX*NY + j*NX + i;         // HERE JOE
+                int idg = k*NX*NY + j*NX + i;
                 int idl = i*NYH*NZH + j*NZH + k;
                 r_Input1[idg] = I1[idl];
                 r_Input2[idg] = I2[idl];
@@ -958,40 +948,14 @@ void DataType_VkFFT::Prep_Greens_Function(FTType TF)
     // This process is substantially the same between Real or Complex inputs, so we shall bring them together into a single function.
     VkFFTResult resFFT = VKFFT_SUCCESS;
 
-    int Dim;
-    if (NX>0)                   Dim = 1;
-    if (NX>0 && NY>0)           Dim = 2;
-    if (NX>0 && NY>0 && NZ>0)   Dim = 3;
-
-    std::cout << "Dim = " << Dim << std::endl;
-
     // Step 1: Pass Greens function to cl buffer
     if (TF==DFT_R2R){       // Real Green's kernel
-
-        if (Dim==1)  {}       // Do not change anything
-        if (Dim==2 && Transform==DST1)  {for (int i=0; i<NT; i++) r_FG[i] = -BFac/M_PI/M_PI/2.0;    }    // 2D- Dirichlet REGULAR
-        // if (Dim==2 && Transform==DST2)  {for (int i=0; i<NT; i++) r_FG[i] = -BFac/M_PI/M_PI/2.0;    }    // 2D- Dirichlet STAGGERED
-        // if (Dim==2 && Transform==DST2)  {for (int i=0; i<NT; i++) r_FG[i] = r_FG[i]/M_PI/M_PI/2.0;  }    // This ONLY works for my particular test cases :(
-        if (Dim==2 && Transform==DCT1)  {for (int i=0; i<NT; i++) r_FG[i] = -BFac/M_PI/M_PI/8.0;    }    // 2D- Neumann REGULAR
-        if (Dim==2 && Transform==DCT2)  {for (int i=0; i<NT; i++) r_FG[i] = -BFac/M_PI/M_PI/8.0;    }    // 2D- Neumann STAGGERED
-        if (Dim==3 && Transform==DST1)  {for (int i=0; i<NT; i++) r_FG[i] = -BFac/M_PI/M_PI/12.0;   }    // 3D- Dirichlet REGULAR
-        if (Dim==3 && Transform==DST2)  {for (int i=0; i<NT; i++) r_FG[i] = -BFac/M_PI/M_PI/12.0;   }    // 3D- Dirichlet STAGGERED
-        if (Dim==3 && Transform==DCT1)  {for (int i=0; i<NT; i++) r_FG[i] = -BFac/M_PI/M_PI/12.0;   }    // 3D- Dirichlet REGULAR
-        if (Dim==3 && Transform==DCT2)  {for (int i=0; i<NT; i++) r_FG[i] = -BFac/M_PI/M_PI/12.0;   }    // 3D- Dirichlet STAGGERED
-
         resFFT = transferDataFromCPU(vkGPU, r_FG, &cl_r_FG, InputbufferSize);     // Transfer cpu data from r_FG to GPU buffer
         if (FusedKernel) kernel_configuration.buffer = &cl_r_FG;
     }
     if (TF==DFT_C2C){       // Complex Green's kernel
-
-        // 1D- Periodic- do not change rFG
-
-        std::vector<cl_complex> rFG2(NTM,CLC0);
-        if (Dim==1) {for (int i=0; i<NT; i++) rFG2[i].x = r_FG[i];              }   // Do not change anything
-        if (Dim==2) {for (int i=0; i<NT; i++) rFG2[i].x = -BFac/M_PI/M_PI/8.0;  }   // 2D- Periodic STAGGERED or REGULAR
-        if (Dim==3) {for (int i=0; i<NT; i++) rFG2[i].x = -BFac/M_PI/M_PI/12.0; }   // 3D- Periodic STAGGERED or REGULAR
-
-        resFFT = transferDataFromCPU(vkGPU, rFG2.data(), &c_FG, InputbufferSize);     // Transfer cpu data from r_FG to GPU buffer
+        RVector crFG(r_FG, r_FG+NT);
+        resFFT = ConvertArray_R2C(crFG, &c_FG, NT);
         if (FusedKernel) kernel_configuration.buffer = &c_FG;
     }
     if (TF==DFT_R2C){       // Real Green's kernel
@@ -1018,31 +982,6 @@ void DataType_VkFFT::Prep_Greens_Function(FTType TF)
     size_t preferredWorkGroupSizeMultiple;
     clGetKernelWorkGroupInfo(conv_kernel, vkGPU->device, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, sizeof(size_t), &preferredWorkGroupSizeMultiple, NULL);
     std::cout << "Convolution kernel: Preferred work-group size multiple: " << preferredWorkGroupSizeMultiple << std::endl;
-    // std::cout << "VkFFT Plan: Axis split 1: " << app.localFFTPlan->axisSplit[0][0] csp app.localFFTPlan->axisSplit[0][1] csp app.localFFTPlan->axisSplit[0][2] << std::endl;
-    // std::cout << "VkFFT Plan: Axis split 2: " << app.localFFTPlan->axisSplit[1][0] csp app.localFFTPlan->axisSplit[1][1] csp app.localFFTPlan->axisSplit[0][2] << std::endl;
-    // std::cout << "VkFFT Plan: actualFFTSizePerAxis: " << app.localFFTPlan->actualFFTSizePerAxis[0][0] csp app.localFFTPlan->actualFFTSizePerAxis[0][1] << std::endl;
-    // std::cout << "VkFFT Plan: actualFFTSizePerAxis: " << app.localFFTPlan->actualFFTSizePerAxis[1][0] csp app.localFFTPlan->actualFFTSizePerAxis[1][1] << std::endl;
-    // std::cout << "VkFFT Plan: numAxisUploads: " << app.localFFTPlan->numAxisUploads[0] csp app.localFFTPlan->numAxisUploads[1] << std::endl;
-
-    // if (TF==DFT_R2R){
-    //     // Try reordering the data...
-    //     int as0 = app.localFFTPlan->axisSplit[0][0];
-    //     int as1 = app.localFFTPlan->axisSplit[0][1];
-    //     std::cout << "HEre " csp as0 csp as1 << std::endl;
-    //     Real r_FG2[NT];
-    //     OpenMPfor
-    //     for (int i=0; i<NX; i++){
-    //         for (int j=0; j<NY; j++) {
-    //             // int i1 = i*NY+j;
-    //             int i1 = i+j*NX;
-    //             int i2 = (i1%as1)*as0+i1/as1;
-    //             // i->(i%axisSplit[1])*axisSplit[0]+i/axisSplit[1])
-    //             r_FG2[i2] = r_FG[i1];
-    //             // for (int j=0; j<NY; j++) r_FG[i+j*NX] = BFac/(fx[i]+fy[j]);
-    //         }
-    //     }
-    //     resFFT = transferDataFromCPU(vkGPU, r_FG2, &cl_r_FG, InputbufferSize);     // Transfer cpu data from r_FG to GPU buffer
-    // }
 }
 
 void DataType_VkFFT::Prep_Greens_Function_R2C()
@@ -1124,9 +1063,9 @@ void DataType_VkFFT::Backward_FFT_DFT()
 {
     if (FusedKernel) return;
     VkFFTResult resFFT = VKFFT_SUCCESS;
-    if (c_in1 && (resFFT==VKFFT_SUCCESS))  {launchParams.buffer = &c_Input1;   resFFT = FFT_DFT(BackwardFFT); }
-    if (c_in2 && (resFFT==VKFFT_SUCCESS))  {launchParams.buffer = &c_Input2;   resFFT = FFT_DFT(BackwardFFT); }
-    if (c_in3 && (resFFT==VKFFT_SUCCESS))  {launchParams.buffer = &c_Input3;   resFFT = FFT_DFT(BackwardFFT); }
+    if (c_in1 && (resFFT==VKFFT_SUCCESS))  {launchParams.buffer = &c_Output1;   resFFT = FFT_DFT(BackwardFFT); }
+    if (c_in2 && (resFFT==VKFFT_SUCCESS))  {launchParams.buffer = &c_Output2;   resFFT = FFT_DFT(BackwardFFT); }
+    if (c_in3 && (resFFT==VKFFT_SUCCESS))  {launchParams.buffer = &c_Output3;   resFFT = FFT_DFT(BackwardFFT); }
     ConvertVkFFTError(resFFT);
 }
 
@@ -1208,175 +1147,6 @@ void DataType_VkFFT::Convolution_Complex3()
     if (r_in3 && res==CL_SUCCESS) {clSetKernelArg(conv_kernel, 0, sizeof(cl_mem), &c_FTInput3);  res = Convolution();}
     res = clFinish(vkGPU->commandQueue);
     ConvertClError(res);
-}
-
-//--- Test case
-
-VkFFTResult DataType_VkFFT::Test_Case()
-{
-    // This is a verbatim paste of the test from VkFFT
-
-    uint64_t file_output = false;
-    FILE* output = nullptr;
-    // uint64_t isCompilerInitialized = false;
-
-    VkFFTResult resFFT = VKFFT_SUCCESS;
-    cl_int res = CL_SUCCESS;
-    if (file_output)
-        fprintf(output, "50 - VkFFT convolution example with identitiy kernel\n");
-    printf("50 - VkFFT convolution example with identitiy kernel\n");
-    //7 - convolution
-    //Configuration + FFT application.
-    VkFFTConfiguration configuration = {};
-    VkFFTConfiguration convolution_configuration = {};
-    VkFFTApplication app_convolution = {};
-    VkFFTApplication app_kernel = {};
-    //Convolution sample code
-    //Setting up FFT configuration. FFT is performed in-place with no performance loss.
-
-    configuration.FFTdim = 1; //FFT dimension, 1D, 2D or 3D (default 1).
-    // configuration.size[0] = 1024 * 1024 * 8; //Multidimensional FFT dimensions sizes (default 1). For best performance (and stability), order dimensions in descendant size order as: x>y>z.
-    configuration.size[0] = 1024*8; //Multidimensional FFT dimensions sizes (default 1). For best performance (and stability), order dimensions in descendant size order as: x>y>z.
-    configuration.size[1] = 1;
-    configuration.size[2] = 1;
-
-    configuration.kernelConvolution = true; //specify if this plan is used to create kernel for convolution
-    // configuration.coordinateFeatures = 9; //Specify dimensionality of the input feature vector (default 1). Each component is stored not as a vector, but as a separate system and padded on it's own according to other options (i.e. for x*y system of 3-vector, first x*y elements correspond to the first dimension, then goes x*y for the second, etc).
-    configuration.coordinateFeatures = 1; //Specify dimensionality of the input feature vector (default 1). Each component is stored not as a vector, but as a separate system and padded on it's own according to other options (i.e. for x*y system of 3-vector, first x*y elements correspond to the first dimension, then goes x*y for the second, etc).
-    //coordinateFeatures number is an important constant for convolution. If we perform 1x1 convolution, it is equal to number of features, but matrixConvolution should be equal to 1. For matrix convolution, it must be equal to matrixConvolution parameter. If we perform 2x2 convolution, it is equal to 3 for symmetric kernel (stored as xx, xy, yy) and 4 for nonsymmetric (stored as xx, xy, yx, yy). Similarly, 6 (stored as xx, xy, xz, yy, yz, zz) and 9 (stored as xx, xy, xz, yx, yy, yz, zx, zy, zz) for 3x3 convolutions.
-    // configuration.normalize = 1;//normalize iFFT
-
-    //After this, configuration file contains pointers to Vulkan objects needed to work with the GPU: VkDevice* device - created device, [uint64_t *bufferSize, VkBuffer *buffer, VkDeviceMemory* bufferDeviceMemory] - allocated GPU memory FFT is performed on. [uint64_t *kernelSize, VkBuffer *kernel, VkDeviceMemory* kernelDeviceMemory] - allocated GPU memory, where kernel for convolution is stored.
-    configuration.device = &vkGPU->device;
-    configuration.context = &vkGPU->context;
-
-    //In this example, we perform a convolution for a real vectorfield (3vector) with a symmetric kernel (6 values). We use configuration to initialize convolution kernel first from real data, then we create convolution_configuration for convolution. The buffer object from configuration is passed to convolution_configuration as kernel object.
-    //1. Kernel forward FFT.
-    uint64_t kernelSize = ((uint64_t)configuration.coordinateFeatures) * sizeof(float) * 2 * (configuration.size[0]) * configuration.size[1] * configuration.size[2];;
-
-    cl_mem kernel = 0;
-    kernel = clCreateBuffer(vkGPU->context, CL_MEM_READ_WRITE, kernelSize, 0, &res);
-    if (res != CL_SUCCESS) return VKFFT_ERROR_FAILED_TO_ALLOCATE;
-    configuration.buffer = &kernel;
-    configuration.bufferSize = &kernelSize;
-
-    // std::cout << "HERE T1" << std::endl;
-
-    if (file_output)
-        fprintf(output, "Total memory needed for kernel: %" PRIu64 " MB\n", kernelSize / 1024 / 1024);
-    printf("Total memory needed for kernel: %" PRIu64 " MB\n", kernelSize / 1024 / 1024);
-    //Fill kernel on CPU.
-    float* kernel_input = (float*)malloc(kernelSize);
-    if (!kernel_input) return VKFFT_ERROR_MALLOC_FAILED;
-    for (uint64_t v = 0; v < configuration.coordinateFeatures; v++) {
-        for (uint64_t k = 0; k < configuration.size[2]; k++) {
-            for (uint64_t j = 0; j < configuration.size[1]; j++) {
-
-                //for (uint64_t i = 0; i < configuration.size[0]; i++) {
-                //	kernel_input[i + j * configuration.size[0] + k * (configuration.size[0] + 2) * configuration.size[1] + v * (configuration.size[0] + 2) * configuration.size[1] * configuration.size[2]] = 1;
-
-                //Below is the test identity kernel for 3x3 nonsymmetric FFT
-                for (uint64_t i = 0; i < configuration.size[0]; i++) {
-                    if ((v == 0) || (v == 4) || (v == 8))
-
-                    kernel_input[2 * (i + j * (configuration.size[0]) + k * (configuration.size[0]) * configuration.size[1] + v * (configuration.size[0]) * configuration.size[1] * configuration.size[2])] = 1;
-
-                    else
-                        kernel_input[2 * (i + j * (configuration.size[0]) + k * (configuration.size[0]) * configuration.size[1] + v * (configuration.size[0]) * configuration.size[1] * configuration.size[2])] = 0;
-                    kernel_input[2 * (i + j * (configuration.size[0]) + k * (configuration.size[0]) * configuration.size[1] + v * (configuration.size[0]) * configuration.size[1] * configuration.size[2]) + 1] = 0;
-
-                }
-            }
-        }
-    }
-    //Sample buffer transfer tool. Uses staging buffer (if needed) of the same size as destination buffer, which can be reduced if transfer is done sequentially in small buffers.
-    resFFT = transferDataFromCPU(vkGPU, kernel_input, &kernel, kernelSize);
-    if (resFFT != VKFFT_SUCCESS) return resFFT;
-    //Initialize application responsible for the kernel. This function loads shaders, creates pipeline and configures FFT based on configuration file. No buffer allocations inside VkFFT library.
-    resFFT = initializeVkFFT(&app_kernel, configuration);
-    if (resFFT != VKFFT_SUCCESS) return resFFT;
-    //Sample forward FFT command buffer allocation + execution performed on kernel. Second number determines how many times perform application in one submit. FFT can also be appended to user defined command buffers.
-
-    // std::cout << "HERE T2" << std::endl;
-
-    //Uncomment the line below if you want to perform kernel FFT. In this sample we use predefined identitiy kernel.
-    //performVulkanFFT(vkGPU, &app_kernel, -1);
-
-    //The kernel has been trasnformed.
-
-
-    //2. Buffer convolution with transformed kernel.
-    //Copy configuration, as it mostly remains unchanged. Change specific parts.
-    convolution_configuration = configuration;
-    configuration.kernelConvolution = false;
-    convolution_configuration.performConvolution = true;
-    // convolution_configuration.symmetricKernel = false;//Specify if convolution kernel is symmetric. In this case we only pass upper triangle part of it in the form of: (xx, xy, yy) for 2d and (xx, xy, xz, yy, yz, zz) for 3d.
-    // convolution_configuration.matrixConvolution = 3;//we do matrix convolution, so kernel is 9 numbers (3x3), but vector dimension is 3
-    // convolution_configuration.coordinateFeatures = 3;//equal to matrixConvolution size
-    convolution_configuration.symmetricKernel = true;//Specify if convolution kernel is symmetric. In this case we only pass upper triangle part of it in the form of: (xx, xy, yy) for 2d and (xx, xy, xz, yy, yz, zz) for 3d.
-    convolution_configuration.matrixConvolution = 1;//we do matrix convolution, so kernel is 9 numbers (3x3), but vector dimension is 3
-    convolution_configuration.coordinateFeatures = 1;//equal to matrixConvolution size
-
-    convolution_configuration.kernel = &kernel;
-
-    //Allocate separate buffer for the input data.
-    uint64_t bufferSize = ((uint64_t)convolution_configuration.coordinateFeatures) * sizeof(float) * 2 * (convolution_configuration.size[0]) * convolution_configuration.size[1] * convolution_configuration.size[2];;
-    cl_mem buffer = 0;
-    buffer = clCreateBuffer(vkGPU->context, CL_MEM_READ_WRITE, bufferSize, 0, &res);
-    if (res != CL_SUCCESS) return VKFFT_ERROR_FAILED_TO_ALLOCATE;
-    configuration.buffer = &buffer;
-    convolution_configuration.bufferSize = &bufferSize;
-    convolution_configuration.kernelSize = &kernelSize;
-
-    // std::cout << "HERE T3" << std::endl;
-
-    if (file_output)
-        fprintf(output, "Total memory needed for buffer: %" PRIu64 " MB\n", bufferSize / 1024 / 1024);
-    printf("Total memory needed for buffer: %" PRIu64 " MB\n", bufferSize / 1024 / 1024);
-    //Fill data on CPU. It is best to perform all operations on GPU after initial upload.
-    float* buffer_input = (float*)malloc(bufferSize);
-    if (!buffer_input) return VKFFT_ERROR_MALLOC_FAILED;
-    for (uint64_t v = 0; v < convolution_configuration.coordinateFeatures; v++) {
-        for (uint64_t k = 0; k < convolution_configuration.size[2]; k++) {
-            for (uint64_t j = 0; j < convolution_configuration.size[1]; j++) {
-                for (uint64_t i = 0; i < convolution_configuration.size[0]; i++) {
-                    buffer_input[2 * (i + j * convolution_configuration.size[0] + k * (convolution_configuration.size[0]) * convolution_configuration.size[1] + v * (convolution_configuration.size[0]) * convolution_configuration.size[1] * convolution_configuration.size[2])] = (float)(i % 8 - 3.5);
-                    buffer_input[2 * (i + j * convolution_configuration.size[0] + k * (convolution_configuration.size[0]) * convolution_configuration.size[1] + v * (convolution_configuration.size[0]) * convolution_configuration.size[1] * convolution_configuration.size[2]) + 1] = (float)(i % 4 - 1.5);
-                }
-            }
-        }
-    }
-    //Transfer data to GPU using staging buffer.
-    resFFT = transferDataFromCPU(vkGPU, buffer_input, &buffer, bufferSize);
-    if (resFFT != VKFFT_SUCCESS) return resFFT;
-
-    // std::cout << "HERE T4" << std::endl;
-
-    //Initialize application responsible for the convolution.
-    resFFT = initializeVkFFT(&app_convolution, convolution_configuration);
-    if (resFFT != VKFFT_SUCCESS) return resFFT;
-    //Sample forward FFT command buffer allocation + execution performed on kernel. FFT can also be appended to user defined command buffers.
-
-    // std::cout << "HERE T5" << std::endl;
-
-    VkFFTLaunchParams launchParams = {};
-    resFFT = performVulkanFFT(vkGPU, &app_convolution, &launchParams, -1);
-    if (resFFT != VKFFT_SUCCESS) return resFFT;
-
-    // std::cout << "HERE T6" << std::endl;
-    //The kernel has been transformed.
-    free(kernel_input);
-    free(buffer_input);
-    // free(buffer_output);
-
-    clReleaseMemObject(buffer);
-    clReleaseMemObject(kernel);
-    deleteVkFFT(&app_kernel);
-    deleteVkFFT(&app_convolution);
-
-    std::cout << "Test case complete! " << std::endl;
-
-    return VKFFT_SUCCESS;
 }
 
 }

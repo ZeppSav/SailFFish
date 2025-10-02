@@ -80,8 +80,6 @@ void Test_Dirichlet_1D(int NX)
     unsigned int t5 = stopwatch();
     Real tTot = Real(t2+t3+t4+t5);
 
-    // for (int i=0; i<NX; i++) std::cout << XGrid[i] csp Input[i] csp Output[i] csp Solution[i] csp Output[i]/Solution[i] << std::endl;  // Output do we return the correct result FFt+iFFT
-
     std::cout << "Trial Calculation: Solution of the 1D Poisson equation with Dirichlet boundary conditions." << std::endl;
     std::cout << std::scientific;
     std::cout << "The grid was resolved with [" << NX <<" , "<< 1 <<" , "<< 1 <<"] cells. " << std::endl;

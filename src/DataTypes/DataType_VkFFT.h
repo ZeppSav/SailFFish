@@ -272,13 +272,6 @@ protected:
     //--- Memory management
     SFStatus Allocate_Buffer(cl_mem &buffer, uint64_t bufsize);
 
-    //--- Debugging
-    VkFFTResult Test_Case();
-
-
-    //--- OpenCL objects
-    // cl_device device;
-
 public:
 
     //--- Constructor
@@ -300,7 +293,6 @@ public:
 
     //--- Specify Input
     VkFFTResult ConvertArray_R2C(RVector &I, void* input_buffer, size_t N);
-    VkFFTResult ConvertArray_R2C(Real* IR, void* input_buffer, size_t N);
     VkFFTResult ConvertArray_C2R(RVector &I, void* input_buffer, size_t N);
     SFStatus Set_Input(RVector &I) override;
     SFStatus Set_Input(RVector &I1, RVector &I2, RVector &I3)   override;

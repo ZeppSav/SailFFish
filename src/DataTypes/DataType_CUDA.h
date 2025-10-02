@@ -74,7 +74,7 @@ struct dim3s {int x, y, z; dim3s(int x_ = 1, int y_ = 1, int z_ = 1) : x(x_), y(
 
 // Grid ID for specifying Green's function
 inline uint GF_GID2(const uint &i, const uint &j, const uint &NX, const uint &NY) {return i*NY + j;}    // C-style ordering
-inline uint GF_GID3(const uint &i, const uint &j, const uint &k, const uint &NX, const uint &NY, const uint &NZ) {return i*NY*NZ + j*NZ + k;}                 // F-style ordering
+inline uint GF_GID3(const uint &i, const uint &j, const uint &k, const uint &NX, const uint &NY, const uint &NZ) {return i*NY*NZ + j*NZ + k;}   // C-style ordering
 inline uint GF_GID3(const dim3 &P, const dim3 &D) {return P.x*D.y*D.z + P.y*D.z + P.z;}                 // C-style ordering
 
 class DataType_CUDA : public DataType

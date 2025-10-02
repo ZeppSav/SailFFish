@@ -40,7 +40,8 @@ void Test_Dirichlet_3DV(int NX, int NY, int NZ, bool ExportVTK = false)
     stopwatch();                                        // Begin timer for profiling
 
     // Define solver
-    SailFFish::Poisson_Dirichlet_3DV *Solver = new SailFFish::Poisson_Dirichlet_3DV();
+    SailFFish::Poisson_Dirichlet_3DV *Solver = new SailFFish::Poisson_Dirichlet_3DV(SailFFish::STAGGERED, SailFFish::PS);
+    // SailFFish::Poisson_Dirichlet_3DV *Solver = new SailFFish::Poisson_Dirichlet_3DV(SailFFish::REGULAR, SailFFish::PS);
     Status = Solver->Setup(UnitX,UnitY,UnitZ,NX,NY,NZ);
     if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
     unsigned int t2 = stopwatch();  // Timer
@@ -134,7 +135,8 @@ void Test_Neumann_3DV(int NX, int NY, int NZ, bool ExportVTK = false)
     stopwatch();                                        // Begin timer for profiling
 
     // Define solver
-    SailFFish::Poisson_Neumann_3DV *Solver = new SailFFish::Poisson_Neumann_3DV(SailFFish::REGULAR);
+    SailFFish::Poisson_Neumann_3DV *Solver = new SailFFish::Poisson_Neumann_3DV(SailFFish::STAGGERED, SailFFish::PS);
+    // SailFFish::Poisson_Neumann_3DV *Solver = new SailFFish::Poisson_Neumann_3DV(SailFFish::REGULAR, SailFFish::PS);
     Status = Solver->Setup(UnitX,UnitY,UnitZ,NX,NY,NZ);
     if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
     unsigned int t2 = stopwatch();  // Timer
@@ -218,7 +220,8 @@ void Test_Periodic_3DV(int NX, int NY, int NZ, bool ExportVTK = false)
     stopwatch();                                        // Begin timer for profiling
 
     // Define solver
-    SailFFish::Poisson_Periodic_3DV *Solver = new SailFFish::Poisson_Periodic_3DV();
+    SailFFish::Poisson_Periodic_3DV *Solver = new SailFFish::Poisson_Periodic_3DV(SailFFish::STAGGERED, SailFFish::PS);
+    // SailFFish::Poisson_Periodic_3DV *Solver = new SailFFish::Poisson_Periodic_3DV(SailFFish::REGULAR, SailFFish::PS);
     Status = Solver->Setup(UnitX,UnitY,UnitZ,NX,NY,NZ);
     if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
     unsigned int t2 = stopwatch();  // Timer
@@ -301,7 +304,8 @@ void Test_Unbounded_3DV(int NX, int NY, int NZ, bool ExportVTI = false)
     // Define solver
     SailFFish::Unbounded_Solver_3DV *Solver = new SailFFish::Unbounded_Solver_3DV();
     // Solver->Specify_Operator(SailFFish::CURL);
-    Status = Solver->Setup(UnitX,UnitY,UnitZ,NX,NY,NZ);
+    Real UnitX2[2] = {-1.0, 4.0};
+    Status = Solver->Setup(UnitX2,UnitY,UnitZ,NX,NY,NZ);
     if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
     unsigned int t2 = stopwatch();  // Timer
 
@@ -352,7 +356,6 @@ void Test_Unbounded_3DV(int NX, int NY, int NZ, bool ExportVTI = false)
     for (auto& i : Solution3) i *= EFac;
 
     Status = Solver->Set_Input_Unbounded_3D(Input1,Input2,Input3);
-    Status = Solver->Transfer_Data_Device();
     if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
     unsigned int t3 = stopwatch();  // Timer
 

@@ -342,6 +342,8 @@ public:
     void Spectral_Gradients_3DV_Nabla()     {}
     void Transfer_FTInOut_Comp()            {}
 
+    //--- Destructor
+    ~DataType_VkFFT();
 };
 
 }

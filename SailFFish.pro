@@ -122,16 +122,11 @@ CONFIG(VKFFTBackend) {
     INCLUDEPATH += $$PWD/../VkFFT           # Add path for vkFFT library
     INCLUDEPATH += $$PWD/../VkFFT/VkFFT     # Add path for vkFFT library
     # INCLUDEPATH += $$PWD/../VkFFT/half_lib  # Add path for half precision library
-    # INCLUDEPATH += $$PWD/../VkFFT/benchmark_scripts/
-    # INCLUDEPATH += $$PWD/../VkFFT/benchmark_scripts/vkFFT_scripts
-    # INCLUDEPATH += $$PWD/../VkFFT/benchmark_scripts/vkFFT_scripts/include  # Add path for tests and utilities
     # INCLUDEPATH += $$PWD/../VkFFT/benchmark_scripts/vkFFT_scripts/src      # Add path for tests and utilities sources
 
     #--- Include OpenCL lib
     win32: LIBS += -L$$PWD/libswin64 -lOpenCL
     DEFINES += VKFFT_BACKEND=3
-
-    # SOURCES += $$PWD/../VkFFT/benchmark_scripts/vkFFT_scripts/src/utils_VkFFT.cpp
 }
 
 CONFIG(VPMSolver) {

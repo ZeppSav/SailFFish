@@ -9,30 +9,30 @@ static const bool Export_VTK = true;
 int main()
 {
 
-    int nx = 8*16;
-    int ny = 8*8;
-    int nz = 8*8;
+    int nx = 8*100;
+    int ny = 8*16;
+    int nz = 8*16;
 
     // --- 1D solver tests
     // Test_Dirichlet_1D(nx);
-    // Test_Dirichlet_1D_IHBC(nx);
+    // Test_Dirichlet_1D_IHBC(nx);          // Not working VKFFT->
     // Test_Neumann_1D(nx);
     // Test_Periodic_1D(nx);
     // Test_Unbounded_1D(nx);
 
     //--- 2D scalar solver tests
     // Test_Dirichlet_2D(nx,ny);
-    // Test_Dirichlet_2D_IHBC(nx,ny);
+    // Test_Dirichlet_2D_IHBC(nx,ny);       // Not working VKFFT->
     // Test_Neumann_2D(nx,ny);
-    // Test_Neumann_2D_IHBC(nx,ny);
+    // Test_Neumann_2D_IHBC(nx,ny);         // Not working VKFFT->
     // Test_Periodic_2D(nx,ny);
     // Test_Unbounded_2D(nx,ny);
 
     //--- 3D scalar solver tests
     // Test_Dirichlet_3D(nx,ny,nz);
-    // Test_Dirichlet_3D_IHBC(nx,ny,nz);
+    // Test_Dirichlet_3D_IHBC(nx,ny,nz);    // Not working VKFFT->
     // Test_Neumann_3D(nx,ny,nz);
-    // Test_Neumann_3D_IHBC(nx,ny,nz);
+    // Test_Neumann_3D_IHBC(nx,ny,nz);      // Not working VKFFT->
     // Test_Periodic_3D(nx,ny,nz);
     // Test_Unbounded_3D(nx,ny,nz);
 

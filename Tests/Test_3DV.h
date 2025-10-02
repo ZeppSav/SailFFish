@@ -304,8 +304,7 @@ void Test_Unbounded_3DV(int NX, int NY, int NZ, bool ExportVTI = false)
     // Define solver
     SailFFish::Unbounded_Solver_3DV *Solver = new SailFFish::Unbounded_Solver_3DV();
     // Solver->Specify_Operator(SailFFish::CURL);
-    Real UnitX2[2] = {-1.0, 4.0};
-    Status = Solver->Setup(UnitX2,UnitY,UnitZ,NX,NY,NZ);
+    Status = Solver->Setup(UnitX,UnitY,UnitZ,NX,NY,NZ);
     if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
     unsigned int t2 = stopwatch();  // Timer
 

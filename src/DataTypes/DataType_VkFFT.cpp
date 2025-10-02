@@ -157,10 +157,6 @@ SFStatus DataType_VkFFT::Allocate_Arrays()
     c_bufferSizeNT  = (uint64_t)NT*sizeof(cl_complex);      // Single value
     c_bufferSizeNTM = (uint64_t)NTM*sizeof(cl_complex);
 
-    // size_t free_mem = 0, total_mem = 0;
-    // CUresult result = cuMemGetInfo(&free_mem, &total_mem);
-    // std::cout << "Used GPU memory: 0 " << (total_mem - free_mem) / (1024.0 * 1024.0) << " MB" << std::endl;
-
     if (r_in1)      r_Input1 = (Real*)malloc(NT*sizeof(Real));
     if (r_in2)      r_Input2 = (Real*)malloc(NT*sizeof(Real));
     if (r_in3)      r_Input3 = (Real*)malloc(NT*sizeof(Real));
@@ -227,26 +223,6 @@ SFStatus DataType_VkFFT::Allocate_Arrays()
         if (c_ft_in3) Allocate_Buffer(c_FTOutput3, c_bufferSizeNTM);
     }
 
-    // if (c_ft_in1)   cudaMalloc((void**)&c_FTInput1, sizeof(CUDAComplex)*NTM);
-    // if (c_ft_in2)   cudaMalloc((void**)&c_FTInput2, sizeof(CUDAComplex)*NTM);
-    // if (c_ft_in3)   cudaMalloc((void**)&c_FTInput3, sizeof(CUDAComplex)*NTM);
-
-    // // Prepare transforms for case of either in-place or out-of-place operation
-    // c_ft_out1 = c_ft_in1;
-    // c_ft_out2 = c_ft_in2;
-    // c_ft_out3 = c_ft_in3;
-
-    // result = cuMemGetInfo(&free_mem, &total_mem);
-    // std::cout << "Used GPU memory: c_FTOutput1 " << (total_mem - free_mem) / (1024.0 * 1024.0) << " MB" << std::endl;
-
-    // if (c_vel_1)    cudaMalloc((void**)&c_FTVel1, sizeof(CUDAComplex)*NTM);
-    // if (c_vel_2)    cudaMalloc((void**)&c_FTVel2, sizeof(CUDAComplex)*NTM);
-    // if (c_vel_3)    cudaMalloc((void**)&c_FTVel3, sizeof(CUDAComplex)*NTM);
-
-    // if (c_out_1)    cudaMalloc((void**)&c_Output1, sizeof(CUDAComplex)*NT);
-    // if (c_out_2)    cudaMalloc((void**)&c_Output2, sizeof(CUDAComplex)*NT);
-    // if (c_out_3)    cudaMalloc((void**)&c_Output3, sizeof(CUDAComplex)*NT);
-
     // Arrays for Green's function & spectral operators arrays
     if      (Transform==DFT_C2C)    Allocate_Buffer(c_FG,   c_bufferSizeNTM);   // Periodic
     else                            Allocate_Buffer(cl_r_FG, bufferSizeNT);     // R2R + R2C (unbounded)
@@ -254,20 +230,6 @@ SFStatus DataType_VkFFT::Allocate_Arrays()
     if (c_fg_i)     Allocate_Buffer(c_FGi, c_bufferSizeNTM);
     if (c_fg_j)     Allocate_Buffer(c_FGj, c_bufferSizeNTM);
     if (c_fg_k)     Allocate_Buffer(c_FGk, c_bufferSizeNTM);
-
-
-    // result = cuMemGetInfo(&free_mem, &total_mem);
-    // std::cout << "Used GPU memory: c_fg_x " << (total_mem - free_mem) / (1024.0 * 1024.0) << " MB" << std::endl;
-
-    // if (c_dbf_1)    cudaMalloc((void**)&c_DummyBuffer1, sizeof(CUDAComplex)*NTM);
-    // if (c_dbf_2)    cudaMalloc((void**)&c_DummyBuffer2, sizeof(CUDAComplex)*NTM);
-    // if (c_dbf_3)    cudaMalloc((void**)&c_DummyBuffer3, sizeof(CUDAComplex)*NTM);
-    // if (c_dbf_4)    cudaMalloc((void**)&c_DummyBuffer4, sizeof(CUDAComplex)*NTM);
-    // if (c_dbf_5)    cudaMalloc((void**)&c_DummyBuffer5, sizeof(CUDAComplex)*NTM);
-    // if (c_dbf_6)    cudaMalloc((void**)&c_DummyBuffer6, sizeof(CUDAComplex)*NTM);
-
-    // result = cuMemGetInfo(&free_mem, &total_mem);
-    // std::cout << "Used GPU memory: c_dbf_x " << (total_mem - free_mem) / (1024.0 * 1024.0) << " MB" << std::endl;
 
     return NoError;
 }
@@ -277,7 +239,59 @@ SFStatus DataType_VkFFT::Deallocate_Arrays()
     // Depending on the type of solver and the chosen operator/outputs, the arrays which must be allocated vary.
     // This is simply controlled here by specifying the necessary flags during solver initialization
 
-    std::cout << "DataType_VkFFT::Deallocate_Arrays() NOT YET IMPLEMENTEDDDD!!!!" << std::endl;
+    if (r_in1)      free(r_Input1);
+    if (r_in2)      free(r_Input2);
+    if (r_in3)      free(r_Input3);
+
+    if (r_out_1)      free(r_Output1);
+    if (r_out_2)      free(r_Output2);
+    if (r_out_3)      free(r_Output3);
+
+    // Allocate local arrays
+    if (r_in1)      clReleaseMemObject(cl_r_Input1);
+    if (r_in2)      clReleaseMemObject(cl_r_Input2);
+    if (r_in3)      clReleaseMemObject(cl_r_Input3);
+
+    if (!InPlace){
+        if (r_out_1)    clReleaseMemObject(cl_r_Output1);
+        if (r_out_2)    clReleaseMemObject(cl_r_Output2);
+        if (r_out_3)    clReleaseMemObject(cl_r_Output3);
+    }
+
+    // Arrays for real Green's function
+    // if (r_fg)       cudaMalloc((void**)&r_FG, sizeof(CUDAReal)*NT);
+    //    if (r_fg)       cudaMalloc((void**)&cu_r_FG, sizeof(CUDAReal)*NT);    // Not necessary!
+    if (r_fg)       free(r_FG);                      // Allocate memory for real data on CPU
+
+    // Complex-valued arrays
+    if (c_in1)      clReleaseMemObject(c_Input1);
+    if (c_in2)      clReleaseMemObject(c_Input2);
+    if (c_in3)      clReleaseMemObject(c_Input3);
+
+    if (!InPlace){
+        if (c_out_1)    clReleaseMemObject(c_Output1);
+        if (c_out_2)    clReleaseMemObject(c_Output2);
+        if (c_out_3)    clReleaseMemObject(c_Output3);
+    }
+
+    if (c_ft_in1)   clReleaseMemObject(c_FTInput1);
+    if (c_ft_in2)   clReleaseMemObject(c_FTInput2);
+    if (c_ft_in3)   clReleaseMemObject(c_FTInput3);
+
+    if (!InPlace){
+        if (c_ft_in1) clReleaseMemObject(c_FTOutput1);
+        if (c_ft_in2) clReleaseMemObject(c_FTOutput2);
+        if (c_ft_in3) clReleaseMemObject(c_FTOutput3);
+    }
+
+    // Arrays for Green's function & spectral operators arrays
+    if      (Transform==DFT_C2C)    clReleaseMemObject(c_FG);       // Periodic
+    else                            clReleaseMemObject(cl_r_FG);    // R2R + R2C (unbounded)
+    if      (Transform==DFT_R2C)    clReleaseMemObject(c_FG);       // R2C (unbounded)
+    if (c_fg_i)     clReleaseMemObject(c_FGi);
+    if (c_fg_j)     clReleaseMemObject(c_FGj);
+    if (c_fg_k)     clReleaseMemObject(c_FGk);
+
     return NoError;
 }
 
@@ -1148,6 +1162,21 @@ void DataType_VkFFT::Convolution_Complex3()
     res = clFinish(vkGPU->commandQueue);
     ConvertClError(res);
 }
+
+//--- Destructor
+
+DataType_VkFFT::~DataType_VkFFT()
+{
+    //--- This clears the data associated with this FFTW object
+
+    // Clear arrays
+    Deallocate_Arrays();
+
+    // Clear plans
+    deleteVkFFT(&app);
+    if (FusedKernel) deleteVkFFT(&kernel_app);
+}
+
 
 }
 

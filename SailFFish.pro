@@ -11,7 +11,7 @@ CONFIG -= qt
 # CONFIG += CUDABackend
 CONFIG += VKFFTBackend
 
-# CONFIG += VPMSolver
+CONFIG += VPMSolver
 
 #----------------------------------------------
 # Specify floating point precision
@@ -72,7 +72,8 @@ HEADERS += \
     src/Solvers/Neumann_Solver.h \
     src/Solvers/Periodic_Solver.h \
     src/Solvers/Solver_Base.h \
-    src/Solvers/Unbounded_Solver.h
+    src/Solvers/Unbounded_Solver.h \
+    src/VPM_Solver/VPM3D_kernels_ocl.h
 
 #----------------------------------------------
 # DataType FFTW
@@ -156,5 +157,11 @@ CONFIG(VPMSolver) {
         SOURCES += src/VPM_Solver/VPM3D_cuda.cpp
         HEADERS += src/VPM_Solver/VPM3D_cuda.h \
             src/VPM_Solver/VPM3D_kernels_cuda.h
+    }
+
+    # Source and header files VPM Solver - VKFFT backend
+    CONFIG(VKFFTBackend) {
+        SOURCES += src/VPM_Solver/VPM3D_ocl.cpp
+        HEADERS += src/VPM_Solver/VPM3D_ocl.h
     }
 }

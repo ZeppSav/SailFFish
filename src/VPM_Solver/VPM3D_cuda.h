@@ -216,7 +216,6 @@ class VPM3D_cuda : public VPM_3D_Solver //, public cuda_Grid_Data
     cudaKernel *cuda_interpM6D_block2;
 
     // Turbulence Kernels
-    Real C_smag = 0.;                          // Hyperviscosity constant
     cudaKernel *cuda_Laplacian_FD2;
     cudaKernel *cuda_Laplacian_FD4;
     cudaKernel *cuda_Laplacian_FD6;
@@ -260,7 +259,7 @@ public:
     SFStatus Allocate_Data() override;
     SFStatus Allocate_Auxiliary_Data();
     void Initialize_Data();
-    void Set_Grid_Positions() override {}  // For simplicity, this will be done on the CPU and passed to a cuda buffer
+    void Set_Grid_Positions() override {}  // In cuda, these values are calcualted within the kernel for simplicity
     void Initialize_Halo_Data();
 
     //--- Kernel setup

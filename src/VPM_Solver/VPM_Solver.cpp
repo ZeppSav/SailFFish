@@ -40,7 +40,7 @@ void VPM_3D_Solver::Set_Grid_Positions()
 {
     //--- Specify grid positions
     OpenMPfor
-        for (int i=0; i<NNX; i++){
+    for (int i=0; i<NNX; i++){
         for (int j=0; j<NNY; j++){
             for (int k=0; k<NNZ; k++){
                 int id_dest = GID(i,j,k,NNX,NNY,NNZ);

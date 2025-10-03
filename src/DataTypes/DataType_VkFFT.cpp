@@ -139,6 +139,32 @@ SFStatus DataType_VkFFT::Allocate_Buffer(cl_mem &buffer, uint64_t bufsize)
     return ConvertClError(res);
 }
 
+SFStatus DataType_VkFFT::Allocate_SubBuffer(cl_mem &bufferDest, cl_mem &bufferSrc, uint64_t bufstart, uint64_t bufsize)
+{
+    // cl_mem buffer = 0;
+    cl_int res = CL_SUCCESS;
+    cl_buffer_region region;
+    region.origin = bufstart;   // byte offset
+    region.size   = bufsize;    // length of the sub-buffer
+    bufferDest = clCreateSubBuffer(bufferSrc, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION, &region, &res);
+    return ConvertClError(res);
+}
+
+SFStatus DataType_VkFFT::Zero_FloatBuffer(cl_mem &buffer, uint64_t bufsize)
+{
+    // This helper function zeros the buffer
+    cl_int res = clEnqueueFillBuffer(vkGPU->commandQueue, buffer, &CLR0, sizeof(CLR0), 0, bufsize, 0, NULL, NULL);
+    clFinish(vkGPU->commandQueue);  // wait for completion
+    return ConvertClError(res);
+    // err = clEnqueueFillBuffer(queue,          // command queue
+    //                           buffer,         // cl_mem object
+    //                           &pattern,       // pointer to pattern
+    //                           pattern_size,   // size of pattern
+    //                           0,              // offset in buffer
+    //                           buffer_size,    // size to fill (in bytes)
+    //                           0, NULL, NULL); // wait list, events
+}
+
 SFStatus DataType_VkFFT::Allocate_Arrays()
 {
     // Depending on the type of solver and the chosen operator/outputs, the arrays which must be allocated vary.

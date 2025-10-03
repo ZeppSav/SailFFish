@@ -27,7 +27,8 @@
 
 #include "../src/SailFFish_Math_Types.h"
 // #include "../src/VPM_Solver/VPM3D_cpu.h"
-#include "../src/VPM_Solver/VPM3D_cuda.h"
+// #include "../src/VPM_Solver/VPM3D_cuda.h"
+#include "../src/VPM_Solver/VPM3D_ocl.h"
 
 using namespace SailFFish;
 
@@ -40,7 +41,8 @@ void Vortex_Ring_Evolution_Test()
 
     // --- VPM solver
     // SailFFish::VPM3D_cpu *VPM = new SailFFish::VPM3D_cpu(SailFFish::STAGGERED, SailFFish::HEJ_G8);
-    SailFFish::VPM3D_cuda *VPM = new SailFFish::VPM3D_cuda(SailFFish::STAGGERED, SailFFish::HEJ_G8);
+    // SailFFish::VPM3D_cuda *VPM = new SailFFish::VPM3D_cuda(SailFFish::STAGGERED, SailFFish::HEJ_G8);
+    SailFFish::VPM3D_ocl *VPM = new SailFFish::VPM3D_ocl(SailFFish::STAGGERED, SailFFish::HEJ_G8);
 
     //--- Initialize with VPM_Input
     SailFFish::VPM_Input I;

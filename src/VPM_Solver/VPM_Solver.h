@@ -495,6 +495,7 @@ protected:
     Mapping SolverMap = M4D;                // Mapping scheme between Lagrangian and Eulerian grids
     Mapping RemeshMap = M4D;                // Mapping scheme for remeshing
     Turbulence Turb = LAM;                  // Turbulence model
+    Real C_smag = 0.;                       // Hyperviscosity constant
 
     //--- External forcing
     std::vector<ParticleMap> Ext_Forcing;

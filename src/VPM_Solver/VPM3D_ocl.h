@@ -1,0 +1,240 @@
+#ifndef VPM3D_OCL_H
+#define VPM3D_OCL_H
+
+#include "VPM_Solver.h"
+
+#ifdef VKFFT
+
+namespace SailFFish
+{
+
+enum gpuDataArch {MONO,PENCIL,BLOCK};
+
+class VPM3D_ocl : public VPM_3D_Solver
+{
+
+    //--- Grid Arrays
+    cl_mem lg_d;         // Lagrangian grid - particle displacement
+    cl_mem lg_o;         // Lagrangian grid - particle vorticity
+    cl_mem lg_dddt;      // Lagrangian grid - Rate of change particle displacement
+    cl_mem lg_dodt;      // Lagrangian grid - Rate of change of vorticity
+    // cl_mem eu_d;         // Eulerian grid - particle displacement                    // Only necessary in initialisation-- can use a dummy array here
+    cl_mem eu_o;         // Eulerian grid - particle vorticity
+    cl_mem eu_dddt;      // Eulerian grid - Rate of change particle displacement
+    cl_mem eu_dodt;      // Eulerian grid - Rate of change of vorticity
+
+    // Arrays required for turbulence models
+    cl_mem Laplacian;        // Laplacian of vorticity field                         // Only necessary if using hyperviscosity turbulence model
+    // cl_mem NablaU;           // Gradients of velocity field
+    cl_mem sgs;              // sub grid scale
+    cl_mem qcrit;            // qcriterion
+    cl_mem gfilt_Array1;     // Filtered vorticity field
+    cl_mem gfilt_Array2;     // Gradients of velocity field
+
+    //--- Timestepping (temporary) arrays
+    cl_mem int_lg_d;
+    cl_mem int_lg_o;
+    cl_mem k2_d;
+    cl_mem k2_o;
+    cl_mem k3_d;
+    cl_mem k3_o;
+    cl_mem k4_d;
+    cl_mem k4_o;
+    cl_mem tm1_d;
+    cl_mem tm1_o;
+    cl_mem tm1_dddt;
+    cl_mem tm1_dodt;
+
+    cl_mem diagnostic_reduced;       // Reduced diagnostics arrays
+    // cl_mem vis_plane;                // Reduced diagnostics arrays
+    // cl_mem travx, *travy, *travz;    // Reduced diagnostics arrays
+    cl_mem magfilt_count;         // Count of particle which have non-zero strength after magnitude filtering
+
+    // Arrays for external sources
+    size_t NBExt = 0, NBufferExt = 0;
+    cl_mem ExtVortX = nullptr;
+    cl_mem ExtVortY = nullptr;
+    cl_mem ExtVortZ = nullptr;
+    cl_mem blX = nullptr;
+    cl_mem blY = nullptr;
+    cl_mem blZ = nullptr;
+
+    //--- Diagnostics
+    static const int NDiags = 15;                             // Number of diagnostics outputs
+
+    // Indices for halo data
+    cl_mem Halo1data;
+    cl_mem Halo2data;
+    cl_mem Halo3data;
+    cl_mem Halo4data;
+
+    //--- cuda Block & Grid size
+    dim3 blockarch_grid, blockarch_block;
+
+    //--- OpenCL Kernels
+    // std::string KID;                        // Unique kernel identifier to ensure to common kernel names compiled on GPU.
+    cl_kernel cuda_VPM_convolution;
+    cl_kernel cuda_VPM_reprojection;
+    cl_kernel cuda_monolith_to_block_arch;
+    cl_kernel cuda_block_to_monolith_arch;
+    cl_kernel cuda_block_to_monolith_single;
+    cl_kernel cuda_mapM2;
+    cl_kernel cuda_mapM4;
+    cl_kernel cuda_mapM4D;
+    cl_kernel cuda_mapM6D;
+    cl_kernel cuda_interpM2;
+    cl_kernel cuda_interpM4;
+    cl_kernel cuda_interpM4D;
+    cl_kernel cuda_interpM6D;
+    cl_kernel cuda_map_toUnbounded;
+    cl_kernel cuda_map_fromUnbounded;
+    cl_kernel cuda_update;
+    cl_kernel cuda_updateRK;
+    cl_kernel cuda_updateRK2;
+    cl_kernel cuda_updateRK3;
+    cl_kernel cuda_updateRK4;
+    cl_kernel cuda_updateRKLS;
+    cl_kernel cuda_stretch_FD2;
+    cl_kernel cuda_stretch_FD4;
+    cl_kernel cuda_stretch_FD6;
+    cl_kernel cuda_stretch_FD8;
+    cl_kernel cuda_Diagnostics;
+    cl_kernel cuda_freestream;
+    cl_kernel cuda_MagFilt1;
+    cl_kernel cuda_MagFilt2;
+    cl_kernel cuda_MagFilt3;
+    // cudaKernel *cuda_ExtractPlaneX, *cuda_ExtractPlaneY;
+
+    cl_kernel Map_Ext;
+    cl_kernel Map_Ext_Unbounded;
+
+    // cl_kernel cuda_interpM2_block;
+    // cl_kernel cuda_interpM4_block;
+    // cl_kernel cuda_interpM4D_block;
+    // cudaKernel *cuda_interpM6D_block;
+
+    // cudaKernel *cuda_interpM2_block2;
+    // cudaKernel *cuda_interpM4_block2;
+    // cudaKernel *cuda_interpM4D_block2;
+    // cudaKernel *cuda_interpM6D_block2;
+
+    // Turbulence Kernels
+    cl_kernel cuda_Laplacian_FD2;
+    cl_kernel cuda_Laplacian_FD4;
+    cl_kernel cuda_Laplacian_FD6;
+    cl_kernel cuda_Laplacian_FD8;
+    cl_kernel cuda_Turb_Hyp_FD2;
+    cl_kernel cuda_Turb_Hyp_FD4;
+    cl_kernel cuda_Turb_Hyp_FD6;
+    cl_kernel cuda_Turb_Hyp_FD8;
+    cl_kernel cuda_sg_discfilt;
+    // cl_kernel cuda_sg_discfilt2;
+    cl_kernel cuda_Turb_RVM_FD2;
+    cl_kernel cuda_Turb_RVM_FD4;
+    cl_kernel cuda_Turb_RVM_FD6;
+    cl_kernel cuda_Turb_RVM_FD8;
+    cl_kernel cuda_Turb_RVM_DGC_FD2;
+    cl_kernel cuda_Turb_RVM_DGC_FD4;
+    cl_kernel cuda_Turb_RVM_DGC_FD6;
+    cl_kernel cuda_Turb_RVM_DGC_FD8;
+
+    //--- Block data format
+    gpuDataArch Architecture = BLOCK;
+
+public:
+
+    //--- Constructor
+    VPM3D_ocl(Grid_Type G, Unbounded_Kernel B) : VPM_3D_Solver(G,B)
+    {
+        // Child constructor
+        InPlace = true;        // Specify that transforms should occur either in place of out of place (reduced memory footprint)
+        c_dbf_1 = false;        // This dummy buffer is required as I have not included custom Kernels into Datatype_Cuda yet
+        // InPlace = true;     // Specify that transforms should occur either in place of out of place (reduced memory footprint)
+    }
+
+    //--- Solver setup
+    SFStatus Setup_VPM(VPM_Input *I);
+    SFStatus Allocate_Data() override;
+    void Initialize_Data();
+    void Set_Grid_Positions() override {}  // In OpenCL, these values are calcualted within the kernel for simplicity
+    void Initialize_Halo_Data();
+
+    //--- Kernel setup
+//     void Set_Kernel_Constants(jitify::KernelInstantiation *KI, int Halo);
+    cl_kernel Generate_Kernel(const std::string &Body, const std::string &Tag);
+    SFStatus Initialize_Kernels();
+
+//     //--- Initial vorticity distribution
+    void Retrieve_Grid_Positions(RVector &xc, RVector &yc, RVector &zc);
+    void Set_Input_Arrays(RVector &xo, RVector &yo, RVector &zo);
+
+//     //--- Auxiliary grid operations
+//     Real *Get_Vorticity_Array() {return eu_o;}
+//     void Set_External_Grid(VPM_3D_Solver *G) override;
+//     void Map_to_Auxiliary_Grid() override;
+//     void Interpolate_Ext_Sources(Mapping M) override;
+//     Real* Get_Vort_Array() override {return eu_o;}
+//     Real* Get_Vel_Array() override {return eu_dddt;}
+
+//     //--- Grid routines
+//     void Clear_Source_Grid()    override    {cudaMemset(eu_o, Real(0.0), 3*NNT*sizeof(Real));}
+//     void Clear_Solution_Grid()  override    {cudaMemset(eu_dddt, Real(0.0), 3*NNT*sizeof(Real));}
+//     void Transfer_Source_Grid()             {cudaMemcpy(lg_o, eu_o, 3*NNT*sizeof(Real), cudaMemcpyDeviceToDevice);}
+
+//     //--- Grid operations
+//     void Extract_Field(const Real *Field, const RVector &Px, const RVector &Py, const RVector &Pz, RVector &Ux, RVector &Uy, RVector &Uz, Mapping M);
+
+//     void Add_Grid_Sources(const RVector &Px, const RVector &Py, const RVector &Pz,const RVector &Ox, const RVector &Oy, const RVector &Oz, Mapping M) override;
+
+//     void Extract_Sol_Values(const RVector &Px, const RVector &Py, const RVector &Pz, RVector &Ugx, RVector &Ugy, RVector &Ugz, Mapping Map) override {
+//         Extract_Field(eu_dddt, Px, Py, Pz, Ugx, Ugy, Ugz, Map);}
+
+//     void Extract_Source_Values(const RVector &Px, const RVector &Py, const RVector &Pz, RVector &Ugx, RVector &Ugy, RVector &Ugz, Mapping Map) override {
+//         Extract_Field(eu_o, Px, Py, Pz, Ugx, Ugy, Ugz, Map);}
+
+//     void Store_Grid_Node_Sources(   const RVector &Px, const RVector &Py, const RVector &Pz,
+//                                  const RVector &Ox, const RVector &Oy, const RVector &Oz, Mapping Map) override;
+
+
+//     //--- Timestepping
+//     void Advance_Particle_Set() override;
+//     void Update_Particle_Field() override;
+//     void Calc_Particle_RateofChange(const Real *pd, const Real *po, Real *dpddt, Real *dpodt);
+//     void Calc_Grid_FDRatesof_Change() override;
+//     void Grid_Shear_Stresses() override;
+//     void Grid_Turb_Shear_Stresses() override;
+//     void Add_Freestream_Velocity() override;
+//     void Solve_Velocity() override;
+
+//     // Debugging
+//     void Output_Max_Components(const Real *A, int N);
+//     void Output_Max_Components(const Real *A, const Real *B, const Real *C, int N);
+
+//     // //--- Grid utilities
+//     void Remesh_Particle_Set() override;
+//     void Reproject_Particle_Set_Spectral() override;
+//     void Magnitude_Filtering() override;
+
+//     //--- Grid statistics
+//     void Calc_Grid_Diagnostics() override;
+
+//     //--- Output grid
+//     void Generate_VTK() override;
+//     void Generate_VTK_Scalar()  override;
+//     void Generate_VTK(const Real *vtkoutput1, const Real *vtkoutput2);
+//     void Generate_Plane(RVector &U) override;
+//     void Generate_Traverse(int XP, RVector &U, RVector &V, RVector &W) override;
+
+//     ///--- Testing function
+//     void MatMultTest();
+
+//     ~VPM3D_cuda() override;
+// };
+
+};
+
+}
+
+#endif
+
+#endif // VPM3D_OCL_H

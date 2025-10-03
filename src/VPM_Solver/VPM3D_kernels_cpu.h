@@ -324,6 +324,9 @@ static Real const D2C8[9] =  {-1./560., 8./315., -1./5., 8./5., -205./72., 8./5.
 const Real L1 = 0., L2 = 0., L3 = 1., L4 = -6.;                   // Standard cross (non isotropic!)
 static Real const LAP_ISO_3D[27] =  {L1,L2,L1,L2,L3,L2,L1,L2,L1,      L2,L3,L2,L3,L4,L3,L2,L3,L2,     L1,L2,L1,L2,L3,L2,L1,L2,L1};
 
+inline uint GID(const uint &i, const uint &j, const uint &k, const dim3 &D) {return i*D.y*D.z + j*D.z + k;}     // C-style ordering
+inline uint GID(const dim3 &I, const dim3 &D) {return I.x*D.y*D.z + I.y*D.z + I.z;}                             // C-style ordering
+
 inline void KER_Stretch_FD2(const TensorGrid &go, const TensorGrid &dpdt, TensorGrid &dodt, TensorGrid &NablaU, TensorGrid &Lap, const dim3 &id, const dim3 &D, const Real &H, const Real &Nu)
 {
     // This calculate the rates of change on the grid using finite differences.

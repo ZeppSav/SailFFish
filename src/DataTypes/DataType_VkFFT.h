@@ -298,19 +298,14 @@ public:
     VkFFTResult ConvertArray_C2R(RVector &I, void* input_buffer, size_t N);
     SFStatus Set_Input(RVector &I) override;
     SFStatus Set_Input(RVector &I1, RVector &I2, RVector &I3)   override;
-    SFStatus Set_Input_Unbounded_1D(RVector &I)                 override;
-    SFStatus Set_Input_Unbounded_2D(RVector &I)                 override;
-    SFStatus Set_Input_Unbounded_3D(RVector &I)                 override;
-    SFStatus Set_Input_Unbounded_3D(RVector &I1, RVector &I2, RVector &I3)  override;
+    SFStatus Set_Input_Unbounded(RVector &I)                 override;
+    SFStatus Set_Input_Unbounded(RVector &I1, RVector &I2, RVector &I3) override;
 
     //--- Retrieve output array
-    void Get_Output(RVector &I)         override;
+    void Get_Output(RVector &I)                             override;
     void Get_Output(RVector &I1, RVector &I2, RVector &I3)  override;
-    void Get_Output_Unbounded_1D(RVector &I)                override;
-    void Get_Output_Unbounded_2D(RVector &I)                override;
-    void Get_Output_Unbounded_2D(RVector &I1, RVector &I2)  override {}// Not yet implemented!
-    void Get_Output_Unbounded_3D(RVector &I)                override ;
-    void Get_Output_Unbounded_3D(RVector &I1, RVector &I2, RVector &I3) override;
+    void Get_Output_Unbounded(RVector &I)                   override;
+    void Get_Output_Unbounded(RVector &I1, RVector &I2, RVector &I3) override ;
 
     //--- Greens functions prep
     void Prepare_Fused_Kernel(FTType TF);

@@ -32,23 +32,25 @@ public:
         // Set inputs
         Handle = FunctionName;
 
-        // Add unique Kernel identifier (if required)
-        std::string strgHandle(Handle);
-        std::string newstrgHandle = Handle + Kid;
-        auto StringPos = Src.find(strgHandle);
-        auto StringPosnew = Src.find(newstrgHandle);
-        if (StringPosnew == std::string::npos && StringPos != std::string::npos) Src.replace(StringPos, strgHandle.length(), newstrgHandle);
+        // // Add unique Kernel identifier (if required) This is no longer required without the Auxiliary grid
+        // std::string strgHandle(Handle);
+        // std::string newstrgHandle = Handle + Kid;
+        // auto StringPos = Src.find(strgHandle);
+        // auto StringPosnew = Src.find(newstrgHandle);
+        // if (StringPosnew == std::string::npos && StringPos != std::string::npos) Src.replace(StringPos, strgHandle.length(), newstrgHandle);
 
         // Generate Kernel
         static jitify::JitCache kernel_cache;
         jitify::Program program = kernel_cache.program(Src.c_str(), 0);
-        K = program.kernel(newstrgHandle);
-        Handle = newstrgHandle.c_str();
+        K = program.kernel(Handle);
+        // K = program.kernel(newstrgHandle);
+        // Handle = newstrgHandle.c_str();
 
         // Create instance of kernel
         KI = K.instantiate(std::vector<std::string>({jitify::reflection::reflect(targs)...}));
 
-        std::cout << "Kernel handle " << newstrgHandle << " compiled." << std::endl;
+        // std::cout << "Kernel handle " << newstrgHandle << " compiled." << std::endl;
+        std::cout << "Kernel handle " << Handle << " compiled." << std::endl;
     }
 
     // Compilation flags
@@ -201,6 +203,8 @@ class VPM3D_cuda : public VPM_3D_Solver //, public cuda_Grid_Data
     cudaKernel *cuda_MagFilt2;
     cudaKernel *cuda_MagFilt3;
     cudaKernel *cuda_ExtractPlaneX, *cuda_ExtractPlaneY;
+
+    cudaKernel *cuda_Airywave;      // Additiona for Airy wave term
 
     cudaKernel *Map_Ext;
     cudaKernel *Map_Ext_Unbounded;

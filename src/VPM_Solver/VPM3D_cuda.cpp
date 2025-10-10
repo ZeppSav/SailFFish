@@ -671,6 +671,7 @@ SFStatus VPM3D_cuda::Initialize_Kernels()
         cuda_MagFilt2 = new cudaKernel(Source,"MagnitudeFiltering_Step2",KID,BT);
         cuda_MagFilt3 = new cudaKernel(Source,"MagnitudeFiltering_Step3",KID);
         cuda_freestream = new cudaKernel(Source, "AddFreestream",KID);
+        cuda_Airywave = new cudaKernel(Source, "AddAiryWave", KID);      // Addition for Airy wave component
 
         // Auxiliary grid operations
         cuda_interp_auxM2 = new cudaKernel(Source,"Interpolation_Aux",KID,1,NBSAX,NBSAY,NBSAZ,2,(BX+2)*(BY+2)*(BZ+2));
@@ -745,6 +746,7 @@ SFStatus VPM3D_cuda::Initialize_Kernels()
         Set_Kernel_Constants(cuda_MagFilt2->Get_Instance(), 0);
         Set_Kernel_Constants(cuda_MagFilt3->Get_Instance(), 0);
         Set_Kernel_Constants(cuda_freestream->Get_Instance(), 0);
+        Set_Kernel_Constants(cuda_Airywave->Get_Instance(), 0);         // Addition for Airy wave component
 
         Set_Kernel_Constants(cuda_interpM2_block->Get_Instance(), 1);
         Set_Kernel_Constants(cuda_interpM4_block->Get_Instance(), 2);
@@ -857,6 +859,7 @@ SFStatus VPM3D_cuda::Initialize_Kernels()
             cuda_MagFilt1->Instantiate(lingrid, linblock);
             cuda_MagFilt2->Instantiate(lingrid, linblock);
             cuda_MagFilt3->Instantiate(lingrid, linblock);
+            cuda_Airywave->Instantiate(lingrid, linblock);      // Additions for Airy wave component
 
             dim3 linplanex(NBY,NBZ), linblockplanex(BY,BZ);
             cuda_ExtractPlaneX->Instantiate(linplanex,linblockplanex);
@@ -1186,12 +1189,8 @@ void VPM3D_cuda::Calc_Particle_RateofChange(const Real *pd, const Real *po, Real
     default:        {std::cout << "VPM3D_cuda::Calc_Particle_RateofChange. Mapping undefined."; return;}
     }
 
-    // if (NStep==2)  Generate_VTK();      // rates of change not yet calculated. no problems
-
     // Calc_Grid_SpectralRatesof_Change();         // The rates of change are calculated on the fixed grid
     Calc_Grid_FDRatesof_Change();                 // The rates of change are calculated on the fixed grid
-
-    // if (NStep==2)  Generate_VTK();      // Velocity is behaving weirdly here..
 
     // Map grid values to particles
     switch (SolverMap)
@@ -1410,11 +1409,54 @@ void VPM3D_cuda::Reproject_Particle_Set_Spectral()
     std::cout << "Vorticity field reprojection completed with spectral method." << std::endl;
 }
 
+inline Real Calc_Root_Finite_Depth(Real O, Real H)
+{
+    // This function makes use of formulas (25) and (27) from:
+    // Newman, J. N. 1990 “Numerical solutions of the water-wave dispersion relation,” Applied Ocean Research, 12, 14-18.
+    // In order to calculate the roots of the equation κ tanh κh = ω^2/g
+    Real Gravity = 9.81;
+    Real x = O*O*H/Gravity;
+    //    Real An[9] = {0.03355458, 0.03262249, -0.00088239, 0.00004620, -0.00000303, 0.00000034, -0.00000007, 0.00000003, -0.00000001};
+    Real Bn[6] = {0.000000122, 0.073250017, -0.009899981, 0.002640863, 0.000829239, -0.000176411};
+    Real Cn[9] = {1.0, -0.33333372, -0.01109668, 0.01726435, 0.01325580, -0.00116594, 0.00829006, -0.01252603, 0.00404923};
+
+    Real y = 0.0;
+    if (x <= 2.0){
+        Real Den = 0.0;
+        for (int i=0; i<=8; i++) Den += Cn[i]*pow( 0.5*x , i);
+        y = sqrt(x)/Den;                                                        // Maximum error e = 1.0 x 10^-8.
+    }
+    else {
+        y += x;
+        for (int i=0; i<=5; i++) y += Bn[i]*pow( 0.5*x*exp(4.0-2.0*x) , i);     // Maximum error e = 1.2 x 10^-7.
+    }
+    return y/H;
+}
+
 void VPM3D_cuda::Add_Freestream_Velocity()
 {
     // This adds the local freestream to the grid
     if (sqrt(Ux*Ux + Uy*Uy + Uz*Uz)==0.0) return;
     cuda_freestream->Execute(eu_dddt, Real(Ux), Real(Uy), Real(Uz));
+
+    // Additions for Airy wave term
+
+    // NumBeRT model is being applied, so the turbine has a radius of 2.59960008m->Length scale L = 4 (compared to UBert)
+    // Values from Sascha:
+    // Real Amp = 2.0, Omega = 0.1*2.0*M_PI;       // Config 1: UBert Scale: Amp 0.5m, Freq = 0.2Hz ->Numbert: Amp = 2.0, Freq = 0.2/(sqrt(L)) = 0.1;
+    // Real Amp = 2.0, Omega = 1.0*2.0*M_PI;       // Config 1: UBert Scale: Amp 0.5m, Freq = 2.0Hz ->Numbert: Amp = 2.0, Freq = 2.0/(sqrt(L)) = 1.0;
+    // Real TurbineDepth = 10.0;   // Attempt for extreme influence
+    // Real BeckenDepth = 20.0;    // Actual tank depth-> 5m-> Scaled = 20m
+    // Real k = Calc_Root_Finite_Depth(Omega,BeckenDepth);
+    // cuda_Airywave->Execute( eu_dddt,
+    //                         Real(NStep*dT),
+    //                         Real(XN1),
+    //                         Real(ZN1),
+    //                         Real(Amp),
+    //                         Real(-TurbineDepth),
+    //                         Real(BeckenDepth),
+    //                         Real(k),
+    //                         Real(Omega)); // Current time
 }
 
 void VPM3D_cuda::Solve_Velocity()
@@ -2017,7 +2059,7 @@ void VPM3D_cuda::Generate_VTK(const Real *vtkoutput1, const Real *vtkoutput2)
     free(hostout2);
 
     // HACK to export qcrit
-    Generate_VTK_Scalar();
+    // Generate_VTK_Scalar();
 }
 
 void VPM3D_cuda::Generate_VTK_Scalar()

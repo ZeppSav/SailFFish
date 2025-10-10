@@ -427,7 +427,7 @@ void Test_Unbounded_2D(int NX, int NY, bool ExportVTK = false)
             Solution.push_back( UTest_Phi(XGrid[i],YGrid[j]));                  // Solution field
         }
     }
-    Status = Solver->Set_Input_Unbounded_2D(Input);
+    Status = Solver->Set_Input_Unbounded(Input);
     if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
     unsigned int t3 = stopwatch();  // Timer
 

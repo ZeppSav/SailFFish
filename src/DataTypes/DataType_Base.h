@@ -41,8 +41,8 @@ enum Component      {XComp, YComp, ZComp};
 enum Dim            {EX, EY, EZ};
 
 typedef unsigned uint;
-inline uint GID(const uint &i, const uint &j, const uint &NX, const uint &NY)                                   {return i*NY + j;}
-inline uint GID(const uint &i, const uint &j, const uint &k, const uint &NX, const uint &NY, const uint &NZ)    {return i*NY*NZ + j*NZ + k;}
+inline uint GID(uint i, uint j, uint NX, uint NY)                   {return i*NY + j;}
+inline uint GID(uint i, uint j, uint k, uint NX, uint NY, uint NZ)  {return i*NY*NZ + j*NZ + k;}
 
 class DataType
 {
@@ -59,10 +59,18 @@ protected:
     OperatorType Operator = NONE;
 
     //--- Grid vars
-    int NT = 0, NTM = 0;        // Number of grid nodes in _ direction
-    int NX = 0, NXM = 0;        // Number of grid nodes in _ direction
-    int NY = 0, NYM = 0;        // Number of grid nodes in _ direction
-    int NZ = 0, NZM = 0;        // Number of grid nodes in _ direction
+    int NT = 0;             // Number of grid nodes in _ direction
+    int NX = 0;             // Number of grid nodes in _ direction
+    int NY = 0;             // Number of grid nodes in _ direction
+    int NZ = 0;             // Number of grid nodes in _ direction
+
+    //--- Grid vars (unbounded solvers)
+    // For the unbounded solver configuration the grid size is halved in each direction
+    // depending on the solver type, on of the dimesnions is halved for the R2C/C2R transform
+    int NTM = 0, NTH = 0;
+    int NXM = 0, NXH = 0;
+    int NYM = 0, NYH = 0;
+    int NZM = 0, NZH = 0;
 
     int gNT = 0;
     int NCX=0, NCY=0, NCZ=0;    // Number of cells
@@ -111,7 +119,7 @@ protected:
     //--- Memory objects (Real)
     Real *r_FG;
 
-    //--- Mapping functions
+    //--- Mapping functions (bounded solvers)
     virtual void Map_C2F_1D(const RVector &Src, RVector &Dest)  {std::copy(Src.begin(), Src.end(), Dest.begin());}
     virtual void Map_F2C_1D(const RVector &Src, RVector &Dest)  {std::copy(Src.begin(), Src.end(), Dest.begin());}
     virtual void Map_C2F_2D(const RVector &Src, RVector &Dest);
@@ -121,6 +129,15 @@ protected:
     virtual void Map_C2F_3DV(const RVector &Src1, const RVector &Src2, const RVector &Src3, RVector &Dest1, RVector &Dest2, RVector &Dest3);
     virtual void Map_F2C_3DV(const RVector &Src1, const RVector &Src2, const RVector &Src3, RVector &Dest1, RVector &Dest2, RVector &Dest3);
 
+    //--- Mapping functions (unbounded solvers)
+    virtual void Map_C2F_UB_1D(const RVector &Src, Real *Dest)      {memcpy(Dest, Src.data(), (NXH)*sizeof(Real));}
+    virtual void Map_F2C_UB_1D(Real *Src, RVector &Dest)            {memcpy(Dest.data(), Src, (NXH)*sizeof(Real));}
+    virtual void Map_C2F_UB_2D(const RVector &Src, Real *Dest);
+    virtual void Map_F2C_UB_2D(Real *Src, RVector &Dest);
+    virtual void Map_C2F_UB_3D(const RVector &Src, Real *Dest);
+    virtual void Map_F2C_UB_3D(Real *Src, RVector &Dest);
+    virtual void Map_C2F_UB_3DV(const RVector &Src1, const RVector &Src2, const RVector &Src3, Real *Dest1, Real *Dest2, Real *Dest3);
+    virtual void Map_F2C_UB_3DV(Real *Src1, Real *Src2, Real *Src3, RVector &Dest1, RVector &Dest2, RVector &Dest3);
 
     //--- Solver status
     SFStatus Status = NoError;
@@ -149,20 +166,24 @@ public:
     //--- Specify Input
     virtual SFStatus Set_Input(RVector &I)                                          {return NoError;}
     virtual SFStatus Set_Input(RVector &I1, RVector &I2, RVector &I3)               {return NoError;}
+    virtual SFStatus Set_Input_Unbounded(RVector &I)                                {return NoError;}
     virtual SFStatus Set_Input_Unbounded_1D(RVector &I)                             {return NoError;}
     virtual SFStatus Set_Input_Unbounded_2D(RVector &I)                             {return NoError;}
     virtual SFStatus Set_Input_Unbounded_3D(RVector &I)                             {return NoError;}
     virtual SFStatus Set_Input_Unbounded_3D(RVector &I1, RVector &I2, RVector &I3)  {return NoError;}
+    virtual SFStatus Set_Input_Unbounded(RVector &I1, RVector &I2, RVector &I3)     {return NoError;}
     virtual SFStatus Transfer_Data_Device()                                         {return NoError;}
 
     //--- Retrieve output array
     virtual void Get_Output(RVector &I)                                             {}
     virtual void Get_Output(RVector &I1, RVector &I2, RVector &I3)                  {}
+    virtual void Get_Output_Unbounded(RVector &I)                                   {}
     virtual void Get_Output_Unbounded_1D(RVector &I)                                {}
     virtual void Get_Output_Unbounded_2D(RVector &I)                                {}
     virtual void Get_Output_Unbounded_2D(RVector &I1, RVector &I2)                  {}
     virtual void Get_Output_Unbounded_3D(RVector &I)                                {}
     virtual void Get_Output_Unbounded_3D(RVector &I1, RVector &I2, RVector &I3)     {}
+    virtual void Get_Output_Unbounded(RVector &I1, RVector &I2, RVector &I3)        {}
 
     //--- Greens functions prep
     virtual void Prep_Greens_Function_R2R()                             {}

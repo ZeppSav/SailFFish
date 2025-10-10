@@ -601,103 +601,37 @@ SFStatus DataType_VkFFT::Set_Input(RVector &I1, RVector &I2, RVector &I3)
     return ConvertVkFFTError(res);
 }
 
-SFStatus DataType_VkFFT::Set_Input_Unbounded_1D(RVector &I)
+SFStatus DataType_VkFFT::Set_Input_Unbounded(RVector &I)
 {
-    // This function takes the input vector and stores this in the appropriate cl input array
-    int NXH = NX/2;
-    if (size(I)!=size_t(NXH)){
-        std::cout << "Input array has incorrect dimension." << std::endl;
-        return DimError;
-    }
-    RVector R1(NT,0);
-    if (r_in1) memcpy(R1.data(), I.data(), NXH*sizeof(Real));
-    if (c_in1)  {}// Not yet implemented!
-
-    VkFFTResult res = VKFFT_SUCCESS;
-    if (r_in1)  res = transferDataFromCPU(vkGPU, R1.data(), &cl_r_Input1, bufferSizeNT);
-    if (c_in1)  {}  // Not yet implemented!
-    return ConvertVkFFTError(res);
-}
-
-SFStatus DataType_VkFFT::Set_Input_Unbounded_2D(RVector &I)
-{
-    // This function takes the input vector and stores this in the appropriate cuda input array
-    int NXH = NX/2;
-    int NYH = NY/2;
-    if (int(I.size())!=NXH*NYH){
-        std::cout << "DataType_VkFFT::Set_Input_Unbounded_2D: Input array has incorrect dimension." << std::endl;
+    // Transfers input array to opencl buffer
+    if (size(I)!=size_t(NTH)){
+        std::cout << "DataType_VkFFT::Set_Input(RVector &I): Input array has incorrect dimension." << std::endl;
         return DimError;
     }
 
-    // Create dummy arrays to pass in one block to cuda buffers
-    if (r_in1) memset(r_Input1, 0, NT*sizeof(Real));
-    if (c_in1) {}   // Not yet implemented!
-
-    // Fill nonzero elements of dummy arrays
-    OpenMPfor
-    for (int i=0; i<NXH; i++){
-        for (int j=0; j<NYH; j++){
-            int idg = j*NX + i;
-            int idl = i*NYH + j;
-            if (r_in1) r_Input1[idg] = I[idl];
-            if (c_in1) {}   // Not yet implemented!
-        }
+    switch (Dimension)
+    {
+        case 1: {Map_C2F_UB_1D(I,r_Input1);  break;}
+        case 2: {Map_C2F_UB_2D(I,r_Input1);  break;}
+        case 3: {Map_C2F_UB_3D(I,r_Input1);  break;}
+        default: {break;}
     }
 
-    // Now transfer block arrays to cuda buffers
     VkFFTResult res = VKFFT_SUCCESS;
     if (r_in1)  res = transferDataFromCPU(vkGPU, r_Input1, &cl_r_Input1, bufferSizeNT);
-    if (c_in1)  {}  // Not yet implemented!
+    // if (c_in1)  res = ConvertArray_R2C(r_Input1,&c_Input1,NT);
     return ConvertVkFFTError(res);
 }
 
-SFStatus DataType_VkFFT::Set_Input_Unbounded_3D(RVector &I)
+SFStatus DataType_VkFFT::Set_Input_Unbounded(RVector &I1, RVector &I2, RVector &I3)
 {
     // This function takes the input vector and stores this in the appropriate cuda input array
-    int NXH = NX/2;
-    int NYH = NY/2;
-    int NZH = NZ/2;
-    if (int(I.size())!=NXH*NYH*NZH){
+    if (int(I1.size())!=NTH || int(I2.size())!=NTH || int(I3.size())!=NTH){
         std::cout << "DataType_VkFFT::Set_Input_Unbounded_3D: Input array has incorrect dimension." << std::endl;
         return DimError;
     }
 
-    // Create dummy arrays to pass in one block to cuda buffers
-    if (r_in1) memset(r_Input1, 0, NT*sizeof(Real));
-    if (c_in1) {}   // Not yet implemented!
-
-    // Fill nonzero elements of dummy arrays
-    OpenMPfor
-    for (int i=0; i<NXH; i++){
-        for (int j=0; j<NYH; j++){
-            for (int k=0; k<NZH; k++){
-                // int idg = i*NY*NZ + j*NZ + k;
-                int idg = k*NX*NY + j*NX + i;         // HERE JOE
-                int idl = i*NYH*NZH + j*NZH + k;
-                if (r_in1) r_Input1[idg] = I[idl];
-                // if (c_in1) C1[idg].real(I[idl]);
-            }
-        }
-    }
-    // Now transfer block arrays to cuda buffers
-    VkFFTResult res = VKFFT_SUCCESS;
-    if (r_in1)  res = transferDataFromCPU(vkGPU, r_Input1, &cl_r_Input1, bufferSizeNT);
-    if (c_in1)  {}  // Not yet implemented!
-    return ConvertVkFFTError(res);
-}
-
-SFStatus DataType_VkFFT::Set_Input_Unbounded_3D(RVector &I1, RVector &I2, RVector &I3)
-{
-    // This function takes the input vector and stores this in the appropriate cuda input array
-    int NXH = NX/2;
-    int NYH = NY/2;
-    int NZH = NZ/2;
-    if (int(I1.size())!=NXH*NYH*NZH || int(I2.size())!=NXH*NYH*NZH || int(I3.size())!=NXH*NYH*NZH){
-        std::cout << "DataType_VkFFT::Set_Input_Unbounded_3D: Input array has incorrect dimension." << std::endl;
-        return DimError;
-    }
-
-    // Create dummy arrays to pass in one block to cuda buffers
+    // Clear arrays (important for in-place)
     if (r_in1) memset(r_Input1, 0., NT*sizeof(Real));
     if (r_in2) memset(r_Input2, 0., NT*sizeof(Real));
     if (r_in3) memset(r_Input3, 0., NT*sizeof(Real));
@@ -705,23 +639,7 @@ SFStatus DataType_VkFFT::Set_Input_Unbounded_3D(RVector &I1, RVector &I2, RVecto
     // if (c_in2) {}   // Not yet implemented!
     // if (c_in3) {}   // Not yet implemented!
 
-
-    // Fill nonzero elements of dummy arrays
-    OpenMPfor
-    for (int i=0; i<NXH; i++){
-        for (int j=0; j<NYH; j++){
-            for (int k=0; k<NZH; k++){
-                int idg = k*NX*NY + j*NX + i;
-                int idl = i*NYH*NZH + j*NZH + k;
-                r_Input1[idg] = I1[idl];
-                r_Input2[idg] = I2[idl];
-                r_Input3[idg] = I3[idl];
-                // if (c_in1) c_Input1[idg].real(I1[idl]);
-                // if (c_in2) c_Input2[idg].real(I2[idl]);
-                // if (c_in3) c_Input3[idg].real(I3[idl]);
-            }
-        }
-    }
+    Map_C2F_UB_3DV(I1,I2,I3,r_Input1,r_Input2,r_Input3);
 
     // Now transfer block arrays to cuda buffers
     VkFFTResult res = VKFFT_SUCCESS;
@@ -784,124 +702,40 @@ void DataType_VkFFT::Get_Output(RVector &I1, RVector &I2, RVector &I3)
     Map_F2C_3DV(mI1,mI2,mI3,I1,I2,I3);
 }
 
-void DataType_VkFFT::Get_Output_Unbounded_1D(RVector &I)
+void DataType_VkFFT::Get_Output_Unbounded(RVector &I)
 {
-    // Extracts appropriate output
-    int NXH = NX/2;
-    if (size(I)!=size_t(NXH))   I.assign(NXH,0);
+    // This function converts the output array into an easily accesible format
+    if (I.empty()) I.assign(NTH,0);
 
-    // Create dummy arrays if required
-    RVector R1;
-    CVector C1;
-    if (r_out_1) R1 = RVector(NT,0);
-    if (c_out_1) C1 = CVector(NT,ComplexNull);
-
-    // Copy memory from cl buffer
-    VkFFTResult res = VKFFT_SUCCESS;
-    if (r_out_1)    res = transferDataToCPU(vkGPU, R1.data(), &cl_r_Output1, bufferSizeNT);
-    if (c_out_1)  {}// Not yet implemented!
-    SFStatus ressf = ConvertVkFFTError(res);
-
-    // Copy to output arrays
-    std::memcpy(I.data(), R1.data(), NXH*sizeof(Real));   // Just copy over
-
-    // // Hacked output for testing ONLY FFT (forward):
-    // std::cout << "Outputting complex arrays" << std::endl;
-    // std::vector<cl_complex> O(NTM,CLC0);
-    // VkFFTResult res2 = transferDataToCPU(vkGPU, O.data(), &c_FTOutput1, c_bufferSizeNTM);
-    // for (auto i : O) std::cout << i.x csp i.y << std::endl;
-}
-
-void DataType_VkFFT::Get_Output_Unbounded_2D(RVector &I)
-{
-    // Extracts appropriate output
-    int NXH = NX/2;
-    int NYH = NY/2;
-    if (I.empty()) I.assign(NXH*NYH,0);
-
-    // Retrieve data from cl buffer
+    // RVector mI(NT);
     VkFFTResult res = VKFFT_SUCCESS;
     if (r_out_1)    res = transferDataToCPU(vkGPU, r_Output1, &cl_r_Output1, bufferSizeNT);
-    // if (c_out_1)    {}// Not yet implemented!
+    // if (c_out_1)    res = ConvertArray_C2R(mI,&c_Output1,NT);
 
-    // Copy necessary memory into output arrays
-    OpenMPfor
-    for (int i=0; i<NXH; i++){
-        for (int j=0; j<NYH; j++){
-            int idg = j*NX + i;
-            int idl = i*NYH + j;
-            if (r_out_1) I[idl] = r_Output1[idg];
-            // if (c_out_1)    {}// Not yet implemented!
-        }
-    }
-
-    // Hack:: read output array... did FFT work properly?
-    // std::vector<cl_complex> O(NTM,CLC0);
-    // VkFFTResult res2 = transferDataToCPU(vkGPU, O.data(), &c_FTInput1, c_bufferSizeNTM);    // FFT of input
-    // VkFFTResult res2 = transferDataToCPU(vkGPU, O.data(), &c_FG, c_bufferSizeNTM);          // FFT of Green's function
-    // for (auto i : O) std::cout << i.x csp i.y << std::endl;
-}
-
-void DataType_VkFFT::Get_Output_Unbounded_3D(RVector &I)
-{
-    // Extracts appropriate output
-    int NXH = NX/2;
-    int NYH = NY/2;
-    int NZH = NZ/2;
-    if (I.empty()) I.assign(NXH*NYH*NZH,0);
-
-    // Create dummy arrays if required
-    VkFFTResult res = VKFFT_SUCCESS;
-    if (r_out_1)    res = transferDataToCPU(vkGPU, r_Output1, &cl_r_Output1, bufferSizeNT);
-    // if (c_out_1)    {}// Not yet implemented!
-
-    // Copy necessary memory into output arrays
-    OpenMPfor
-    for (int i=0; i<NXH; i++){
-        for (int j=0; j<NYH; j++){
-            for (int k=0; k<NZH; k++){
-                int idg = k*NX*NY + j*NX + i;
-                int idl = i*NYH*NZH + j*NZH + k;
-                if (r_out_1) I[idl] = r_Output1[idg];
-                // if (c_out_1) I[idl] = C1[idg].real();
-            }
-        }
+    switch (Dimension)
+    {
+        case 1: {Map_F2C_UB_1D(r_Output1,I);  break;}
+        case 2: {Map_F2C_UB_2D(r_Output1,I);  break;}
+        case 3: {Map_F2C_UB_3D(r_Output1,I);  break;}
+        default: {break;}
     }
 }
 
-void DataType_VkFFT::Get_Output_Unbounded_3D(RVector &I1, RVector &I2, RVector &I3)
+void DataType_VkFFT::Get_Output_Unbounded(RVector &I1, RVector &I2, RVector &I3)
 {
-    // Extracts appropriate output
-    int NXH = NX/2;
-    int NYH = NY/2;
-    int NZH = NZ/2;
-    if (I1.empty()) I1.assign(NXH*NYH*NZH,0);
-    if (I2.empty()) I2.assign(NXH*NYH*NZH,0);
-    if (I3.empty()) I3.assign(NXH*NYH*NZH,0);
+    // This function converts the output array into an easily accesible format
+    if (I1.empty()) I1.assign(NTH,0);
+    if (I2.empty()) I2.assign(NTH,0);
+    if (I3.empty()) I3.assign(NTH,0);
 
-    // Create dummy arrays if required
+    // RVector mI(NT);
     VkFFTResult res = VKFFT_SUCCESS;
     if (r_out_1)    res = transferDataToCPU(vkGPU, r_Output1, &cl_r_Output1, bufferSizeNT);
     if (r_out_2)    res = transferDataToCPU(vkGPU, r_Output2, &cl_r_Output2, bufferSizeNT);
     if (r_out_3)    res = transferDataToCPU(vkGPU, r_Output3, &cl_r_Output3, bufferSizeNT);
-    // if (c_out_1)    {}// Not yet implemented!
+    // if (c_out_1)    res = ConvertArray_C2R(mI,&c_Output1,NT);
 
-    // Copy necessary memory into output arrays
-    OpenMPfor
-    for (int i=0; i<NXH; i++){
-        for (int j=0; j<NYH; j++){
-            for (int k=0; k<NZH; k++){
-                int idg = k*NX*NY + j*NX + i;
-                int idl = i*NYH*NZH + j*NZH + k;
-                I1[idl] = r_Output1[idg];
-                I2[idl] = r_Output2[idg];
-                I3[idl] = r_Output3[idg];
-                // if (c_out_1) I1[idl] = C1[idg].real();
-                // if (c_out_2) I2[idl] = C2[idg].real();
-                // if (c_out_3) I3[idl] = C3[idg].real();
-            }
-        }
-    }
+    Map_F2C_UB_3DV(r_Output1,r_Output2,r_Output3,I1,I2,I3);
 }
 
 //--- Greens functions prep

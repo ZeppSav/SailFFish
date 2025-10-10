@@ -61,4 +61,8 @@ __kernel void update(__global Real* d,
 
 )CLC";
 
+// const std::string VPM3D_ocl_kernels_update = R"CLC(
+
+// )CLC";
+
 }

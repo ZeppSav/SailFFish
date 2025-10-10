@@ -354,7 +354,8 @@ void Test_Unbounded_3DV(int NX, int NY, int NZ, bool ExportVTI = false)
     for (auto& i : Solution2) i *= EFac;
     for (auto& i : Solution3) i *= EFac;
 
-    Status = Solver->Set_Input_Unbounded_3D(Input1,Input2,Input3);
+    // Status = Solver->Set_Input_Unbounded_3D(Input1,Input2,Input3);
+    Status = Solver->Set_Input_Unbounded(Input1,Input2,Input3);
     if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
     unsigned int t3 = stopwatch();  // Timer
 
@@ -368,7 +369,8 @@ void Test_Unbounded_3DV(int NX, int NY, int NZ, bool ExportVTI = false)
     unsigned int t4 = stopwatch();
 
     // Retrieve solution & collect final timings
-    Solver->Get_Output_Unbounded_3D(Output1,Output2,Output3);
+    // Solver->Get_Output_Unbounded_3D(Output1,Output2,Output3);
+    Solver->Get_Output_Unbounded(Output1,Output2,Output3);
     unsigned int t5 = stopwatch();
     Real tTot = Real(t2+t3+t4+t5);
 

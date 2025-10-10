@@ -1515,6 +1515,45 @@ u[i+1*NT] += Uy;
 u[i+2*NT] += Uz; 
 }
 
+
+//-------------------
+// Airy wave kernel
+//-------------------
+
+__global__ void AddAiryWave(Real *vel,
+                            const Real t,
+                            const Real x1,
+                            const Real z1,
+                            const Real Amp,
+                            const Real DepthHub,
+                            const Real h,
+                            const Real k,
+                            const Real om) {
+
+// Specify grid ids
+unsigned int i = blockIdx.x*blockDim.x + threadIdx.x;
+
+// Calculate global indices based on index
+const int K = int(i/(BX*BY*BZ));
+const int KX = int(K/(NBY*NBZ));
+const int KY = int((K-KX*NBY*NBZ)/NBZ);
+const int KZ = K-KX*NBY*NBZ-KY*NBZ;
+const int ib = i-K*BX*BY*BZ;
+const int bx = int(ib/(BY*BZ));
+const int by = int((ib-bx*BY*BZ)/BZ);
+const int bz = ib-bx*BY*BZ-by*BZ;
+const Real x = x1 + (KX*BX+bx)*hx;
+const Real z = z1 + (KZ*BZ+bz)*hz + DepthHub;  // Z position of particle in submerged CS
+
+const Real ux = Amp*om*cosh(k*z + k*h)/sinh(k*h)*cos(k*x-om*t);
+const Real uz = Amp*om*sinh(k*z + k*h)/sinh(k*h)*sin(k*x-om*t);
+
+// printf("Vecls %f %f %f %f %f %f %f %f %f\n", cosh(k*z + k*h), sinh(k*h), k, k*z, k*h, z, h, ux, uz );
+
+vel[i     ] += ux;
+vel[i+2*NT] += uz;
+}
+
 //-------------------------------------
 // Auxiliary grid communication kernels
 //-------------------------------------

@@ -27,7 +27,6 @@ public:
     template <typename... TemplateArgs>
     cudaKernel(std::string &Src,
                const char *FunctionName,
-               std::string &Kid,
                TemplateArgs... targs){
         // Set inputs
         Handle = FunctionName;
@@ -158,7 +157,6 @@ class VPM3D_cuda : public VPM_3D_Solver //, public cuda_Grid_Data
     Real *dumbuffer;            // A buffer allocated for arbitrary tasks and data migration
 
     //--- cuda Kernels
-    std::string KID;                        // Unique kernel identifier to ensure to common kernel names compiled on GPU.
     cudaKernel *cuda_VPM_convolution;
     cudaKernel *cuda_VPM_reprojection;
     cudaKernel *cuda_monolith_to_block_arch;

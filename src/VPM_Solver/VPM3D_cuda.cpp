@@ -587,74 +587,74 @@ SFStatus VPM3D_cuda::Initialize_Kernels()
         // Compile kernels
         using jitify::reflection::type_of;
         CUDAComplex ComplexType = CUDAComplex(0,0);
-        cuda_VPM_convolution = new cudaKernel(Source,"vpm_convolution",KID, type_of(ComplexType));
-        cuda_VPM_reprojection = new cudaKernel(Source,"vpm_reprojection",KID, type_of(ComplexType));
-        cuda_monolith_to_block_arch = new cudaKernel(Source,"Monolith_to_Block",KID);
-        cuda_block_to_monolith_arch  = new cudaKernel(Source,"Block_to_Monolith",KID);
-        cuda_block_to_monolith_single  = new cudaKernel(Source,"Block_to_Monolith_Single",KID);
-        cuda_map_toUnbounded = new cudaKernel(Source,"Map_toUnbounded",KID);
-        cuda_map_fromUnbounded = new cudaKernel(Source,"Map_fromUnbounded",KID);
-        cuda_mapM2 = new cudaKernel(Source,"MapKernel",KID, 1,2,(BX+2)*(BY+2)*(BZ+2));
-        cuda_mapM4 = new cudaKernel(Source,"MapKernel",KID, 2,4,(BX+4)*(BY+4)*(BZ+4));
-        cuda_mapM4D = new cudaKernel(Source,"MapKernel",KID, 2,42,(BX+4)*(BY+4)*(BZ+4));
-        cuda_mapM6D = new cudaKernel(Source,"MapKernel",KID,3,6, (BX+6)*(BY+6)*(BZ+6));
-        cuda_interpM2 = new cudaKernel(Source,"InterpKernel",KID,1,2,(BX+2)*(BY+2)*(BZ+2));
-        cuda_interpM4 = new cudaKernel(Source,"InterpKernel",KID,2,4,(BX+4)*(BY+4)*(BZ+4));
-        cuda_interpM4D = new cudaKernel(Source,"InterpKernel",KID,2,42,(BX+4)*(BY+4)*(BZ+4));
-        cuda_interpM6D = new cudaKernel(Source,"InterpKernel",KID,3,6,(BX+6)*(BY+6)*(BZ+6));
-        cuda_update = new cudaKernel(Source,"update",KID);
-        cuda_updateRK = new cudaKernel(Source,"updateRK",KID);
-        cuda_updateRK2 = new cudaKernel(Source,"updateRK2",KID);
-        cuda_updateRK3 = new cudaKernel(Source,"updateRK3",KID);
-        cuda_updateRK4 = new cudaKernel(Source,"updateRK4",KID);
-        cuda_updateRKLS = new cudaKernel(Source,"updateRK_LS",KID);
-        cuda_stretch_FD2 = new cudaKernel(Source,"Shear_Stress",KID, 1 ,2,(BX+2)*(BY+2)*(BZ+2));
-        cuda_stretch_FD4 = new cudaKernel(Source,"Shear_Stress",KID, 2 ,4,(BX+4)*(BY+4)*(BZ+4));
-        cuda_stretch_FD6 = new cudaKernel(Source,"Shear_Stress",KID, 3 ,6,(BX+6)*(BY+6)*(BZ+6));
-        cuda_stretch_FD8 = new cudaKernel(Source,"Shear_Stress",KID, 4 ,8,(BX+8)*(BY+8)*(BZ+8));
-        cuda_Diagnostics = new cudaKernel(Source,"DiagnosticsKernel",KID,BT);
-        cuda_MagFilt1 = new cudaKernel(Source,"MagnitudeFiltering_Step1",KID,BT);
-        cuda_MagFilt2 = new cudaKernel(Source,"MagnitudeFiltering_Step2",KID,BT);
-        cuda_MagFilt3 = new cudaKernel(Source,"MagnitudeFiltering_Step3",KID);
-        cuda_freestream = new cudaKernel(Source, "AddFreestream",KID);
-        cuda_Airywave = new cudaKernel(Source, "AddAiryWave", KID);      // Addition for Airy wave component
+        cuda_VPM_convolution = new cudaKernel(Source,"vpm_convolution", type_of(ComplexType));
+        cuda_VPM_reprojection = new cudaKernel(Source,"vpm_reprojection", type_of(ComplexType));
+        cuda_monolith_to_block_arch = new cudaKernel(Source,"Monolith_to_Block");
+        cuda_block_to_monolith_arch  = new cudaKernel(Source,"Block_to_Monolith");
+        cuda_block_to_monolith_single  = new cudaKernel(Source,"Block_to_Monolith_Single");
+        cuda_map_toUnbounded = new cudaKernel(Source,"Map_toUnbounded");
+        cuda_map_fromUnbounded = new cudaKernel(Source,"Map_fromUnbounded");
+        cuda_mapM2 = new cudaKernel(Source,"MapKernel", 1,2,(BX+2)*(BY+2)*(BZ+2));
+        cuda_mapM4 = new cudaKernel(Source,"MapKernel", 2,4,(BX+4)*(BY+4)*(BZ+4));
+        cuda_mapM4D = new cudaKernel(Source,"MapKernel", 2,42,(BX+4)*(BY+4)*(BZ+4));
+        cuda_mapM6D = new cudaKernel(Source,"MapKernel",3,6, (BX+6)*(BY+6)*(BZ+6));
+        cuda_interpM2 = new cudaKernel(Source,"InterpKernel",1,2,(BX+2)*(BY+2)*(BZ+2));
+        cuda_interpM4 = new cudaKernel(Source,"InterpKernel",2,4,(BX+4)*(BY+4)*(BZ+4));
+        cuda_interpM4D = new cudaKernel(Source,"InterpKernel",2,42,(BX+4)*(BY+4)*(BZ+4));
+        cuda_interpM6D = new cudaKernel(Source,"InterpKernel",3,6,(BX+6)*(BY+6)*(BZ+6));
+        cuda_update = new cudaKernel(Source,"update");
+        cuda_updateRK = new cudaKernel(Source,"updateRK");
+        cuda_updateRK2 = new cudaKernel(Source,"updateRK2");
+        cuda_updateRK3 = new cudaKernel(Source,"updateRK3");
+        cuda_updateRK4 = new cudaKernel(Source,"updateRK4");
+        cuda_updateRKLS = new cudaKernel(Source,"updateRK_LS");
+        cuda_stretch_FD2 = new cudaKernel(Source,"Shear_Stress", 1 ,2,(BX+2)*(BY+2)*(BZ+2));
+        cuda_stretch_FD4 = new cudaKernel(Source,"Shear_Stress", 2 ,4,(BX+4)*(BY+4)*(BZ+4));
+        cuda_stretch_FD6 = new cudaKernel(Source,"Shear_Stress", 3 ,6,(BX+6)*(BY+6)*(BZ+6));
+        cuda_stretch_FD8 = new cudaKernel(Source,"Shear_Stress", 4 ,8,(BX+8)*(BY+8)*(BZ+8));
+        cuda_Diagnostics = new cudaKernel(Source,"DiagnosticsKernel",BT);
+        cuda_MagFilt1 = new cudaKernel(Source,"MagnitudeFiltering_Step1",BT);
+        cuda_MagFilt2 = new cudaKernel(Source,"MagnitudeFiltering_Step2",BT);
+        cuda_MagFilt3 = new cudaKernel(Source,"MagnitudeFiltering_Step3");
+        cuda_freestream = new cudaKernel(Source, "AddFreestream");
+        cuda_Airywave = new cudaKernel(Source, "AddAiryWave");      // Addition for Airy wave component
 
         // External source kernels
-        Map_Ext = new cudaKernel(Source,"Map_Ext_Bounded",KID);
-        Map_Ext_Unbounded = new cudaKernel(Source,"Map_Ext_Unbounded",KID);
+        Map_Ext = new cudaKernel(Source,"Map_Ext_Bounded");
+        Map_Ext_Unbounded = new cudaKernel(Source,"Map_Ext_Unbounded");
 
-        cuda_ExtractPlaneX = new cudaKernel(Source,"ExtractPlaneX",KID);
-        cuda_ExtractPlaneY = new cudaKernel(Source,"ExtractPlaneY",KID);
+        cuda_ExtractPlaneX = new cudaKernel(Source,"ExtractPlaneX");
+        cuda_ExtractPlaneY = new cudaKernel(Source,"ExtractPlaneY");
 
-        cuda_interpM2_block = new cudaKernel(Source,"Interp_Block",KID,1,2,(BX+2)*(BY+2)*(BZ+2));
-        cuda_interpM4_block = new cudaKernel(Source,"Interp_Block",KID,2,4,(BX+4)*(BY+4)*(BZ+4));
-        cuda_interpM4D_block = new cudaKernel(Source,"Interp_Block",KID,2,42,(BX+4)*(BY+4)*(BZ+4));
-        cuda_interpM6D_block = new cudaKernel(Source,"Interp_Block",KID,3,6,(BX+6)*(BY+6)*(BZ+6));
+        cuda_interpM2_block = new cudaKernel(Source,"Interp_Block",1,2,(BX+2)*(BY+2)*(BZ+2));
+        cuda_interpM4_block = new cudaKernel(Source,"Interp_Block",2,4,(BX+4)*(BY+4)*(BZ+4));
+        cuda_interpM4D_block = new cudaKernel(Source,"Interp_Block",2,42,(BX+4)*(BY+4)*(BZ+4));
+        cuda_interpM6D_block = new cudaKernel(Source,"Interp_Block",3,6,(BX+6)*(BY+6)*(BZ+6));
 
-        cuda_interpM2_block2 = new cudaKernel(Source,"Interp_Block2",KID,1,2,(BX+2)*(BY+2)*(BZ+2));
-        cuda_interpM4_block2 = new cudaKernel(Source,"Interp_Block2",KID,2,4,(BX+4)*(BY+4)*(BZ+4));
-        cuda_interpM4D_block2 = new cudaKernel(Source,"Interp_Block2",KID,2,42,(BX+4)*(BY+4)*(BZ+4));
-        cuda_interpM6D_block2 = new cudaKernel(Source,"Interp_Block2",KID,3,6,(BX+6)*(BY+6)*(BZ+6));
+        cuda_interpM2_block2 = new cudaKernel(Source,"Interp_Block2",1,2,(BX+2)*(BY+2)*(BZ+2));
+        cuda_interpM4_block2 = new cudaKernel(Source,"Interp_Block2",2,4,(BX+4)*(BY+4)*(BZ+4));
+        cuda_interpM4D_block2 = new cudaKernel(Source,"Interp_Block2",2,42,(BX+4)*(BY+4)*(BZ+4));
+        cuda_interpM6D_block2 = new cudaKernel(Source,"Interp_Block2",3,6,(BX+6)*(BY+6)*(BZ+6));
 
         // Turbulence kernels
-        cuda_Laplacian_FD2 = new cudaKernel(Source,"Laplacian_Operator",KID,1,2,(BX+2)*(BY+2)*(BZ+2));
-        cuda_Laplacian_FD4 = new cudaKernel(Source,"Laplacian_Operator",KID,2,4,(BX+4)*(BY+4)*(BZ+4));
-        cuda_Laplacian_FD6 = new cudaKernel(Source,"Laplacian_Operator",KID,3,6,(BX+6)*(BY+6)*(BZ+6));
-        cuda_Laplacian_FD8 = new cudaKernel(Source,"Laplacian_Operator",KID,4,8,(BX+8)*(BY+8)*(BZ+8));
-        cuda_Turb_Hyp_FD2 = new cudaKernel(Source,"Hyperviscosity_Operator",KID,1,2,(BX+2)*(BY+2)*(BZ+2));
-        cuda_Turb_Hyp_FD4 = new cudaKernel(Source,"Hyperviscosity_Operator",KID,2,4,(BX+4)*(BY+4)*(BZ+4));
-        cuda_Turb_Hyp_FD6 = new cudaKernel(Source,"Hyperviscosity_Operator",KID,3,6,(BX+6)*(BY+6)*(BZ+6));
-        cuda_Turb_Hyp_FD8 = new cudaKernel(Source,"Hyperviscosity_Operator",KID,4,8,(BX+8)*(BY+8)*(BZ+8));
-        cuda_sg_discfilt = new cudaKernel(Source,"SubGrid_DiscFilter",KID,1,(BX+2)*(BY+2)*(BZ+2));
-        // cuda_sg_discfilt2 = new cudaKernel(Source,"SubGrid_DiscFilter2",KID,1,(BX+2)*(BY+2)*(BZ+2));
-        cuda_Turb_RVM_FD2 = new cudaKernel(Source,"RVM_turbulentstress",KID,1,2,(BX+2)*(BY+2)*(BZ+2));
-        cuda_Turb_RVM_FD4 = new cudaKernel(Source,"RVM_turbulentstress",KID,2,4,(BX+4)*(BY+4)*(BZ+4));
-        cuda_Turb_RVM_FD6 = new cudaKernel(Source,"RVM_turbulentstress",KID,3,6,(BX+6)*(BY+6)*(BZ+6));
-        cuda_Turb_RVM_FD8 = new cudaKernel(Source,"RVM_turbulentstress",KID,4,8,(BX+8)*(BY+8)*(BZ+8));
-        cuda_Turb_RVM_DGC_FD2 = new cudaKernel(Source,"RVM_DGC_turbulentstress",KID,1,2,(BX+2)*(BY+2)*(BZ+2));
-        cuda_Turb_RVM_DGC_FD4 = new cudaKernel(Source,"RVM_DGC_turbulentstress",KID,2,4,(BX+4)*(BY+4)*(BZ+4));
-        cuda_Turb_RVM_DGC_FD6 = new cudaKernel(Source,"RVM_DGC_turbulentstress",KID,3,6,(BX+6)*(BY+6)*(BZ+6));
-        cuda_Turb_RVM_DGC_FD8 = new cudaKernel(Source,"RVM_DGC_turbulentstress",KID,4,8,(BX+8)*(BY+8)*(BZ+8));
+        cuda_Laplacian_FD2 = new cudaKernel(Source,"Laplacian_Operator",1,2,(BX+2)*(BY+2)*(BZ+2));
+        cuda_Laplacian_FD4 = new cudaKernel(Source,"Laplacian_Operator",2,4,(BX+4)*(BY+4)*(BZ+4));
+        cuda_Laplacian_FD6 = new cudaKernel(Source,"Laplacian_Operator",3,6,(BX+6)*(BY+6)*(BZ+6));
+        cuda_Laplacian_FD8 = new cudaKernel(Source,"Laplacian_Operator",4,8,(BX+8)*(BY+8)*(BZ+8));
+        cuda_Turb_Hyp_FD2 = new cudaKernel(Source,"Hyperviscosity_Operator",1,2,(BX+2)*(BY+2)*(BZ+2));
+        cuda_Turb_Hyp_FD4 = new cudaKernel(Source,"Hyperviscosity_Operator",2,4,(BX+4)*(BY+4)*(BZ+4));
+        cuda_Turb_Hyp_FD6 = new cudaKernel(Source,"Hyperviscosity_Operator",3,6,(BX+6)*(BY+6)*(BZ+6));
+        cuda_Turb_Hyp_FD8 = new cudaKernel(Source,"Hyperviscosity_Operator",4,8,(BX+8)*(BY+8)*(BZ+8));
+        cuda_sg_discfilt = new cudaKernel(Source,"SubGrid_DiscFilter",1,(BX+2)*(BY+2)*(BZ+2));
+        // cuda_sg_discfilt2 = new cudaKernel(Source,"SubGrid_DiscFilter2",1,(BX+2)*(BY+2)*(BZ+2));
+        cuda_Turb_RVM_FD2 = new cudaKernel(Source,"RVM_turbulentstress",1,2,(BX+2)*(BY+2)*(BZ+2));
+        cuda_Turb_RVM_FD4 = new cudaKernel(Source,"RVM_turbulentstress",2,4,(BX+4)*(BY+4)*(BZ+4));
+        cuda_Turb_RVM_FD6 = new cudaKernel(Source,"RVM_turbulentstress",3,6,(BX+6)*(BY+6)*(BZ+6));
+        cuda_Turb_RVM_FD8 = new cudaKernel(Source,"RVM_turbulentstress",4,8,(BX+8)*(BY+8)*(BZ+8));
+        cuda_Turb_RVM_DGC_FD2 = new cudaKernel(Source,"RVM_DGC_turbulentstress",1,2,(BX+2)*(BY+2)*(BZ+2));
+        cuda_Turb_RVM_DGC_FD4 = new cudaKernel(Source,"RVM_DGC_turbulentstress",2,4,(BX+4)*(BY+4)*(BZ+4));
+        cuda_Turb_RVM_DGC_FD6 = new cudaKernel(Source,"RVM_DGC_turbulentstress",3,6,(BX+6)*(BY+6)*(BZ+6));
+        cuda_Turb_RVM_DGC_FD8 = new cudaKernel(Source,"RVM_DGC_turbulentstress",4,8,(BX+8)*(BY+8)*(BZ+8));
 
         //--- Specify grid constants
         Set_Kernel_Constants(cuda_monolith_to_block_arch->Get_Instance(), 0);

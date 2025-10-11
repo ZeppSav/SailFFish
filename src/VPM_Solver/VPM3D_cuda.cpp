@@ -586,7 +586,7 @@ SFStatus VPM3D_cuda::Initialize_Kernels()
 
         // Compile kernels
         using jitify::reflection::type_of;
-        CUDAComplex ComplexType = CUDAComplex(0,0);
+        CUDAComplex ComplexType;
         cuda_VPM_convolution = new cudaKernel(Source,"vpm_convolution", type_of(ComplexType));
         cuda_VPM_reprojection = new cudaKernel(Source,"vpm_reprojection", type_of(ComplexType));
         cuda_monolith_to_block_arch = new cudaKernel(Source,"Monolith_to_Block");

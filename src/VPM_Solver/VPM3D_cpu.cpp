@@ -46,9 +46,6 @@ SFStatus VPM3D_cpu::Setup_VPM(VPM_Input *I)
     KinVisc = I->KinVisc;
     Rho = I->Rho;
 
-    // Set flag for auxiliary grid
-    Auxiliary = I->AuxGrid;
-
     // Turbulence modelling parameters
     Turb = I->Turb;
     C_smag = I->C_smag;
@@ -66,34 +63,6 @@ SFStatus VPM3D_cpu::Setup_VPM(VPM_Input *I)
 
     if (I->GridDef==NODES)    Stat = Define_Grid_Nodes(I);
     if (I->GridDef==BLOCKS)   Stat = Define_Grid_Blocks(I);
-
-    //--- Initialize auxiliary grid parameters (direct definition)
-
-    if (I->GridDef==NODES){
-        SAX = I->Aux_SX;            // Node shift X
-        SAY = I->Aux_SY;            // Node shift Y
-        SAZ = I->Aux_SZ;            // Node shift Z
-        NAX = I->Aux_NX;            // Number of grid nodes in X-direction
-        NAY = I->Aux_NY;            // Number of grid nodes in Y-direction
-        NAZ = I->Aux_NZ;            // Number of grid nodes in Z-direction
-        NTAux = NAX*NAY*NAZ;
-    }
-
-    if (I->GridDef==BLOCKS){
-        NBAX = I->Aux_NBX;          // Number of grid blocks in X-direction
-        NBAY = I->Aux_NBY;          // Number of grid blocks in Y-direction
-        NBAZ = I->Aux_NBZ;          // Number of grid blocks in Z-direction
-        NAX = NBAX*BX;              // Number of grid nodes in X-direction
-        NAY = NBAY*BY;              // Number of grid nodes in Y-direction
-        NAZ = NBAZ*BZ;              // Number of grid nodes in Z-direction
-        NBSAX = I->Aux_SBX;         // Number of grid blocks in X-direction
-        NBSAY = I->Aux_SBY;         // Number of grid blocks in Y-direction
-        NBSAZ = I->Aux_SBZ;         // Number of grid blocks in Z-direction
-        SAX = NBSAX*BX;             // Node shift X
-        SAY = NBSAY*BY;             // Node shift Y
-        SAZ = NBSAZ*BZ;             // Node shift Z
-        NTAux = NAX*NAY*NAZ;
-    }
 
     //--- Prepare dim id array
     loc_ID = (dim3*)malloc(NNT*sizeof(dim3));
@@ -121,8 +90,7 @@ SFStatus VPM3D_cpu::Setup_VPM(VPM_Input *I)
 
     // Prepare outputs
     create_directory(std::filesystem::path("Output"));  // Generate output folder if not existing
-    if (Auxiliary)  Generate_Summary("Summary_aux.dat");
-    else            Generate_Summary("Summary.dat");
+    Generate_Summary("Summary.dat");
 
     return Stat;
 }

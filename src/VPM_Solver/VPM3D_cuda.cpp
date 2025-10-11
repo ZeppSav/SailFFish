@@ -36,9 +36,6 @@ SFStatus VPM3D_cuda::Setup_VPM(VPM_Input *I)
     KinVisc = I->KinVisc;
     Rho = I->Rho;
 
-    // Set flag for auxiliary grid
-    Auxiliary = I->AuxGrid;
-
     // Turbulence modelling parameters
     Turb = I->Turb;
     C_smag = I->C_smag;
@@ -60,34 +57,6 @@ SFStatus VPM3D_cuda::Setup_VPM(VPM_Input *I)
     if (I->GridDef==NODES)      Stat = Define_Grid_Nodes(I);
     if (I->GridDef==BLOCKS)     Stat = Define_Grid_Blocks(I);
 
-    //--- Initialize auxiliary grid parameters
-
-    if (I->GridDef==NODES){
-        SAX = I->Aux_SX;            // Node shift X
-        SAY = I->Aux_SY;            // Node shift Y
-        SAZ = I->Aux_SZ;            // Node shift Z
-        NAX = I->Aux_NX;            // Number of grid nodes in X-direction
-        NAY = I->Aux_NY;            // Number of grid nodes in Y-direction
-        NAZ = I->Aux_NZ;            // Number of grid nodes in Z-direction
-        NTAux = NAX*NAY*NAZ;
-    }
-
-    if (I->GridDef==BLOCKS){
-        NBAX = I->Aux_NBX;          // Number of grid blocks in X-direction
-        NBAY = I->Aux_NBY;          // Number of grid blocks in Y-direction
-        NBAZ = I->Aux_NBZ;          // Number of grid blocks in Z-direction
-        NAX = NBAX*BX;              // Number of grid nodes in X-direction
-        NAY = NBAY*BY;              // Number of grid nodes in Y-direction
-        NAZ = NBAZ*BZ;              // Number of grid nodes in Z-direction
-        NBSAX = I->Aux_SBX;         // Number of grid blocks in X-direction
-        NBSAY = I->Aux_SBY;         // Number of grid blocks in Y-direction
-        NBSAZ = I->Aux_SBZ;         // Number of grid blocks in Z-direction
-        SAX = NBSAX*BX;             // Node shift X
-        SAY = NBSAY*BY;             // Node shift Y
-        SAZ = NBSAZ*BZ;             // Node shift Z
-        NTAux = NAX*NAY*NAZ;
-    }
-
     // Set block size for Kernel definition
     blockarch_grid = dim3(NBX,NBY,NBZ);
     blockarch_block = dim3(BX,BY,BZ);
@@ -100,14 +69,13 @@ SFStatus VPM3D_cuda::Setup_VPM(VPM_Input *I)
     }
 
     //--- Initialize kernels
-    KID = I->Identifier;
-    if (Auxiliary)  Stat = Initialize_Auxiliary_Kernels();
-    else            Stat = Initialize_Kernels();
+    Stat = Initialize_Kernels();
     if (Stat != NoError)    return Stat;
 
     //--- Allocate and initialize data
-    if (Auxiliary)  Stat = Allocate_Auxiliary_Data();
-    else            Stat = Allocate_Data();
+    // if (Auxiliary)  Stat = Allocate_Auxiliary_Data();
+    // else            Stat = Allocate_Data();
+    Stat = Allocate_Data();
     if (Stat != NoError)    return Stat;
     Initialize_Data();                          // Initialize halo data for FD calcs
     Initialize_Halo_Data();
@@ -115,9 +83,7 @@ SFStatus VPM3D_cuda::Setup_VPM(VPM_Input *I)
 
     // Prepare outputs
     create_directory(std::filesystem::path("Output"));  // Generate output folder if not existing
-    if (Auxiliary)  Generate_Summary("Summary_aux.dat");
-    else            Generate_Summary("Summary.dat");
-    // Generate_Summary();                         // Generate summary of simulation
+    Generate_Summary("Summary.dat");
     Sim_begin = std::chrono::steady_clock::now();    // Begin clock
 
     // Carry out memory checks
@@ -239,26 +205,6 @@ SFStatus VPM3D_cuda::Allocate_Data()
             gfilt_Array1 = cuda_r_Output1;
             gfilt_Array2 = cuda_r_Output2;
         }
-    }
-    catch (std::bad_alloc& ex){
-        std::cout << "VPM3D_cuda::Allocate_Data(): Insufficient memory for allocation of solver arrays." << std::endl;
-        return MemError;
-    }
-
-    std::cout << "VPM3D_cuda::Allocate_Data: Memory allocated." << std::endl;
-
-    return NoError;
-}
-
-SFStatus VPM3D_cuda::Allocate_Auxiliary_Data()
-{
-    // Memory for the execution of the solver on the gpu is allocated
-
-    try{
-        cudaMalloc((void**)&eu_o, 3*NNT*sizeof(Real));
-        eu_dddt = cuda_r_Output1 + 4*NNT;
-        int_lg_d = cuda_r_Output2 + 4*NNT;
-        int_lg_o = cuda_r_Output3 + 4*NNT;
     }
     catch (std::bad_alloc& ex){
         std::cout << "VPM3D_cuda::Allocate_Data(): Insufficient memory for allocation of solver arrays." << std::endl;
@@ -673,14 +619,7 @@ SFStatus VPM3D_cuda::Initialize_Kernels()
         cuda_freestream = new cudaKernel(Source, "AddFreestream",KID);
         cuda_Airywave = new cudaKernel(Source, "AddAiryWave", KID);      // Addition for Airy wave component
 
-        // Auxiliary grid operations
-        cuda_interp_auxM2 = new cudaKernel(Source,"Interpolation_Aux",KID,1,NBSAX,NBSAY,NBSAZ,2,(BX+2)*(BY+2)*(BZ+2));
-        cuda_interp_auxM4 = new cudaKernel(Source,"Interpolation_Aux",KID,2,NBSAX,NBSAY,NBSAZ,4,(BX+4)*(BY+4)*(BZ+4));
-        cuda_interp_auxM4D = new cudaKernel(Source,"Interpolation_Aux",KID,2,NBSAX,NBSAY,NBSAZ,42,(BX+4)*(BY+4)*(BZ+4));
-        cuda_interp_auxM6D = new cudaKernel(Source,"Interpolation_Aux",KID,3,NBSAX,NBSAY,NBSAZ,6,(BX+6)*(BY+6)*(BZ+6));
-        cuda_map_to_AuxiliaryVPM = new cudaKernel(Source,"MaptoAuxiliaryVPMGrid",KID,SAX,SAY,SAZ,NBAX,NBAY,NBAZ);
-        cuda_map_from_AuxiliaryVPM = new cudaKernel(Source,"MapFromAuxiliaryVPMGrid",KID,SAX,SAY,SAZ,NBAX,NBAY,NBAZ);
-        cuda_map_aux_toUnboundedVPM = new cudaKernel(Source,"MapFromAuxiliaryGridVPM_toUnbounded",KID,SAX,SAY,SAZ,NBAX,NBAY,NBAZ);
+        // External source kernels
         Map_Ext = new cudaKernel(Source,"Map_Ext_Bounded",KID);
         Map_Ext_Unbounded = new cudaKernel(Source,"Map_Ext_Unbounded",KID);
 
@@ -758,14 +697,7 @@ SFStatus VPM3D_cuda::Initialize_Kernels()
         Set_Kernel_Constants(cuda_interpM4D_block2->Get_Instance(), 2);
         Set_Kernel_Constants(cuda_interpM6D_block2->Get_Instance(), 3);
 
-        // Auxiliary grid operations
-        Set_Kernel_Constants(cuda_interp_auxM2->Get_Instance(), 1);
-        Set_Kernel_Constants(cuda_interp_auxM4->Get_Instance(), 2);
-        Set_Kernel_Constants(cuda_interp_auxM4D->Get_Instance(), 2);
-        Set_Kernel_Constants(cuda_interp_auxM6D->Get_Instance(), 3);
-        Set_Kernel_Constants(cuda_map_to_AuxiliaryVPM->Get_Instance(), 0);
-        Set_Kernel_Constants(cuda_map_from_AuxiliaryVPM->Get_Instance(), 0);
-        Set_Kernel_Constants(cuda_map_aux_toUnboundedVPM->Get_Instance(), 0);
+        // External source operations
         Set_Kernel_Constants(Map_Ext_Unbounded->Get_Instance(), 0);
         Set_Kernel_Constants(Map_Ext->Get_Instance(), 0);
 
@@ -809,23 +741,11 @@ SFStatus VPM3D_cuda::Initialize_Kernels()
 
             cuda_map_toUnbounded->Instantiate(blockarch_grid, blockarch_block);
             cuda_map_fromUnbounded->Instantiate(blockarch_grid, blockarch_block);
-            // cuda_map_fromUnbounded->Instantiate(blockarch_grid, blockarch_block);
 
             cuda_stretch_FD2->Instantiate(blockarch_grid, blockarch_block);
             cuda_stretch_FD4->Instantiate(blockarch_grid, blockarch_block);
             cuda_stretch_FD6->Instantiate(blockarch_grid, blockarch_block);
             cuda_stretch_FD8->Instantiate(blockarch_grid, blockarch_block);
-
-            // Auxiliary grid operations
-            AuxGrid_grid_extent = dim3(NBAX,NBAY,NBAZ);
-            // dim3 AuxGrid_grid_extent2 = dim3(1,1,1);
-            cuda_interp_auxM2->Instantiate(AuxGrid_grid_extent, blockarch_block);
-            cuda_interp_auxM4->Instantiate(AuxGrid_grid_extent, blockarch_block);
-            cuda_interp_auxM4D->Instantiate(AuxGrid_grid_extent, blockarch_block);
-            cuda_interp_auxM6D->Instantiate(AuxGrid_grid_extent, blockarch_block);
-            cuda_map_to_AuxiliaryVPM->Instantiate(AuxGrid_grid_extent, blockarch_block);
-            cuda_map_from_AuxiliaryVPM->Instantiate(AuxGrid_grid_extent, blockarch_block);
-            cuda_map_aux_toUnboundedVPM->Instantiate(AuxGrid_grid_extent, blockarch_block);
 
             // Turbulence kernels
             cuda_Laplacian_FD2->Instantiate(blockarch_grid, blockarch_block);
@@ -909,102 +829,6 @@ SFStatus VPM3D_cuda::Initialize_Kernels()
 
 }
 
-SFStatus VPM3D_cuda::Initialize_Auxiliary_Kernels()
-{
-    // If this solver is an auxiliary solver, we need to compile far fewer kernels.
-
-    std::string Kernel;
-
-    try{
-
-        // Utilities for compiling
-        using jitify::reflection::type_of;
-        std::string Source = "my_program\n";
-
-        if (std::is_same<Real,float>::value){
-            Source.append("typedef float Real; \n");
-            Source.append("__device__   float  fastma(const float &a, const float &b, const float &c)    {return fmaf(a,b,c);}   \n");
-            Source.append("__device__   float  fab(const float &a)   {return fabs(a);}                  \n");
-            Source.append("__device__   float  mymax(float a, float b)   {return fmaxf(a,b);}           \n");
-        }
-        if (std::is_same<Real,double>::value){
-            Source.append("typedef double Real; \n");
-            Source.append("__device__ double fastma(const double &a, const double &b, const double &c) {return fma(a,b,c);}   \n");
-            Source.append("__device__ double fab(const double &a)  {return abs(a);}                     \n");
-            Source.append("__device__ double mymax(double a, double b)  {return max(a,b);}               \n");
-        }
-
-        // Add body of Kernel
-        std::string cudasources  = "../../SailFFish/src/VPM_Solver/VPM3D_kernels_cuda.cuh";
-        std::ifstream istream(cudasources.c_str());
-        std::string s(std::istreambuf_iterator<char>(istream), {});
-        Source.append(s);
-
-        // Compile kernels
-        using jitify::reflection::type_of;
-        CUDAComplex ComplexType = CUDAComplex(0,0);
-        cuda_VPM_convolution = new cudaKernel(Source,"vpm_convolution",KID, type_of(ComplexType));
-        cuda_VPM_reprojection = new cudaKernel(Source,"vpm_reprojection",KID, type_of(ComplexType));
-        cuda_monolith_to_block_arch = new cudaKernel(Source,"Monolith_to_Block",KID);
-        cuda_block_to_monolith_arch  = new cudaKernel(Source,"Block_to_Monolith",KID);
-        cuda_map_toUnbounded = new cudaKernel(Source,"Map_toUnbounded",KID);
-        cuda_map_fromUnbounded = new cudaKernel(Source,"Map_fromUnbounded",KID);
-        cuda_interpM2_block = new cudaKernel(Source,"Interp_Block",KID,1,2,(BX+2)*(BY+2)*(BZ+2));
-        cuda_interpM4_block = new cudaKernel(Source,"Interp_Block",KID,2,4,(BX+4)*(BY+4)*(BZ+4));
-        cuda_interpM4D_block = new cudaKernel(Source,"Interp_Block",KID,2,42,(BX+4)*(BY+4)*(BZ+4));
-        cuda_interpM6D_block = new cudaKernel(Source,"Interp_Block",KID,3,6,(BX+6)*(BY+6)*(BZ+6));
-
-        // // Utilities for compiling
-        // using jitify::reflection::type_of;
-        // CUDAComplex ComplexType = CUDAComplex(0,0);
-
-        // // Compile kernels
-        // cuda_VPM_convolution = new cudaKernel("vpm_convolution.cuh","vpm_convolution",KID,false, false, false, type_of(ComplexType));
-        // cuda_VPM_reprojection = new cudaKernel("vpm_reproject.cuh","vpm_reprojection",KID,false, false, false, type_of(ComplexType));
-        // cuda_monolith_to_block_arch = new cudaKernel("block_monolith.cuh","Monolith_to_Block",KID,true,false,false);
-        // cuda_block_to_monolith_arch  = new cudaKernel("block_monolith.cuh","Block_to_Monolith",KID,true,false,false);
-        // cuda_map_toUnbounded = new cudaKernel("map_Unbounded.cuh","Map_toUnbounded",KID,true,false,false);
-        // cuda_map_fromUnbounded = new cudaKernel("map_Unbounded.cuh","Map_fromUnbounded",KID, true,false,false);
-        // cuda_interpM2_block = new cudaKernel("interp_block.cuh","Interp_Block",KID,true,true,false,1,2,(BX+2)*(BY+2)*(BZ+2));
-        // cuda_interpM4_block = new cudaKernel("interp_block.cuh","Interp_Block",KID,true,true,false,2,4,(BX+4)*(BY+4)*(BZ+4));
-        // cuda_interpM4D_block = new cudaKernel("interp_block.cuh","Interp_Block",KID,true,true,false,2,42,(BX+4)*(BY+4)*(BZ+4));
-        // cuda_interpM6D_block = new cudaKernel("interp_block.cuh","Interp_Block",KID,true,true,false,3,6,(BX+6)*(BY+6)*(BZ+6));
-
-        //--- Specify grid constants
-        Set_Kernel_Constants(cuda_monolith_to_block_arch->Get_Instance(), 0);
-        Set_Kernel_Constants(cuda_block_to_monolith_arch->Get_Instance(), 0);
-        Set_Kernel_Constants(cuda_map_toUnbounded->Get_Instance(), 0);
-        Set_Kernel_Constants(cuda_map_fromUnbounded->Get_Instance(), 0);
-        Set_Kernel_Constants(cuda_interpM2_block->Get_Instance(), 1);
-        Set_Kernel_Constants(cuda_interpM4_block->Get_Instance(), 2);
-        Set_Kernel_Constants(cuda_interpM4D_block->Get_Instance(), 2);
-        Set_Kernel_Constants(cuda_interpM6D_block->Get_Instance(), 3);
-
-        if (Architecture==BLOCK){
-
-            //--- Configure grid
-            dim3 ConvGrid(NTM/BT), ConvBlockSF(BT);
-            cuda_VPM_convolution->Instantiate(ConvGrid,ConvBlockSF);
-            cuda_VPM_reprojection->Instantiate(ConvGrid,ConvBlockSF);
-
-            cuda_monolith_to_block_arch->Instantiate(blockarch_grid, blockarch_block);
-            cuda_block_to_monolith_arch->Instantiate(blockarch_grid, blockarch_block);
-            cuda_map_toUnbounded->Instantiate(blockarch_grid, blockarch_block);
-            cuda_map_fromUnbounded->Instantiate(blockarch_grid, blockarch_block);
-            // cuda_map_fromUnbounded->Instantiate(blockarch_grids, blockarch_block);
-        }
-
-    }
-    catch (std::bad_alloc& ex){
-        std::cout << "VPM3D_cuda::Initialize_Auxiliary_Kernels(): Problem with initializing kernels. Error code: " << ex.what() << std::endl;
-        return SetupError;
-    }
-
-    std::cout << "VPM3D_cuda::Initialize_Auxiliary_Kernels: Kernel initialization successful." << std::endl;
-    return NoError;
-
-}
-
 inline cudaError_t checkCuda(cudaError_t result)
 {
     if (result != cudaSuccess) {
@@ -1044,7 +868,7 @@ void VPM3D_cuda::Update_Particle_Field()
     {
         Calc_Particle_RateofChange(lg_d, lg_o, lg_dddt, lg_dodt);
         Calc_Grid_Diagnostics();
-        if (AuxGrid) Map_to_Auxiliary_Grid();
+        // if (AuxGrid) Map_to_Auxiliary_Grid();
         cuda_update->Execute(lg_d, lg_o, lg_dddt, lg_dodt, Real(dT));
     }
 
@@ -1052,7 +876,7 @@ void VPM3D_cuda::Update_Particle_Field()
     {
         Calc_Particle_RateofChange(lg_d, lg_o, lg_dddt, lg_dodt);
         Calc_Grid_Diagnostics();
-        if (AuxGrid) Map_to_Auxiliary_Grid();
+        // if (AuxGrid) Map_to_Auxiliary_Grid();
         cudaMemcpy(int_lg_d, lg_d, 3*NNT*sizeof(Real), cudaMemcpyDeviceToDevice);
         cudaMemcpy(int_lg_o, lg_o, 3*NNT*sizeof(Real), cudaMemcpyDeviceToDevice);
         cuda_update->Execute(int_lg_d, int_lg_o, lg_dddt, lg_dodt, Real(0.5*dT));
@@ -1093,7 +917,7 @@ void VPM3D_cuda::Update_Particle_Field()
     {
         Calc_Particle_RateofChange(lg_d, lg_o, lg_dddt, lg_dodt);
         Calc_Grid_Diagnostics();
-        if (AuxGrid) Map_to_Auxiliary_Grid();
+        // if (AuxGrid) Map_to_Auxiliary_Grid();
         cuda_updateRK->Execute(lg_d, lg_o, lg_dddt, lg_dodt, int_lg_d, int_lg_o, Real(dT));
         Calc_Particle_RateofChange(int_lg_d, int_lg_o, k2_d, k2_o);
         cuda_updateRK2->Execute(lg_d, lg_o, lg_dddt, lg_dodt, k2_d, k2_o, Real(dT));
@@ -1103,7 +927,7 @@ void VPM3D_cuda::Update_Particle_Field()
     {
         Calc_Particle_RateofChange(lg_d, lg_o, lg_dddt, lg_dodt);
         Calc_Grid_Diagnostics();
-        if (AuxGrid) Map_to_Auxiliary_Grid();
+        // if (AuxGrid) Map_to_Auxiliary_Grid();
         cuda_updateRK->Execute(lg_d, lg_o, lg_dddt, lg_dodt, int_lg_d, int_lg_o, Real(0.5*dT));
         Calc_Particle_RateofChange(int_lg_d, int_lg_o, k2_d, k2_o);
         cuda_updateRK->Execute(lg_d, lg_o, lg_dddt, lg_dodt, int_lg_d, int_lg_o, Real(-dT));
@@ -1116,7 +940,7 @@ void VPM3D_cuda::Update_Particle_Field()
     {
         Calc_Particle_RateofChange(lg_d, lg_o, lg_dddt, lg_dodt);
         Calc_Grid_Diagnostics();
-        if (AuxGrid) Map_to_Auxiliary_Grid();
+        // if (AuxGrid) Map_to_Auxiliary_Grid();
         cuda_updateRK->Execute(lg_d, lg_o, lg_dddt, lg_dodt, int_lg_d, int_lg_o, Real(0.5*dT));
         Calc_Particle_RateofChange(int_lg_d, int_lg_o, k2_d, k2_o);
         cuda_updateRK->Execute(lg_d, lg_o, k2_d, k2_o, int_lg_d, int_lg_o, Real(0.5*dT));
@@ -1132,9 +956,10 @@ void VPM3D_cuda::Update_Particle_Field()
         Real RK3B[4] =  {8.0/141.0, 6627.0/2000.0, 609375.0/1085297.0, 198961.0/526283.0};
         // cudaMemset(int_lg_d,    0, 3*NNT*sizeof(Real));       // Clear intermediate arrays
         // cudaMemset(int_lg_o,    0, 3*NNT*sizeof(Real));       // Clear intermediate arrays
+
         Calc_Particle_RateofChange(lg_d, lg_o, lg_dddt, lg_dodt);
         Calc_Grid_Diagnostics();
-        if (AuxGrid) Map_to_Auxiliary_Grid();        // Commenting this out causes code to not crash!!!!
+        // if (AuxGrid) Map_to_Auxiliary_Grid();        // Commenting this out causes code to not crash!!!!
 
         cuda_updateRKLS->Execute(lg_d, lg_o, lg_dddt, lg_dodt, int_lg_d, int_lg_o, Real(RK3A[0]), Real(RK3B[0]), Real(dT));
         Calc_Particle_RateofChange(lg_d, lg_o, lg_dddt, lg_dodt);
@@ -1153,7 +978,7 @@ void VPM3D_cuda::Update_Particle_Field()
         cudaMemset(int_lg_o,    0, 3*NNT*sizeof(Real));       // Clear intermediate arrays
         Calc_Particle_RateofChange(lg_d, lg_o, lg_dddt, lg_dodt);
         Calc_Grid_Diagnostics();
-        if (AuxGrid) Map_to_Auxiliary_Grid();
+        // if (AuxGrid) Map_to_Auxiliary_Grid();
         cuda_updateRKLS->Execute(lg_d, lg_o, lg_dddt, lg_dodt, int_lg_d, int_lg_o, Real(RK4A[0]), Real(RK4B[0]), Real(dT));
         Calc_Particle_RateofChange(lg_d, lg_o, lg_dddt, lg_dodt);
         cuda_updateRKLS->Execute(lg_d, lg_o, lg_dddt, lg_dodt, int_lg_d, int_lg_o, Real(RK4A[1]), Real(RK4B[1]), Real(dT));
@@ -1459,21 +1284,6 @@ void VPM3D_cuda::Add_Freestream_Velocity()
     //                         Real(Omega)); // Current time
 }
 
-void VPM3D_cuda::Solve_Velocity()
-{
-    // If we are executing a hybrid grid solve, we directly solve the velcotiy on the grid here.
-    // This function is called only if we are not doing other grid manipulations (e.g. vorticity field update)
-
-    cudaMemset(cuda_r_Input1,   Real(0.0), NT*sizeof(Real));
-    cudaMemset(cuda_r_Input2,   Real(0.0), NT*sizeof(Real));
-    cudaMemset(cuda_r_Input3,   Real(0.0), NT*sizeof(Real));
-    cuda_map_toUnbounded->Execute(eu_o, cuda_r_Input1, cuda_r_Input2, cuda_r_Input3);
-    Forward_Transform();
-    cuda_VPM_convolution->Execute(c_FTInput1, c_FTInput2, c_FTInput3, c_FG, c_FGi, c_FGj, c_FGk, c_FTOutput1, c_FTOutput2, c_FTOutput3);
-    Backward_Transform();
-    cuda_map_fromUnbounded->Execute(cuda_r_Output1, cuda_r_Output2, cuda_r_Output3, eu_dddt);
-}
-
 void VPM3D_cuda::Calc_Grid_Diagnostics()
 {
     // Diagnostics are calculated in blocks of size BS This is transferred back to the CPU and summed there for simplicity
@@ -1563,60 +1373,6 @@ void VPM3D_cuda::Calc_Grid_Diagnostics()
     //    Saffman_Cent_X_prev = Saffman_Cent_X;
     //    std::cout << "Saffman Centroid dUx/dt: " << dUxdT << std::endl;
 
-}
-
-void VPM3D_cuda::MatMultTest()
-{
-    // void GEMM(const StdVector &A, const StdVector &B, StdVector &C, const int &Ar, const int &Bc, const int &Ac, const Real Alpha = 1.0, const Real Beta = 0.0)
-    // {
-
-    // Size of A array is [27*512,512]. Size of B array is [512,3*NBT] Size of c array is [27*512,3*NBT]
-
-    int Ar = 27*BT;
-    int Bc = 3*NBT;
-    int Ac = BT;
-
-    int Br = BT;
-    int Cr = Ar;
-    int Cc = Bc;
-
-    const int m = Ar;
-    const int n = Bc;
-    const int k = Ac;
-    int lda=m,ldb=k,ldc=m;
-
-    // Allocate 3 arrays on GPU
-    Real *d_A, *d_B, *d_C;
-    cudaMalloc(&d_A, Ar*Ac*sizeof(Real));
-    cudaMalloc(&d_B, Br*Bc*sizeof(Real));
-    cudaMalloc(&d_C, Cr*Cc*sizeof(Real));
-
-    cudaMemset((void**)d_A, Real(0.0), Ar*Ac*sizeof(Real));
-    cudaMemset((void**)d_B, Real(0.0), Br*Bc*sizeof(Real));
-    cudaMemset((void**)d_C, Real(0.0), Cr*Cc*sizeof(Real));
-
-    // cudaMemcpy(d_A,A.data(),A.size() * sizeof(Real),cudaMemcpyHostToDevice);
-    // cudaMemcpy(d_B,B.data(),B.size() * sizeof(Real),cudaMemcpyHostToDevice);
-
-    // C = std::vector<Real>(m*n);         // Declare output matrix
-    cublasHandle_t handle;
-    cublasCreate(&handle);
-    std::cout << "Cuda Object created" << std::endl;
-    Real Alpha = 1.0;
-    Real Beta = 1.0;
-
-    float ms;
-    cudaEvent_t startEvent, stopEvent;
-    checkCuda( cudaEventCreate(&startEvent) );
-    checkCuda( cudaEventCreate(&stopEvent) );
-    checkCuda( cudaEventRecord(startEvent,0) );
-
-    // cublasSgemm(handle,CUBLAS_OP_N,CUBLAS_OP_N,n,m,k,&Alpha,d_B,n,d_A,k,&Beta,d_C,n); // Row-major multiplication!
-
-    checkCuda( cudaEventRecord(stopEvent, 0) );
-    checkCuda( cudaEventSynchronize(stopEvent) );
-    checkCuda( cudaEventElapsedTime(&ms, startEvent, stopEvent) );
-    std::cout << ": Time for NF Matrix mult (ms): " << ms << std::endl;
 }
 
 //-------------------------------------------
@@ -1797,26 +1553,8 @@ void VPM3D_cuda::Add_Grid_Sources(const RVector &Px, const RVector &Py, const RV
 }
 
 //-------------------------------------------
-//------- Auxiliary grid functions ----------
+//------- External source functions ---------
 //-------------------------------------------
-
-void VPM3D_cuda::Set_External_Grid(VPM_3D_Solver *G)
-{
-    // We specify here the external grid. In the case of the block grid execution, we need to specify also the
-    // grid parameters of the mapping kernels.
-
-    AuxGrid = G;        // Set auxiliary grid
-    cudaMalloc((void**)&AuxGridData, 3*NTAux*sizeof(Real));
-    std::cout << "VPM3D_cuda::Set_External_Grid: External grid specification is suitable. " << std::endl;
-    std::cout << "SAX = " << SAX << ", SAY = " << SAY << ", SAZ = " << SAZ  << std::endl;
-    std::cout << "NAX = " << NAX << ", NAY = " << NAY << ", NAZ = " << NAZ << ", NTAux = " << NTAux << std::endl;
-}
-
-void VPM3D_cuda::Map_to_Auxiliary_Grid()
-{
-    // The full velocity field is solved on the Eulerian grid. This is now mapped back to the auxiliary grid
-    cuda_map_to_AuxiliaryVPM->Execute(eu_dddt, AuxGrid->Get_Vel_Array());
-}
 
 void VPM3D_cuda::Interpolate_Ext_Sources(Mapping M)
 {
@@ -1881,7 +1619,6 @@ void VPM3D_cuda::Interpolate_Ext_Sources(Mapping M)
     //                                 Real* dest)                                     // Destination grid (vorticity)
 
 }
-
 
 //-----------------------------------
 //------- External sources ----------
@@ -2161,7 +1898,6 @@ VPM3D_cuda::~VPM3D_cuda()
     cudaFree(Halo2data);
     cudaFree(Halo3data);
     cudaFree(Halo4data);
-    cudaFree(AuxGridData);
 
     //--- Timestepping (temporary) arrays
     cudaFree(int_lg_d);

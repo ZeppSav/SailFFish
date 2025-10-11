@@ -112,12 +112,6 @@ struct VPM_Input
     Real AdaptMaxY = 0;                 // What is the maximum value of y which should be resolved?
     Real AdaptMinZ = 0;                 // What is the minimum value of z which should be resolved?
     Real AdaptMaxZ = 0;                 // What is the maximum value of z which should be resolved?
-    Real AdaptAuxMinX = 0;              // What is the minimum value of x which should be resolved on the auxiliary grid?
-    Real AdaptAuxMaxX = 0;              // What is the maximum value of x which should be resolved on the auxiliary grid?
-    Real AdaptAuxMinY = 0;              // What is the minimum value of y which should be resolved on the auxiliary grid?
-    Real AdaptAuxMaxY = 0;              // What is the maximum value of y which should be resolved on the auxiliary grid?
-    Real AdaptAuxMinZ = 0;              // What is the minimum value of z which should be resolved on the auxiliary grid?
-    Real AdaptAuxMaxZ = 0;              // What is the maximum value of z which should be resolved on the auxiliary grid?
 
     //--- Memory vars
     bool BufferFlag = false;               // Is memory stored.inplace
@@ -160,22 +154,6 @@ struct VPM_Input
     int ExpTB = 0;                      // From whcih timestep will we export volume grid?
     bool Log = false;                   // Are we logging solver/field diagnostics?
     std::string Outputdir;              // Output directory
-
-    //--- Auxiliary grid parameters
-    std::string Identifier;
-    bool AuxGrid = false;
-    int Aux_SX = 0;                     // Node shift X
-    int Aux_SY = 0;                     // Node shift Y
-    int Aux_SZ = 0;                     // Node shift Z
-    int Aux_NX = 0;                     // Number of cells in X-direction
-    int Aux_NY = 0;                     // Number of cells in Y-direction
-    int Aux_NZ = 0;                     // Number of cells in Z-direction
-    int Aux_SBX = 0;                    // Block shift X
-    int Aux_SBY = 0;                    // Block shift Y
-    int Aux_SBZ = 0;                    // Block shift Z
-    int Aux_NBX = 0;                    // Number of blocks in X-direction
-    int Aux_NBY = 0;                    // Number of blocks in Y-direction
-    int Aux_NBZ = 0;                    // Number of blocks in Z-direction
 
     // Turbulence modelling parameters
     Turbulence Turb = LAM;              // Turbulence modelling scheme
@@ -346,29 +324,6 @@ struct VPM_Input
                 if (Fields[1] == "ADAPTMAXY")   AdaptMaxY = std::stod(Fields[0])*L;
                 if (Fields[1] == "ADAPTMINZ")   AdaptMinZ = std::stod(Fields[0])*L;
                 if (Fields[1] == "ADAPTMAXZ")   AdaptMaxZ = std::stod(Fields[0])*L;
-
-                //--- Grid params (auxiliary grid)
-
-                if (Fields[1] == "AUXSX")       Aux_SX = std::stoi(Fields[0]);
-                if (Fields[1] == "AUXSY")       Aux_SY = std::stoi(Fields[0]);
-                if (Fields[1] == "AUXSZ")       Aux_SZ = std::stoi(Fields[0]);
-                if (Fields[1] == "AUXNX")       Aux_NX = std::stoi(Fields[0]);
-                if (Fields[1] == "AUXNY")       Aux_NY = std::stoi(Fields[0]);
-                if (Fields[1] == "AUXNZ")       Aux_NZ = std::stoi(Fields[0]);
-
-                if (Fields[1] == "AUXSBX")      Aux_SBX = std::stoi(Fields[0]);
-                if (Fields[1] == "AUXSBY")      Aux_SBY = std::stoi(Fields[0]);
-                if (Fields[1] == "AUXSBZ")      Aux_SBZ = std::stoi(Fields[0]);
-                if (Fields[1] == "AUXNBX")      Aux_NBX = std::stoi(Fields[0]);
-                if (Fields[1] == "AUXNBY")      Aux_NBY = std::stoi(Fields[0]);
-                if (Fields[1] == "AUXNBZ")      Aux_NBZ = std::stoi(Fields[0]);
-
-                if (Fields[1] == "ADAPTAUXMINX")   AdaptAuxMinX = std::stod(Fields[0])*L;
-                if (Fields[1] == "ADAPTAUXMAXX")   AdaptAuxMaxX = std::stod(Fields[0])*L;
-                if (Fields[1] == "ADAPTAUXMINY")   AdaptAuxMinY = std::stod(Fields[0])*L;
-                if (Fields[1] == "ADAPTAUXMAXY")   AdaptAuxMaxY = std::stod(Fields[0])*L;
-                if (Fields[1] == "ADAPTAUXMINZ")   AdaptAuxMinZ = std::stod(Fields[0])*L;
-                if (Fields[1] == "ADAPTAUXMAXZ")   AdaptAuxMaxZ = std::stod(Fields[0])*L;
             }
         }
         File.close();
@@ -399,21 +354,6 @@ struct VPM_Input
         NBX = highblockx - iBX0 + 1;
         NBY = highblocky - iBY0 + 1;
         NBZ = highblockz - iBZ0 + 1;
-
-        // Specify block inputs (auxiliary grid)
-        int AuxiBX0 = floor(AdaptAuxMinX/HLx);          if (AuxiBX0 >0)   AuxiBX0--;
-        int AuxiBY0 = floor(AdaptAuxMinY/HLy);          if (AuxiBY0 >0)   AuxiBY0--;
-        int AuxiBZ0 = floor(AdaptAuxMinZ/HLz);          if (AuxiBZ0 >0)   AuxiBZ0--;
-        int Auxhighblockx = ceil(AdaptAuxMaxX/HLx);     if (Auxhighblockx>0)   Auxhighblockx--;
-        int Auxhighblocky = ceil(AdaptAuxMaxY/HLy);     if (Auxhighblocky>0)   Auxhighblocky--;
-        int Auxhighblockz = ceil(AdaptAuxMaxZ/HLz);     if (Auxhighblockz>0)   Auxhighblockz--;
-
-        Aux_NBX = Auxhighblockx - AuxiBX0 + 1;
-        Aux_NBY = Auxhighblocky - AuxiBY0 + 1;
-        Aux_NBZ = Auxhighblockz - AuxiBZ0 + 1;
-        Aux_SBX = AuxiBX0 - iBX0;
-        Aux_SBY = AuxiBY0 - iBY0;
-        Aux_SBZ = AuxiBZ0 - iBZ0;
 
         // Reset grid def for initialization
         GridDef = BLOCKS;
@@ -459,12 +399,6 @@ protected:
     TensorGrid eu_d;
     TensorGrid MapFactors;
 
-    //--- Auxiliary grid values
-    int NAX, NAY, NAZ, NTAux;   // Number of grid nodes of external grid
-    int NBAX, NBAY, NBAZ;       // Block-type setup for shifted blocks
-    int NBSAX, NBSAY, NBSAZ;       // Block-type setup for shifted blocks
-    int SAX, SAY, SAZ;          // Shift of external grid
-
     //--- Mapping parameters
     int Set_Map_Shift(Mapping Map);
     int Set_Map_Stencil_Width(Mapping Map);
@@ -499,9 +433,6 @@ protected:
 
     //--- External forcing
     std::vector<ParticleMap> Ext_Forcing;
-
-    //--- Auxiliary grid definition
-    VPM_3D_Solver *AuxGrid = nullptr;
 
     //--- Debugging & output parameters
     int NExp = 0;                           // Output visualisation frequency
@@ -593,10 +524,6 @@ public:
     virtual TensorGrid *Get_gArray()    {return nullptr;}
     virtual Real* Get_Vort_Array()      {return nullptr;}
     virtual Real* Get_Vel_Array()       {return nullptr;}
-
-    //--- Auxiliary grid functions
-    virtual void Set_External_Grid(VPM_3D_Solver *G)        {}
-    virtual void Solve_Velocity()           {}
     Real GetXgridMax()  {RVector XG; Get_XGrid(XG); return XG[XG.size()-1];}
 
     //--- Grid statistics

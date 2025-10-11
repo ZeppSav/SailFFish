@@ -152,14 +152,8 @@ class VPM3D_cuda : public VPM_3D_Solver //, public cuda_Grid_Data
     //--- cuda Block & Grid size
     dim3 blockarch_grid, blockarch_block;
 
-    //--- Auxiliary grid data
-    bool Auxiliary = false;
-    bool AuxGPU = true;
-    Real *AuxGridData;      //, *AuxGridY, *AuxGridZ;
-    dim3 AuxGrid_grid_extent;
-    // Real *eu_o_aux;         // Pointer to auxiliary vorticity grid
-    // Real *eu_dddt_aux;      // Pointer to auxiliary velocity grid
-    void Map_from_Auxiliary_Grid();// override ;
+    //--- Auxiliary source data
+    void Map_from_Auxiliary_Grid() override ;
 
     Real *dumbuffer;            // A buffer allocated for arbitrary tasks and data migration
 
@@ -178,15 +172,8 @@ class VPM3D_cuda : public VPM_3D_Solver //, public cuda_Grid_Data
     cudaKernel *cuda_interpM4;
     cudaKernel *cuda_interpM4D;
     cudaKernel *cuda_interpM6D;
-    cudaKernel *cuda_interp_auxM2;
-    cudaKernel *cuda_interp_auxM4;
-    cudaKernel *cuda_interp_auxM4D;
-    cudaKernel *cuda_interp_auxM6D;
     cudaKernel *cuda_map_toUnbounded;
     cudaKernel *cuda_map_fromUnbounded;
-    cudaKernel *cuda_map_to_AuxiliaryVPM;
-    cudaKernel *cuda_map_from_AuxiliaryVPM;
-    cudaKernel *cuda_map_aux_toUnboundedVPM;
     cudaKernel *cuda_update;
     cudaKernel *cuda_updateRK;
     cudaKernel *cuda_updateRK2;
@@ -269,16 +256,14 @@ public:
     //--- Kernel setup
     void Set_Kernel_Constants(jitify::KernelInstantiation *KI, int Halo);
     SFStatus Initialize_Kernels();
-    SFStatus Initialize_Auxiliary_Kernels();
-
     //--- Initial vorticity distribution
     void Retrieve_Grid_Positions(RVector &xc, RVector &yc, RVector &zc);
     void Set_Input_Arrays(RVector &xo, RVector &yo, RVector &zo);
 
     //--- Auxiliary grid operations
     Real *Get_Vorticity_Array() {return eu_o;}
-    void Set_External_Grid(VPM_3D_Solver *G) override;
-    void Map_to_Auxiliary_Grid() override;
+    // void Set_External_Grid(VPM_3D_Solver *G) override;
+    // void Map_to_Auxiliary_Grid() override;
     void Interpolate_Ext_Sources(Mapping M) override;
     Real* Get_Vort_Array() override {return eu_o;}
     Real* Get_Vel_Array() override {return eu_dddt;}
@@ -311,7 +296,7 @@ public:
     void Grid_Shear_Stresses() override;
     void Grid_Turb_Shear_Stresses() override;
     void Add_Freestream_Velocity() override;
-    void Solve_Velocity() override;
+    // void Solve_Velocity() override;
 
     // Debugging
     void Output_Max_Components(const Real *A, int N);
@@ -331,9 +316,6 @@ public:
     void Generate_VTK(const Real *vtkoutput1, const Real *vtkoutput2);
     void Generate_Plane(RVector &U) override;
     void Generate_Traverse(int XP, RVector &U, RVector &V, RVector &W) override;
-
-    ///--- Testing function
-    void MatMultTest();
 
     ~VPM3D_cuda() override;
 };

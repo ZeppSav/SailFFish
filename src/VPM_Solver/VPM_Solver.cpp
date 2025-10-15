@@ -474,7 +474,7 @@ void VPM_3D_Solver::Process_Cells(const RVector &Px, const RVector &Py, const RV
 
     // Step 2: Remove invalid cell mappings and generate list of pointers to cell objects
     // std::vector<CellMap*> IDs;
-    for (size_t i=0; i<size(Cells); i++)   {if (Valid[i])   IDs.push_back(Cells[i]);}
+    for (size_t i=0; i<Cells.size(); i++)   {if (Valid[i])   IDs.push_back(Cells[i]);}
 
     // Step 3: Sort remaining cell mappings based on global id
     std::sort(IDs.begin(), IDs.end(), [](const CellMap& a, const CellMap& b) { return a.id < b.id; });
@@ -608,7 +608,7 @@ void VPM_3D_Solver::Map_Source_Nodes(const RVector &Px, const RVector &Py, const
     // Map particles to temp grid
     int idsh = Set_Map_Shift(Map);
     int nc = Set_Map_Stencil_Width(Map);
-    for (size_t p=0; p<size(Maps); p++){
+    for (size_t p=0; p<Maps.size(); p++){
 
         dim3 rid(Maps[p].id3.x-dLow.x, Maps[p].id3.y-dLow.y, Maps[p].id3.z-dLow.z); // Local position of cell within sparse grid
 
@@ -619,7 +619,7 @@ void VPM_3D_Solver::Map_Source_Nodes(const RVector &Px, const RVector &Py, const
                 for (int k=0; k<nc; k++){
                     dim3 mid(rid.x+idsh+i, rid.y+idsh+j, rid.z+idsh+k);     // Local dim3 id of node within sparse grid
                     int gid = GID(mid.x,mid.y,mid.z,nx,ny,nz);              // Local id of node within sparse grid
-                    for (size_t pm=0; pm<size(Maps[p].Weights); pm++){
+                    for (size_t pm=0; pm<Maps[p].Weights.size(); pm++){
                         Matrix M = Maps[p].Coeffs[pm];
                         Vector3 Om = Maps[p].Weights[pm];
                         Real Fac = M(0,i)*M(1,j)*M(2,k);
@@ -671,7 +671,7 @@ void VPM_3D_Solver::Map_Probe_Nodes(const RVector &Px, const RVector &Py, const 
 
     // Process nodes
     std::vector<CellMap> ID;
-    RVector dumOx(size(Px),0), dumOy(size(Px),0), dumOz(size(Px),0);    // Dummy source arrays
+    RVector dumOx(Px.size(),0), dumOy(Px.size(),0), dumOz(Px.size(),0);    // Dummy source arrays
     Process_Cells(Px, Py, Pz, dumOx, dumOy, dumOz, ID, Map);
 
     // Accumulate equivalent node positions
@@ -701,7 +701,7 @@ void VPM_3D_Solver::Map_Probe_Nodes(const RVector &Px, const RVector &Py, const 
     // Map particles to temp grid
     int idsh = Set_Map_Shift(Map);
     int nc = Set_Map_Stencil_Width(Map);
-    for (size_t p=0; p<size(Maps); p++){
+    for (size_t p=0; p<Maps.size(); p++){
 
         dim3 rid(Maps[p].id3.x-dLow.x, Maps[p].id3.y-dLow.y, Maps[p].id3.z-dLow.z); // Local position of cell within sparse grid
 
@@ -745,7 +745,7 @@ void VPM_3D_Solver::Get_Ext_Velocity(const RVector &Px, const RVector &Py, const
 
     // Process nodes
     std::vector<CellMap> ID;
-    RVector dumOx(size(Px),0), dumOy(size(Px),0), dumOz(size(Px),0);    // Dummy source arrays
+    RVector dumOx(Px.size(),0), dumOy(Px.size(),0), dumOz(Px.size(),0);    // Dummy source arrays
     Process_Cells(Px, Py, Pz, dumOx, dumOy, dumOz, ID, Map);
 
     // Accumulate equivalent receiver node positions
@@ -775,7 +775,7 @@ void VPM_3D_Solver::Get_Ext_Velocity(const RVector &Px, const RVector &Py, const
     // Specify locations where influence needs to be calculated
     int idsh = Set_Map_Shift(Map);
     int nc = Set_Map_Stencil_Width(Map);
-    for (size_t p=0; p<size(Maps); p++){
+    for (size_t p=0; p<Maps.size(); p++){
 
         dim3 rid(Maps[p].id3.x-dLow.x, Maps[p].id3.y-dLow.y, Maps[p].id3.z-dLow.z); // Local position of cell within sparse grid
 
@@ -818,12 +818,12 @@ void VPM_3D_Solver::Get_Ext_Velocity(const RVector &Px, const RVector &Py, const
     Real dV = Hx*Hy*Hz;
     Real Sigma = 2.0*Hx;
     OpenMPfor
-    for (size_t p=0; p<size(RcvrNodes); p++){                               // Loop over evaluation points
+    for (size_t p=0; p<RcvrNodes.size(); p++){                               // Loop over evaluation points
         dim3 rcvr = RcvrNodes[p].cartid; //std::get<0>(RcvrNodes[p]);           // Receiver global id
         Vector3 prcvr(XN1+rcvr.x*Hx, YN1+rcvr.y*Hy, ZN1+rcvr.z*Hz);             // Receiver global position
 
         Vector3 tPhi = Vector3::Zero();
-        for (size_t s=0; s<size(Ext_Forcing); s++){
+        for (size_t s=0; s<Ext_Forcing.size(); s++){
             dim3 sid = Ext_Forcing[s].cartid;   //std::get<0>(Ext_Forcing[s]);                     // Global id of source node
             Vector3 psrc(XN1+sid.x*Hx, YN1+sid.y*Hy, ZN1+sid.z*Hz);     // Global position of source node
             Vector3 alpha = Ext_Forcing[s].Vort*dV;    //std::get<1>(Ext_Forcing[s])*dV;             // Circulation of source node
@@ -904,8 +904,7 @@ void VPM_3D_Solver::Generate_Summary(std::string Filename)
 
     //--- Create output director if non existent
     std::string OutputDirectory = "Output/" + OutputFolder;
-    create_directory(std::filesystem::path(OutputDirectory));
-    // create_directory(OutputDirectory.c_str());      // Old MinGW
+    Create_Directory(OutputDirectory);
     Output_Filename = Filename;
     std::string FilePath = OutputDirectory + "/" + Output_Filename;
     std::ofstream file;
@@ -1020,8 +1019,7 @@ void VPM_3D_Solver::Generate_Summary_End()
 
     //--- Create output director if non existent
     std::string OutputDirectory = "Output/" + OutputFolder;
-    create_directory(std::filesystem::path(OutputDirectory));
-    // create_directory(OutputDirectory.c_str());      // Old MinGW
+    Create_Directory(OutputDirectory);
     std::string FilePath = OutputDirectory + "/" + Output_Filename;
     std::ofstream file;
 

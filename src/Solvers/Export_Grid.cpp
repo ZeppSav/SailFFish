@@ -11,14 +11,10 @@
 
 namespace SailFFish
 {
-
 template <typename T>
 void convertToBigEndian(T& value) {
-    // if constexpr (std::endian::native == std::endian::little) {
-    {
-        char* ptr = reinterpret_cast<char*>(&value);
-        std::reverse(ptr, ptr + sizeof(T));
-    }
+    char* ptr = reinterpret_cast<char*>(&value);
+    std::reverse(ptr, ptr + sizeof(T));
 }
 
 // static int const vtkPrecision = 8;     // High Precision, high memory
@@ -51,8 +47,7 @@ void Solver_2D_Scalar::Create_vtk()
 
     //--- Create output director if not existing
     std::string OutputDirectory = "Output";
-    create_directory(std::filesystem::path(OutputDirectory));
-    // create_directory(OutputDirectory.c_str());      // Old MinGW
+    Create_Directory(OutputDirectory);
     std::string filename = "./Output/" + vtk_Name;
     str.str(""); // clear str
     std::ofstream vtkfile( filename.c_str() );
@@ -219,8 +214,7 @@ void Solver_3D_Scalar::Create_vtk()
 
     // Open file for binary writing
     std::string OutputDirectory = "Output/" + OutputFolder;
-    create_directory(std::filesystem::path(OutputDirectory));   // Generate directory
-    // create_directory(OutputDirectory.c_str());      // Old MinGW
+    Create_Directory(OutputDirectory);
     std::string filename = OutputDirectory + "/" + vtk_Name;
     std::ofstream file(filename.c_str(), std::ios::binary);
     if (!file) {
@@ -318,8 +312,7 @@ void Solver_3D_Vector::Create_vtk()
 
     // Open file for binary writing
     std::string OutputDirectory = "Output/" + OutputFolder;
-    create_directory(std::filesystem::path(OutputDirectory));   // Generate directory
-    // create_directory(OutputDirectory.c_str());      // Old MinGW
+    Create_Directory(OutputDirectory);
     std::string filename = OutputDirectory + "/" + vtk_Name;
     std::ofstream file(filename.c_str(), std::ios::binary);
     if (!file) {

@@ -89,7 +89,8 @@ SFStatus VPM3D_cpu::Setup_VPM(VPM_Input *I)
     //     }
 
     // Prepare outputs
-    create_directory(std::filesystem::path("Output"));  // Generate output folder if not existing
+    std::string OutputDirectory = "Output";
+    Create_Directory(OutputDirectory);
     Generate_Summary("Summary.dat");
 
     return Stat;
@@ -734,7 +735,7 @@ void VPM3D_cpu::Calc_Grid_Diagnostics()
 
         if (NStep==NInit)
         {
-            create_directory(std::filesystem::path(OutputDirectory));   // Generate directory
+            Create_Directory(OutputDirectory);
             std::ofstream file;
             file.open(FilePath, std::ofstream::out | std::ofstream::trunc); // Clear!
             file.close();
@@ -981,7 +982,7 @@ void VPM3D_cpu::Map_from_Auxiliary_Grid()
     // Alternate approach: External sources
     // std::cout << "Alternate auxiliary grid mapping. NNodes = " << size(Ext_Forcing) << std::endl;
     OpenMPfor
-    for (size_t i=0; i<size(Ext_Forcing); i++){
+    for (size_t i=0; i<Ext_Forcing.size(); i++){
         dim3 did = Ext_Forcing[i].cartid;       //std::get<0>(Ext_Forcing[i]);
         int gid = GID(did.x,did.y,did.z,NX,NY,NZ);
         r_Input1[gid] += Ext_Forcing[i].Vort(0); // std::get<1>(Ext_Forcing[i])(0);
@@ -1012,7 +1013,7 @@ void VPM3D_cpu::Interpolate_Ext_Sources(Mapping M)
     }
 
     // Loop over external nodes
-    for (size_t p=0; p<size(Ext_Forcing); p++){
+    for (size_t p=0; p<Ext_Forcing.size(); p++){
         dim3 sid = Ext_Forcing[p].cartid;   //std::get<0>(Ext_Forcing[p]);
         Vector3 Omega = Ext_Forcing[p].Vort;  //std::get<1>(Ext_Forcing[p]);
 

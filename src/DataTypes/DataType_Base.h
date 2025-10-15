@@ -32,7 +32,7 @@
     static void Create_Directory(const std::string &A)  {_mkdir(A.c_str());}
 #else
     #include <filesystem>
-    static void Create_Directory(const std::string &A) {std::filesystem::path(A);}
+    static void Create_Directory(const std::string &A) {std::filesystem::create_directories(A);}
 #endif
 
 namespace SailFFish

@@ -9,6 +9,7 @@
 #include <fstream>              // ofstream
 #include <algorithm>
 #include <chrono>
+#include <numeric>
 
 #define OpenMPfor _Pragma("omp parallel for")
 #define csp <<" "<<

@@ -272,11 +272,9 @@ void VPM_3D_Solver::Grid_Interp_Coeffs(const RVector &Px, const RVector &Py, con
         bool zbuf = (IDs[i].z < b || IDs[i].z >= NNZ-b-1);
         if (xbuf || ybuf || zbuf){      // Position out of bounds
             Flags[i] = false;
-            Status = GridError;
-            // std::cout << Px[i] << Px[i]-XN1 csp Lx csp IDs[i].x << std::endl;
-            // std::cout << Py[i] << Py[i]-YN1 csp Ly csp IDs[i].y << std::endl;
-            // std::cout << Pz[i] << Pz[i]-ZN1 csp Lz csp IDs[i].z << std::endl;
-            // std::cout << " " << std::endl;
+            #ifndef IGNORE_OOB
+                Status = GridError;      // HERE! THIS FLAG SHOULD BE ACTIVATED- The IGNORE OOB FLag is only to avoid the catch in QBlade
+            #endif
         }
     }
 
@@ -348,16 +346,6 @@ void VPM_3D_Solver::Map_from_Grid(  const RVector &Px, const RVector &Py, const 
     // Specify constants for mapping
     int idsh = Set_Map_Shift(Map);
     int nc = Set_Map_Stencil_Width(Map);
-
-    // int idsh = 0, nc = 0;
-    // switch (Map)
-    // {
-    //     case (M2):  {idsh = 0;   nc = 2; break;}
-    //     case (M4):  {idsh = -1;  nc = 4; break;}
-    //     case (M4D): {idsh = -1;  nc = 4; break;}
-    //     case (M6D): {idsh = -2;  nc = 6; break;}
-    //     default:    {std::cout << "VPM_3D_Solver::Map_Grid_Sources: Mapping unknown" << std::endl;    break;}
-    // }
 
     // Extract grid values
     Parallel_Kernel(NP) {

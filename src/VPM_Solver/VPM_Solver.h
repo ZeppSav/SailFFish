@@ -73,6 +73,7 @@ struct CellMap
     Matrix Coeff;                   // Mapping Coefficients
     std::vector<Vector3> Weights;   // Cell Weights (multiple nodes)
     std::vector<Matrix> Coeffs;     // Mapping Coefficients
+    bool Valid = false;             // Check if cell is within appropriate region
 };
 
 struct VPM_Input
@@ -511,8 +512,6 @@ public:
 
     void Map_Source_Nodes(const RVector &Px, const RVector &Py, const RVector &Pz,
                           const RVector &Ox, const RVector &Oy, const RVector &Oz, std::vector<ParticleMap> &GP, Mapping Map);
-
-    void Map_Probe_Nodes(const RVector &Px, const RVector &Py, const RVector &Pz, std::vector<ParticleMap> &GP, Mapping Map);
 
     void Get_Ext_Velocity(const RVector &Px, const RVector &Py, const RVector &Pz,
                           RVector &Ux, RVector &Uy, RVector &Uz, Mapping Map);

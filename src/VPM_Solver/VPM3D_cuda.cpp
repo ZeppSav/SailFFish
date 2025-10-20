@@ -1383,6 +1383,10 @@ void VPM3D_cuda::Extract_Field(const Real *Field, const RVector &Px, const RVect
 {
     // Values are extracted from the grid using a local interpolation. This is carried out by loading a block into memory and then
     // interpolating this in shared memory
+
+    // This has to be implemented for OOB regions!
+    std::cout << "JOE!!! CORRECT THIS FOR OOB!!!!" << std::endl;
+
     int NP = size(Px);
 
     // Step 1: Bin interpolation positions

@@ -272,7 +272,7 @@ void VPM_3D_Solver::Grid_Interp_Coeffs(const RVector &Px, const RVector &Py, con
         bool zbuf = (IDs[i].z < b || IDs[i].z >= NNZ-b-1);
         if (xbuf || ybuf || zbuf){      // Position out of bounds
             Flags[i] = false;
-            Status = GridError;      // HERE! THIS FLAG SHOULD BE ACTIVATED- The IGNORE OOB FLag is only to avoid the catch in QBlade
+            Status = GridError;         // Technically, this should be flagged.
         }
     }
 
@@ -336,8 +336,8 @@ void VPM_3D_Solver::Map_from_Grid(const RVector &Px, const RVector &Py, const RV
 
     if (Px.empty() || Py.empty() || Pz.empty()) return;
     int NP = Px.size();
-    std::vector<dim3s> ID(NP);       // Array of grid ids
-    std::vector<bool> Flags(NP,true);    // Array of boundary flag
+    std::vector<dim3s> ID(NP);          // Array of grid ids
+    std::vector<bool> Flags(NP,true);   // Array of boundary flag
     Matrix Mx, My, Mz;
     Grid_Interp_Coeffs(Px, Py, Pz, ID, Flags, Mx, My, Mz, Map);
 

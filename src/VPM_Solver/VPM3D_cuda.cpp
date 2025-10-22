@@ -1384,14 +1384,12 @@ void VPM3D_cuda::Extract_Field(const Real *Field, const RVector &Px, const RVect
     // Values are extracted from the grid using a local interpolation. This is carried out by loading a block into memory and then
     // interpolating this in shared memory
 
-    // This has to be implemented for OOB regions!
-    std::cout << "JOE!!! CORRECT THIS FOR OOB!!!!" << std::endl;
-
     int NP = size(Px);
 
     // Step 1: Bin interpolation positions
     std::vector<std::vector<Vector3>> IDB(NBT);
     std::vector<std::vector<int>> IDPart(NBT);
+    std::vector<int> idout(NP);                     // This array assigns output array positions to input array ordering
     for (int i=0; i<NP; i++){
         Real rx = Px[i] - X0;           // Specify relative position of node.
         Real ry = Py[i] - Y0;
@@ -1399,18 +1397,24 @@ void VPM3D_cuda::Extract_Field(const Real *Field, const RVector &Px, const RVect
         int nbx = int(rx/HLx);
         int nby = int(ry/HLy);
         int nbz = int(rz/HLz);
-        int nbt = nbx*NBY*NBZ + nby*NBZ + nbz;
-        IDB[nbt].push_back(Vector3(rx-HLx*nbx, ry-HLy*nby, rz-HLz*nbz));
-        IDPart[nbt].push_back(i);
+        bool xbuf = (nbx < 0 || nbx >= NBX-1);
+        bool ybuf = (nby < 0 || nby >= NBY-1);
+        bool zbuf = (nbz < 0 || nbz >= NBZ-1);
+        if (xbuf || ybuf || zbuf)   idout[i] = -1;
+        else{                           // Inside domain- values can be extracted
+            int nbt = nbx*NBY*NBZ + nby*NBZ + nbz;
+            IDB[nbt].push_back(Vector3(rx-HLx*nbx, ry-HLy*nby, rz-HLz*nbz));
+            IDPart[nbt].push_back(i);
+        }
     }
 
     // Sort into blocks of size NT <= BT
     std::vector<Vector3> NDS;
-    std::vector<int> map_blx, map_bly, map_blz, idout(NP);
+    std::vector<int> map_blx, map_bly, map_blz;
     int count = 0;
     for (int b=0; b<NBT; b++){
+        if (IDB[b].empty()) continue;                       // There are no probes in this box
         int n = size(IDB[b]);                               // # particles in this box
-        if (n==0)         continue;                         // No particles in this box
         int nbx = int(b/(NBY*NBZ)), nbs = b-nbx*NBY*NBZ;    // Box x index
         int nby = int(nbs/NBZ);                             // Box y index
         int nbz = nbs - nby*NBZ;                            // Box z index
@@ -1504,9 +1508,16 @@ void VPM3D_cuda::Extract_Field(const Real *Field, const RVector &Px, const RVect
     // Now cycle through and pass back values at correct positions
     for (int i=0; i<NP; i++){
         // std::cout << rux[idout[i]] csp ruy[idout[i]] csp ruz[idout[i]] << std::endl;
-        Ux[i] = rux[idout[i]];
-        Uy[i] = ruy[idout[i]];
-        Uz[i] = ruz[idout[i]];
+        if (idout[i]==-1){      // Probe point is outside domain
+            Ux[i] = 0.0;
+            Uy[i] = 0.0;
+            Uz[i] = 0.0;
+        }
+        else{                   // Probe point is within domain
+            Ux[i] = rux[idout[i]];
+            Uy[i] = ruy[idout[i]];
+            Uz[i] = ruz[idout[i]];
+        }
     }
 
     // Clear temporary arrays

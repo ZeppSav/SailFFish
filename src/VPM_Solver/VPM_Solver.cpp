@@ -251,83 +251,6 @@ int VPM_3D_Solver::Set_Map_Stencil_Width(Mapping Map)
     return st;
 }
 
-void VPM_3D_Solver::Grid_Interp_Coeffs(const RVector &Px, const RVector &Py, const RVector &Pz,
-                                       std::vector<dim3s> &IDs, std::vector<bool> &Flags,
-                                       Matrix &Mx, Matrix &My, Matrix &Mz, Mapping Map)
-{
-
-    // Loop over source positions & specify source id
-    int NP = Px.size();
-
-    // Set buffer for mapping/interpolation
-    int b = abs(Set_Map_Shift(Map));
-    int nc = Set_Map_Stencil_Width(Map);
-
-    Parallel_Kernel(NP) {
-        IDs[i] = dim3s(int((Px[i] - XN1)/H_Grid),
-                       int((Py[i] - YN1)/H_Grid),
-                       int((Pz[i] - ZN1)/H_Grid));
-        bool xbuf = (IDs[i].x < b || IDs[i].x >= NNX-b-1);
-        bool ybuf = (IDs[i].y < b || IDs[i].y >= NNY-b-1);
-        bool zbuf = (IDs[i].z < b || IDs[i].z >= NNZ-b-1);
-        if (xbuf || ybuf || zbuf){      // Position out of bounds
-            Flags[i] = false;
-            Status = GridError;         // Technically, this should be flagged.
-        }
-    }
-
-    // Specify mapping coefficient matrices
-    Mx = Matrix(NP,nc), My = Matrix(NP,nc), Mz = Matrix(NP,nc);
-    switch (Map)
-    {
-        case (M2):      {
-        Parallel_Kernel(NP)  {
-            Real fx = (Px[i] - XN1 - H_Grid*IDs[i].x)/H_Grid;
-            Real fy = (Py[i] - YN1 - H_Grid*IDs[i].y)/H_Grid;
-            Real fz = (Pz[i] - ZN1 - H_Grid*IDs[i].z)/H_Grid;
-            mapM2(fx, Mx(i,0)); mapM2(1.0-fx, Mx(i,1));
-            mapM2(fy, My(i,0)); mapM2(1.0-fy, My(i,1));
-            mapM2(fz, Mz(i,0)); mapM2(1.0-fz, Mz(i,1));
-        }
-        break;
-        }
-        case (M4):      {
-            Parallel_Kernel(NP)  {
-                Real fx = (Px[i] - XN1 - H_Grid*IDs[i].x)/H_Grid;
-                Real fy = (Py[i] - YN1 - H_Grid*IDs[i].y)/H_Grid;
-                Real fz = (Pz[i] - ZN1 - H_Grid*IDs[i].z)/H_Grid;
-                mapM4(1.0+fx,Mx(i,0));     mapM4(fx,Mx(i,1));  mapM4(1.0-fx,Mx(i,2));  mapM4(2.0-fx,Mx(i,3));
-                mapM4(1.0+fy,My(i,0));     mapM4(fy,My(i,1));  mapM4(1.0-fy,My(i,2));  mapM4(2.0-fy,My(i,3));
-                mapM4(1.0+fz,Mz(i,0));     mapM4(fz,Mz(i,1));  mapM4(1.0-fz,Mz(i,2));  mapM4(2.0-fz,Mz(i,3));
-            }
-            break;
-        }
-        case (M4D):     {
-            Parallel_Kernel(NP)  {
-                Real fx = (Px[i] - XN1 - H_Grid*IDs[i].x)/H_Grid;
-                Real fy = (Py[i] - YN1 - H_Grid*IDs[i].y)/H_Grid;
-                Real fz = (Pz[i] - ZN1 - H_Grid*IDs[i].z)/H_Grid;
-                mapM4D(1.0+fx,Mx(i,0));    mapM4D(fx,Mx(i,1)); mapM4D(1.0-fx,Mx(i,2)); mapM4D(2.0-fx,Mx(i,3));
-                mapM4D(1.0+fy,My(i,0));    mapM4D(fy,My(i,1)); mapM4D(1.0-fy,My(i,2)); mapM4D(2.0-fy,My(i,3));
-                mapM4D(1.0+fz,Mz(i,0));    mapM4D(fz,Mz(i,1)); mapM4D(1.0-fz,Mz(i,2)); mapM4D(2.0-fz,Mz(i,3));
-            }
-            break;
-        }
-        case (M6D):     {
-            Parallel_Kernel(NP)  {
-                Real fx = (Px[i] - XN1 - H_Grid*IDs[i].x)/H_Grid;
-                Real fy = (Py[i] - YN1 - H_Grid*IDs[i].y)/H_Grid;
-                Real fz = (Pz[i] - ZN1 - H_Grid*IDs[i].z)/H_Grid;
-                mapM6D(2.0+fx,Mx(i,0)); mapM6D(1.0+fx,Mx(i,1)); mapM6D(fx,Mx(i,2)); mapM6D(1.0-fx,Mx(i,3)); mapM6D(2.0-fx,Mx(i,4)); mapM6D(3.0-fx,Mx(i,5));
-                mapM6D(2.0+fy,My(i,0)); mapM6D(1.0+fy,My(i,1)); mapM6D(fy,My(i,2)); mapM6D(1.0-fy,My(i,3)); mapM6D(2.0-fy,My(i,4)); mapM6D(3.0-fy,My(i,5));
-                mapM6D(2.0+fz,Mz(i,0)); mapM6D(1.0+fz,Mz(i,1)); mapM6D(fz,Mz(i,2)); mapM6D(1.0-fz,Mz(i,3)); mapM6D(2.0-fz,Mz(i,4)); mapM6D(3.0-fz,Mz(i,5));
-            }
-            break;
-        }
-        default:        {std::cout << "VPM_3D_Solver::Map_Grid_Sources: Mapping unknown" << std::endl;    break;}
-    }
-}
-
 void VPM_3D_Solver::Map_from_Grid(const RVector &Px, const RVector &Py, const RVector &Pz,
                                   const RVector &Gx, const RVector &Gy, const RVector &Gz,
                                   RVector &uX, RVector &uY, RVector &uZ, Mapping Map)
@@ -336,10 +259,9 @@ void VPM_3D_Solver::Map_from_Grid(const RVector &Px, const RVector &Py, const RV
 
     if (Px.empty() || Py.empty() || Pz.empty()) return;
     int NP = Px.size();
-    std::vector<dim3s> ID(NP);          // Array of grid ids
-    std::vector<bool> Flags(NP,true);   // Array of boundary flag
-    Matrix Mx, My, Mz;
-    Grid_Interp_Coeffs(Px, Py, Pz, ID, Flags, Mx, My, Mz, Map);
+    std::vector<CellMap> CellData;
+    RVector dumOx(NP,0), dumOy(NP,0), dumOz(NP,0);    // Dummy source arrays
+    Process_Cells(Px, Py, Pz, dumOx, dumOy, dumOz, CellData, Map);
 
     // Specify constants for mapping
     int idsh = Set_Map_Shift(Map);
@@ -347,23 +269,32 @@ void VPM_3D_Solver::Map_from_Grid(const RVector &Px, const RVector &Py, const RV
 
     // Extract grid values
     Parallel_Kernel(NP) {
-        Real tUx = 0., tUy = 0., tUz = 0.;
-        if (Flags[i]){                         // Jump out in case node is out of bounds
-            for (int x=0; x<nc; x++){
-                for (int y=0; y<nc; y++){
-                    for (int z=0; z<nc; z++){
-                        int ids = GID(ID[i].x+idsh+x, ID[i].y+idsh+y, ID[i].z+idsh+z, NNX, NNY, NNZ);
-                        Real Fac =  Mx(i,x) * My(i,y) * Mz(i,z);
+        if (CellData[i].Valid){                         // Jump out in case node is out of bounds
+            Real tUx = 0., tUy = 0., tUz = 0.;
+            for (int ix=0; ix<nc; ix++){
+                for (int iy=0; iy<nc; iy++){
+                    for (int iz=0; iz<nc; iz++){
+                        int ids = GID(CellData[i].id3.x + idsh + ix,
+                                      CellData[i].id3.y + idsh + iy,
+                                      CellData[i].id3.z + idsh + iz, NNX, NNY, NNZ);
+                        Real Fac =  CellData[i].Coeff(0,ix) *
+                                    CellData[i].Coeff(1,iy) *
+                                    CellData[i].Coeff(2,iz);
                         tUx += Fac*Gx[ids];
                         tUy += Fac*Gy[ids];
                         tUz += Fac*Gz[ids];
                     }
                 }
             }
+            uX[CellData[i].idin] = tUx;
+            uY[CellData[i].idin] = tUy;
+            uZ[CellData[i].idin] = tUz;
         }
-        uX[i] = tUx;
-        uY[i] = tUy;
-        uZ[i] = tUz;
+        else{
+            uX[i] = 0.;
+            uY[i] = 0.;
+            uZ[i] = 0.;
+        }
     }
 }
 
@@ -376,23 +307,25 @@ void VPM_3D_Solver::Map_to_Grid(const RVector &Px, const RVector &Py, const RVec
 
     if (Px.empty() || Py.empty() || Pz.empty()) return;
     int NP = Px.size();
-    std::vector<dim3s> ID(NP);          // Array of grid ids
-    std::vector<bool> Flags(NP,true);   // Array of boundary flag
-    Matrix Mx, My, Mz;
-    Grid_Interp_Coeffs(Px, Py, Pz, ID, Flags, Mx, My, Mz, Map);
+    std::vector<CellMap> CellData;
+    Process_Cells(Px, Py, Pz, Ox, Oy, Oz, CellData, Map);
 
     // Specify constants for mapping
     int idsh = Set_Map_Shift(Map);
     int nc = Set_Map_Stencil_Width(Map);
 
-    // Map to p_Array grid (serial- to avoid race conditions)
-    for (int i=0; i<NP; i++){
-        if (Flags[i]){
-            for (int x=0; x<nc; x++){
-                for (int y=0; y<nc; y++){
-                    for (int z=0; z<nc; z++){
-                        int idr = GID(ID[i].x+idsh+x, ID[i].y+idsh+y, ID[i].z+idsh+z, NNX, NNY, NNZ);
-                        Real Fac =  Mx(i,x) * My(i,y) * Mz(i,z);
+    // Extract grid values
+    Serial_Kernel(NP) {
+        if (CellData[i].Valid){                         // Jump out in case node is out of bounds
+            for (int ix=0; ix<nc; ix++){
+                for (int iy=0; iy<nc; iy++){
+                    for (int iz=0; iz<nc; iz++){
+                        int idr = GID(  CellData[i].id3.x + idsh + ix,
+                                        CellData[i].id3.y + idsh + iy,
+                                        CellData[i].id3.z + idsh + iz, NNX, NNY, NNZ);
+                        Real Fac =  CellData[i].Coeff(0,ix) *
+                                    CellData[i].Coeff(1,iy) *
+                                    CellData[i].Coeff(2,iz);
                         gX[idr] += Fac*Ox[i];
                         gY[idr] += Fac*Oy[i];
                         gZ[idr] += Fac*Oz[i];
@@ -428,12 +361,9 @@ void VPM_3D_Solver::Process_Cells(const RVector &Px, const RVector &Py, const RV
     // Loop over source positions & specify source id
     int NP = Px.size();
 
-    // Set buffer for mapping/interpolation
-    uint b = abs(Set_Map_Shift(Map));
-
-    std::vector<CellMap> Cells(NP);             // Full array of cells
-
     // Step 1: Specify node ids
+    std::vector<CellMap> Cells(NP);             // Full array of cell maping information
+    uint b = abs(Set_Map_Shift(Map));           // Set buffer for mapping/interpolation
     Parallel_Kernel(NP) {
 
         dim3 tID = dim3(int((Px[i] - XN1)/H_Grid),
@@ -459,22 +389,7 @@ void VPM_3D_Solver::Process_Cells(const RVector &Px, const RVector &Py, const RV
     }
 
     // Step 3: Sort remaining cell mappings based on global id
-    // std::sort(IDs.begin(), IDs.end(), [](const CellMap& a, const CellMap& b) { return a.id < b.id; });
     std::sort(ValCells.begin(), ValCells.end(), [](const CellMap& a, const CellMap& b) { return a.id < b.id; });
-
-    // Step 2: Remove invalid cell mappings and generate list of pointers to cell objects
-    // std::vector<CellMap*> unsortedIDs;
-    // for (size_t i=0; i<size(Cells); i++)   {if (Valid[i])   unsortedIDs.push_back(&Cells[i]);}
-
-    // Step 3: Sort remaining cell mappings based on global id
-    // std::sort(IDs.begin(), IDs.end(), [](const CellMap& a, const CellMap& b) { return a.id < b.id; });
-
-    // // Step 3: Sort objects (use pointers!)
-    // std::vector<CellMap*> sortedpIDs;
-    // for (auto& cell : IDs) sortedPtrs.push_back(&cell);
-    // std::sort(unsortedIDs.begin(), unsortedIDs.end(), [](const CellMap* a, const CellMap* b) { return a->id < b->id; });
-    // for (CellMap* p : unsortedIDs) IDs.push_back(*p);
-    // for (auto& cell : IDs) IDs.push_back(&cell);
 
     // Specify mapping coefficient matrices
     NP = int(ValCells.size());
@@ -494,7 +409,8 @@ void VPM_3D_Solver::Process_Cells(const RVector &Px, const RVector &Py, const RV
             break;
         }
         case (M4):      {
-            Parallel_Kernel(NP)  {
+            // Parallel_Kernel(NP)  {
+            Serial_Kernel(NP)  {
                 Real fx = (ValCells[i].Pos(0) - XN1 - H_Grid*ValCells[i].id3.x)/H_Grid;
                 Real fy = (ValCells[i].Pos(1) - YN1 - H_Grid*ValCells[i].id3.y)/H_Grid;
                 Real fz = (ValCells[i].Pos(2) - ZN1 - H_Grid*ValCells[i].id3.z)/H_Grid;

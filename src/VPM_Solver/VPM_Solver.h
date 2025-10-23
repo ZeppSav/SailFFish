@@ -490,10 +490,6 @@ public:
 
     void Store_Grid_Sources(const RVector &Px, const RVector &Py, const RVector &Pz, const RVector &Ox, const RVector &Oy, const RVector &Oz, Mapping Map);
 
-    void Grid_Interp_Coeffs(const RVector &Px, const RVector &Py, const RVector &Pz,
-                            std::vector<dim3s> &IDs, std::vector<bool> &Flags,
-                            Matrix &Mx, Matrix &My, Matrix &Mz, Mapping Map);
-
     virtual void Map_from_Grid( const RVector &Px, const RVector &Py, const RVector &Pz,
                                const RVector &Gx, const RVector &Gy, const RVector &Gz,
                                RVector &uX, RVector &uY, RVector &uZ, Mapping Map);
@@ -505,10 +501,7 @@ public:
     virtual void Add_Grid_Sources(const RVector &Px, const RVector &Py, const RVector &Pz, const RVector &Ox, const RVector &Oy, const RVector &Oz, Mapping Map) {}
     virtual void Extract_Sol_Values(const RVector &Px, const RVector &Py, const RVector &Pz, RVector &Ugx, RVector &Ugy, RVector &Ugz, Mapping Map) {}
     virtual void Extract_Source_Values(const RVector &Px, const RVector &Py, const RVector &Pz, RVector &Ugx, RVector &Ugy, RVector &Ugz, Mapping Map) {}
-
     virtual void Store_Grid_Node_Sources(const RVector &Px, const RVector &Py, const RVector &Pz, const RVector &Ox, const RVector &Oy, const RVector &Oz, Mapping Map);
-
-    // virtual void Add_Grid_Node_Sources(const RVector &Px, const RVector &Py, const RVector &Pz, const RVector &Ox, const RVector &Oy, const RVector &Oz, Mapping Map) {}
 
     void Map_Source_Nodes(const RVector &Px, const RVector &Py, const RVector &Pz,
                           const RVector &Ox, const RVector &Oy, const RVector &Oz, std::vector<ParticleMap> &GP, Mapping Map);

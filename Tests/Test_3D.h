@@ -473,8 +473,8 @@ void Test_Unbounded_3D(int NX, int NY, int NZ, bool ExportVTI = false)
     Real EFac = 1.0/exp(-Cbf);
     for (auto& i : Input)    i *= EFac;
     for (auto& i : Solution) i *= EFac;
-    // Status = Solver->Set_Input_Unbounded_3D(Input);
-    Status = Solver->Set_Input_Unbounded(Input);
+    Status = Solver->Set_Input_Unbounded_3D(Input);
+    // Status = Solver->Set_Input_Unbounded(Input);
     if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
     unsigned int t3 = stopwatch();  // Timer
 

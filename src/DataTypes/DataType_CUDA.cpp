@@ -386,7 +386,7 @@ void DataType_CUDA::Prepare_Dif_Operators_2D(Real Hx, Real Hy)
     CVector CJ = CVector(NT,ComplexNull);
 
     OpenMPfor
-        for (int i=0; i<NXM; i++) {
+    for (int i=0; i<NXM; i++) {
         Real xfac;
         if (2*i<NX)     xfac = M_2PI*i/Hx/NX;
         else            xfac = M_2PI*(i-NX)/Hx/NX;

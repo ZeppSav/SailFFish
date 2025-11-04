@@ -30,8 +30,7 @@ __kernel void update(__global Real* d,
                      __global Real* o,
                      __global const Real* d_d,
                      __global const Real* d_o,
-                     const Real dt,
-                     const int NT)
+                     const Real dt)
 {
     // Thread index in global space
     int i = get_global_id(0);

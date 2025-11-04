@@ -546,11 +546,12 @@ VkFFTResult DataType_VkFFT::performVulkanFFT(VkGPU* vkGPU, VkFFTApplication* app
 
 //--- Prepare input array
 
-VkFFTResult DataType_VkFFT::ConvertArray_R2C(RVector &I, void* input_buffer, size_t N)
+VkFFTResult DataType_VkFFT::ConvertArray_R2C(RVector &I, void* input_buffer, size_t N, bool toReal)
 {
     // Helper function for complex array inputs
     std::vector<cl_complex> IC(N);
-    std::transform(I.begin(), I.end(), IC.begin(), [](Real val) {return cl_complex{{val, 0.}};});
+    if (toReal) std::transform(I.begin(), I.end(), IC.begin(), [](Real val) {return cl_complex{{val, 0.}};});   // Stores data as real components
+    else        std::transform(I.begin(), I.end(), IC.begin(), [](Real val) {return cl_complex{{0., val}};});   // Stores data as imag components
     return transferDataFromCPU(vkGPU, IC.data(), input_buffer, sizeof(cl_complex)*N);
 }
 
@@ -885,6 +886,65 @@ void DataType_VkFFT::Prep_Greens_Function_R2C()
     }
 }
 
+void DataType_VkFFT::Prepare_Dif_Operators_2D(Real Hx, Real Hy)
+{
+    // This prepares the differential operators in frequency space
+    RVector CI(NTM), CJ(NTM);
+
+    OpenMPfor
+    for (int i=0; i<NXM; i++) {
+        Real xfac;
+        if (2*i<NX)     xfac = M_2PI*i/Hx/NX;
+        else            xfac = M_2PI*(i-NX)/Hx/NX;
+        for (int j=0; j<NYM; j++) {
+            Real yfac;
+            if (2*j<NY)     yfac = M_2PI*j/Hy/NY;
+            else            yfac = M_2PI*(j-NY)/Hy/NY;
+            CI[GF_GID2(i,j,NXM,NYM)] = xfac;
+            CJ[GF_GID2(i,j,NXM,NYM)] = yfac;
+        }
+    }
+
+    VkFFTResult res = VKFFT_SUCCESS;
+    res = ConvertArray_R2C(CI,&c_FGi,NTM,false);
+    res = ConvertArray_R2C(CJ,&c_FGj,NTM,false);
+}
+
+void DataType_VkFFT::Prepare_Dif_Operators_3D(Real Hx, Real Hy, Real Hz)
+{
+    // This prepares the differential operators in frequency space
+    RVector CI(NTM), CJ(NTM), CK(NTM);
+
+    OpenMPfor
+    for (int i=0; i<NXM; i++) {
+        Real xfac;
+        if (2*i<NX)     xfac = M_2PI*i/Hx/NX;
+        else            xfac = M_2PI*(i-NX)/Hx/NX;
+        for (int j=0; j<NYM; j++) {
+            Real yfac;
+            if (2*j<NY)     yfac = M_2PI*j/Hy/NY;
+            else            yfac = M_2PI*(j-NY)/Hy/NY;
+            for (int k=0; k<NZM; k++) {
+                Real zfac;
+                if (2*k<NZ)     zfac = M_2PI*k/Hz/NZ;
+                else            zfac = M_2PI*(k-NZ)/Hz/NZ;
+
+                // int id = i*NYM*NZM + j*NZM + k;
+                int id  = GF_GID3(i,j,k,NXM,NYM,NZM);
+                CI[id] = xfac;
+                CJ[id] = yfac;
+                CK[id] = zfac;
+            }
+        }
+    }
+
+    VkFFTResult res = VKFFT_SUCCESS;
+    res = ConvertArray_R2C(CI,&c_FGi,NTM,false);
+    res = ConvertArray_R2C(CJ,&c_FGj,NTM,false);
+    res = ConvertArray_R2C(CK,&c_FGk,NTM,false);
+    ConvertVkFFTError(res);
+}
+
 //--- Fourier transforms
 
 VkFFTResult DataType_VkFFT::FFT_DFT(int FFTType)
@@ -1022,6 +1082,69 @@ void DataType_VkFFT::Convolution_Complex3()
     res = clFinish(vkGPU->commandQueue);
     ConvertClError(res);
 }
+
+//--- Spectral gradients- these are dummies functions for now
+
+void DataType_VkFFT::Spectral_Gradients_3DV_Curl()
+{
+    // This is simply a test function to check the convolution kernel
+    // I will compile the kernel here to test it.
+
+    cl_int err;
+    std::string Source;
+    if (std::is_same<Real,float>::value)    Source.append(ocl_kernels_float);
+    if (std::is_same<Real,double>::value)   Source.append(ocl_kernels_double);
+    Source.append(ocl_curl);
+    const char* source_str = Source.c_str();
+    curl_program = clCreateProgramWithSource(vkGPU->context, 1, &source_str, NULL, &err);
+    err = clBuildProgram(curl_program, 1, &vkGPU->device, NULL, NULL, NULL);
+    if (err != CL_SUCCESS) {
+        size_t len;
+        char buffer[2048];
+        clGetProgramBuildInfo(curl_program, vkGPU->device, CL_PROGRAM_BUILD_LOG, sizeof(buffer), buffer, &len);
+        fprintf(stderr, "Build error:\n%s\n", buffer);
+    }
+    curl_kernel = clCreateKernel(curl_program, "curl", &err);
+
+    clSetKernelArg(curl_kernel, 0, sizeof(cl_mem), &c_FTInput1);
+    clSetKernelArg(curl_kernel, 1, sizeof(cl_mem), &c_FTInput2);
+    clSetKernelArg(curl_kernel, 2, sizeof(cl_mem), &c_FTInput3);
+    clSetKernelArg(curl_kernel, 3, sizeof(cl_mem), &c_FG);
+    clSetKernelArg(curl_kernel, 4, sizeof(cl_mem), &c_FGi);
+    clSetKernelArg(curl_kernel, 5, sizeof(cl_mem), &c_FGj);
+    clSetKernelArg(curl_kernel, 6, sizeof(cl_mem), &c_FGk);
+    clSetKernelArg(curl_kernel, 7, sizeof(cl_mem), &c_FTOutput1);
+    clSetKernelArg(curl_kernel, 8, sizeof(cl_mem), &c_FTOutput2);
+    clSetKernelArg(curl_kernel, 9, sizeof(cl_mem), &c_FTOutput3);
+
+    std::cout << "Created convolution kernel" << std::endl;
+
+    size_t preferredWorkGroupSizeMultiple;
+    clGetKernelWorkGroupInfo(curl_kernel, vkGPU->device, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, sizeof(size_t), &preferredWorkGroupSizeMultiple, NULL);
+    std::cout << "Convolution kernel: Preferred work-group size multiple: " << preferredWorkGroupSizeMultiple << std::endl;
+
+    // Now solve with the correct values
+    // Now carry out execution with opencl kernel
+    size_t globalSize = NTM;
+
+    // Option 1: Assign NULL to local work group size: Will automatically choose and ensure complete vector is multiplied
+    // this enables us less options in specifying the size of the group-> Possibly less efficient, but dont require
+    // catches in kernel to avoid out of bounds access.
+    err = clEnqueueNDRangeKernel(vkGPU->commandQueue, curl_kernel, 1, NULL, &globalSize, NULL, 0, NULL, NULL);
+
+    // Option 2: Explicitly assign local work group size. Possibly more efficient, but requires catches in kernel
+    // This is not working for now... avoid
+    // size_t localSize = 1024;
+    // cl_int err = clEnqueueNDRangeKernel(vkGPU->commandQueue, conv_kernel, 1, NULL, &globalSize, &localSize, 0, NULL, NULL);
+
+    // Ensure process completes
+    err = clFinish(vkGPU->commandQueue);
+
+    std::cout << "Convolution kernel executed" << std::endl;
+}
+
+// cuda_VPM_convolution->Execute(c_FTInput1, c_FTInput2, c_FTInput3, c_FG, c_FGi, c_FGj, c_FGk, c_FTOutput1, c_FTOutput2, c_FTOutput3);
+
 
 //--- Destructor
 

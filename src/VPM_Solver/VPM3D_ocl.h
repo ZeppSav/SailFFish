@@ -72,6 +72,7 @@ class VPM3D_ocl : public VPM_3D_Solver
     dim3 blockarch_grid, blockarch_block;
 
     //--- OpenCL Kernels
+    void Add_Grid_Constants(std::string &Source);
     // std::string KID;                        // Unique kernel identifier to ensure to common kernel names compiled on GPU.
     cl_kernel ocl_VPM_convolution;
     cl_kernel ocl_VPM_reprojection;

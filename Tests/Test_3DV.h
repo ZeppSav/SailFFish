@@ -354,23 +354,19 @@ void Test_Unbounded_3DV(int NX, int NY, int NZ, bool ExportVTI = false)
     for (auto& i : Solution2) i *= EFac;
     for (auto& i : Solution3) i *= EFac;
 
-    // Status = Solver->Set_Input_Unbounded_3D(Input1,Input2,Input3);
-    Status = Solver->Set_Input_Unbounded(Input1,Input2,Input3);
+    Status = Solver->Set_Input_Unbounded_3D(Input1,Input2,Input3);
     if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
     unsigned int t3 = stopwatch();  // Timer
 
     // Carry out execution
     Solver->Forward_Transform();
-    unsigned int t32 = stopwatch();  // Timer
     Solver->Convolution();
-    unsigned int t33 = stopwatch();  // Timer
     // Solver->Spectral_Gradients_3DV_Curl();
     Solver->Backward_Transform();
     unsigned int t4 = stopwatch();
 
     // Retrieve solution & collect final timings
-    // Solver->Get_Output_Unbounded_3D(Output1,Output2,Output3);
-    Solver->Get_Output_Unbounded(Output1,Output2,Output3);
+    Solver->Get_Output_Unbounded_3D(Output1,Output2,Output3);
     unsigned int t5 = stopwatch();
     Real tTot = Real(t2+t3+t4+t5);
 
@@ -389,9 +385,10 @@ void Test_Unbounded_3DV(int NX, int NY, int NZ, bool ExportVTI = false)
     std::cout << "Execution Time:" <<  std::endl;
     std::cout << "Solver setup "     << std::setw(10) << t2 csp "ms. [" << 100.0*t2/tTot << " %]" << std::endl;
     std::cout << "Input spec.  "     << std::setw(10) << t3 csp "ms. [" << 100.0*t3/tTot << " %]" << std::endl;
-    std::cout << "Forward FFT  "     << std::setw(10) << t32 csp "ms. [" << 100.0*t4/tTot << " %]" << std::endl;
-    std::cout << "Convolution  "     << std::setw(10) << t33 csp "ms. [" << 100.0*t4/tTot << " %]" << std::endl;
-    std::cout << "Backward FFT "     << std::setw(10) << t4 csp "ms. [" << 100.0*t4/tTot << " %]" << std::endl;
+    // std::cout << "Forward FFT  "     << std::setw(10) << t32 csp "ms. [" << 100.0*t4/tTot << " %]" << std::endl;
+    // std::cout << "Convolution  "     << std::setw(10) << t33 csp "ms. [" << 100.0*t4/tTot << " %]" << std::endl;
+    // std::cout << "Backward FFT "     << std::setw(10) << t4 csp "ms. [" << 100.0*t4/tTot << " %]" << std::endl;
+    std::cout << "Execution    "     << std::setw(10) << t4 csp "ms. [" << 100.0*t3/tTot << " %]" << std::endl;
     std::cout << "Output spec. "     << std::setw(10) << t5 csp "ms. [" << 100.0*t5/tTot << " %]" << std::endl;
     std::cout << std::scientific;
 
@@ -443,7 +440,7 @@ void Test_Unbounded_3DV_Curl(int NX, int NY, int NZ, bool ExportVTI = false)
     RVector Solution3 = RVector(NT,0);
 
     OpenMPfor
-        for (int i=0; i<NXM; i++){
+    for (int i=0; i<NXM; i++){
         for (int j=0; j<NYM; j++){
             for (int k=0; k<NZM; k++){
                 int id = i*NYM*NZM + j*NZM + k;
@@ -452,14 +449,23 @@ void Test_Unbounded_3DV_Curl(int NX, int NY, int NZ, bool ExportVTI = false)
             }
         }
     }
+
+    // Scale input/output for LInf- otherwise we encounter floating point errors...
+    Real EFac = 1.0/exp(-Cbf);
+    for (auto& i : Input1)  i *= EFac;
+    for (auto& i : Input2)  i *= EFac;
+    for (auto& i : Input3)  i *= EFac;
+    for (auto& i : Solution1) i *= EFac;
+    for (auto& i : Solution2) i *= EFac;
+    for (auto& i : Solution3) i *= EFac;
+
     Status = Solver->Set_Input_Unbounded_3D(Input1,Input2,Input3);
-    Status = Solver->Transfer_Data_Device();
     if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
     unsigned int t3 = stopwatch();
 
     // Carry out execution
     Solver->Forward_Transform();
-    Solver->Convolution();
+    // Solver->Convolution();
     Solver->Spectral_Gradients_3DV_Curl();
     Solver->Backward_Transform();
     unsigned int t4 = stopwatch();
@@ -485,7 +491,7 @@ void Test_Unbounded_3DV_Curl(int NX, int NY, int NZ, bool ExportVTI = false)
 
     // // If selected, export grid as VTI
     if (ExportVTI) Solver->Create_vtk();
-
+    Solver->Create_vtk();
     // delete Solver;
 }
 

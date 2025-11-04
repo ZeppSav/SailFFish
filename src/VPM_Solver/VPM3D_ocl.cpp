@@ -61,33 +61,6 @@ SFStatus VPM3D_ocl::Setup_VPM(VPM_Input *I)
     if (I->GridDef==BLOCKS)     Stat = Define_Grid_Blocks(I);
 
     //--- Initialize auxiliary grid parameters
-
-    if (I->GridDef==NODES){
-        SAX = I->Aux_SX;            // Node shift X
-        SAY = I->Aux_SY;            // Node shift Y
-        SAZ = I->Aux_SZ;            // Node shift Z
-        NAX = I->Aux_NX;            // Number of grid nodes in X-direction
-        NAY = I->Aux_NY;            // Number of grid nodes in Y-direction
-        NAZ = I->Aux_NZ;            // Number of grid nodes in Z-direction
-        NTAux = NAX*NAY*NAZ;
-    }
-
-    if (I->GridDef==BLOCKS){
-        NBAX = I->Aux_NBX;          // Number of grid blocks in X-direction
-        NBAY = I->Aux_NBY;          // Number of grid blocks in Y-direction
-        NBAZ = I->Aux_NBZ;          // Number of grid blocks in Z-direction
-        NAX = NBAX*BX;              // Number of grid nodes in X-direction
-        NAY = NBAY*BY;              // Number of grid nodes in Y-direction
-        NAZ = NBAZ*BZ;              // Number of grid nodes in Z-direction
-        NBSAX = I->Aux_SBX;         // Number of grid blocks in X-direction
-        NBSAY = I->Aux_SBY;         // Number of grid blocks in Y-direction
-        NBSAZ = I->Aux_SBZ;         // Number of grid blocks in Z-direction
-        SAX = NBSAX*BX;             // Node shift X
-        SAY = NBSAY*BY;             // Node shift Y
-        SAZ = NBSAZ*BZ;             // Node shift Z
-        NTAux = NAX*NAY*NAZ;
-    }
-
     // Set block size for Kernel definition
     blockarch_grid = dim3(NBX,NBY,NBZ);
     blockarch_block = dim3(BX,BY,BZ);
@@ -625,23 +598,56 @@ cl_kernel VPM3D_ocl::Generate_Kernel(const std::string &Body, const std::string 
 {
     cl_int err;
     std::string Source;
+
+    // Add definitions for floating-point types
     if (std::is_same<Real,float>::value)    Source.append(ocl_kernels_float);
     if (std::is_same<Real,double>::value)   Source.append(ocl_kernels_double);
+
+    // Add grid constants (#defines- will be substitutes in during compilation)
+    Add_Grid_Constants(Source);
+
+    // Add body of kernel
     Source.append(Body);
-    const char* source_str = Source.c_str();
+
     std::cout << Source << std::endl;
-    conv_program = clCreateProgramWithSource(vkGPU->context, 1, &source_str, NULL, &err);
-    err = clBuildProgram(conv_program, 1, &vkGPU->device, NULL, NULL, NULL);
+
+    // Compile kernel
+    const char* source_str = Source.c_str();
+    cl_program program = clCreateProgramWithSource(vkGPU->context, 1, &source_str, NULL, &err);
+    err = clBuildProgram(program, 1, &vkGPU->device, NULL, NULL, NULL);
     if (err != CL_SUCCESS) {
         size_t len;
         char buffer[2048];
-        clGetProgramBuildInfo(conv_program, vkGPU->device, CL_PROGRAM_BUILD_LOG, sizeof(buffer), buffer, &len);
+        clGetProgramBuildInfo(program, vkGPU->device, CL_PROGRAM_BUILD_LOG, sizeof(buffer), buffer, &len);
         fprintf(stderr, "Build error:\n%s\n", buffer);
     }
 
     // Create kernel
-    cl_kernel kernel = clCreateKernel(conv_program, Tag.c_str(), &err);
+    cl_kernel kernel = clCreateKernel(program, Tag.c_str(), &err);
     return kernel;
+}
+
+void VPM3D_ocl::Add_Grid_Constants(std::string &Source)
+{
+    // This function adds numerous #defines to the kernel which will be optimised into the kernel upon compilation.
+    // This avoids having to pass grid params into the kernel each time it is compiled.
+
+    Source.append("#define NX " + std::to_string(NX) + "\n");
+    Source.append("#define NY " + std::to_string(NY) + "\n");
+    Source.append("#define NZ " + std::to_string(NZ) + "\n");
+    Source.append("#define NT " + std::to_string(NT) + "\n");
+    Source.append("#define BX " + std::to_string(BX) + "\n");
+    Source.append("#define BY " + std::to_string(BY) + "\n");
+    Source.append("#define BZ " + std::to_string(BZ) + "\n");
+    Source.append("#define BT " + std::to_string(BT) + "\n");
+    Source.append("#define NBX " + std::to_string(NBX) + "\n");
+    Source.append("#define NBY " + std::to_string(NBY) + "\n");
+    Source.append("#define NBZ " + std::to_string(NBZ) + "\n");
+    Source.append("#define hx " + std::to_string(Hx) + "\n");
+    Source.append("#define hy " + std::to_string(Hy) + "\n");
+    Source.append("#define hz " + std::to_string(Hz) + "\n");
+    // __constant__ int NFDX, NFDY, NFDZ;       // These differ based on the case.
+    // __constant__ int NHIT;
 }
 
 SFStatus VPM3D_ocl::Initialize_Kernels()
@@ -653,9 +659,15 @@ SFStatus VPM3D_ocl::Initialize_Kernels()
     try{
 
         // Generate full source code
-        // std::string Source = "my_program\n";
+        // std::string Source;
         // if (std::is_same<Real,float>::value)    Source.append(ocl_kernels_float);
         // if (std::is_same<Real,double>::value)   Source.append(ocl_kernels_double);
+
+        // Add_Grid_Constants(Source);
+
+        // std::cout << "Check" << std::endl;
+        // std::cout << Source << std::endl;
+        // return NoError;
         // Source.append(VPM3D_ocl_kernels_source);
 
         // // Compile kernels

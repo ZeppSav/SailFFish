@@ -199,7 +199,7 @@ __kernel void multiply_in_place(__global Real* A, __global const Real* B) {
 )CLC";
 
 const std::string ocl_complexmultiply = R"CLC(
-__kernel void complex_multiply_in_place(__global Complex* A, __global Complex* B) {
+__kernel void complex_multiply_in_place(__global Complex* A, const __global Complex* B) {
     int i = get_global_id(0);
     // int ig = get_global_size(0);
     // if (i<ig){
@@ -209,6 +209,56 @@ __kernel void complex_multiply_in_place(__global Complex* A, __global Complex* B
         Real res_im = a.x * b.y + a.y * b.x;
         A[i] = (Complex){res_re,res_im};
     // }
+}
+)CLC";
+
+const std::string ocl_curl = R"CLC(
+__kernel void curl(	const __global Complex* Ox,
+                    const __global Complex* Oy,
+                    const __global Complex* Oz,
+                    const __global Complex* Gf,
+                    const __global Complex* iX,
+                    const __global Complex* iY,
+                    const __global Complex* iZ,
+                    __global Complex* Ux,
+                    __global Complex* Uy,
+                    __global Complex* Uz)
+{
+// Specify grid id
+int i = get_global_id(0);
+
+// Load values for this node into memory
+const Complex ox = Ox[i];
+const Complex oy = Oy[i];
+const Complex oz = Oz[i];
+const Complex gf = Gf[i];
+const Complex ix = iX[i];
+const Complex iy = iY[i];
+const Complex iz = iZ[i];
+
+__syncthreads();
+
+// Carry out convolution in frequency space.
+const Complex gfx = {ox.x*gf.x - ox.y*gf.y , ox.x*gf.y + ox.y*gf.x};
+const Complex gfy = {oy.x*gf.x - oy.y*gf.y , oy.x*gf.y + oy.y*gf.x};
+const Complex gfz = {oz.x*gf.x - oz.y*gf.y , oz.x*gf.y + oz.y*gf.x};
+
+// Extract curl of vector in frequency space
+const Complex ux1 = {gfz.x*iy.x - gfz.y*iy.y , gfz.x*iy.y + gfz.y*iy.x};
+const Complex ux2 = {gfy.x*iz.x - gfy.y*iz.y , gfy.x*iz.y + gfy.y*iz.x};
+const Complex uy1 = {gfx.x*iz.x - gfx.y*iz.y , gfx.x*iz.y + gfx.y*iz.x};
+const Complex uy2 = {gfz.x*ix.x - gfz.y*ix.y , gfz.x*ix.y + gfz.y*ix.x};
+const Complex uz1 = {gfy.x*ix.x - gfy.y*ix.y , gfy.x*ix.y + gfy.y*ix.x};
+const Complex uz2 = {gfx.x*iy.x - gfx.y*iy.y , gfx.x*iy.y + gfx.y*iy.x};
+
+const Complex UX = {ux2.x - ux1.x, ux2.y - ux1.y};
+const Complex UY = {uy2.x - uy1.x, uy2.y - uy1.y};
+const Complex UZ = {uz2.x - uz1.x, uz2.y - uz1.y};
+
+// Write outputs
+Ux[i] = UX;
+Uy[i] = UY;
+Uz[i] = UZ;
 }
 )CLC";
 
@@ -267,6 +317,9 @@ protected:
     //--- Convolution kernels (if not using fused CL kernels)
     cl_program conv_program;
     cl_kernel conv_kernel;
+
+    cl_program curl_program;
+    cl_kernel curl_kernel;
     // void Build_complex_Kernel()
 
     //--- Memory management
@@ -294,18 +347,25 @@ public:
     SFStatus Deallocate_Arrays()    override;
 
     //--- Specify Input
-    VkFFTResult ConvertArray_R2C(RVector &I, void* input_buffer, size_t N);
+    VkFFTResult ConvertArray_R2C(RVector &I, void* input_buffer, size_t N, bool toReal = true);
     VkFFTResult ConvertArray_C2R(RVector &I, void* input_buffer, size_t N);
     SFStatus Set_Input(RVector &I) override;
     SFStatus Set_Input(RVector &I1, RVector &I2, RVector &I3)   override;
     SFStatus Set_Input_Unbounded(RVector &I)                 override;
     SFStatus Set_Input_Unbounded(RVector &I1, RVector &I2, RVector &I3) override;
 
+    // Hack functions for consistency with other solvers
+    SFStatus Set_Input_Unbounded_2D(RVector &I1) override {return Set_Input_Unbounded(I1);}   // Hack
+    SFStatus Set_Input_Unbounded_3D(RVector &I1, RVector &I2, RVector &I3) override {return Set_Input_Unbounded(I1, I2, I3);}   // Hack
+
     //--- Retrieve output array
     void Get_Output(RVector &I)                             override;
     void Get_Output(RVector &I1, RVector &I2, RVector &I3)  override;
     void Get_Output_Unbounded(RVector &I)                   override;
     void Get_Output_Unbounded(RVector &I1, RVector &I2, RVector &I3) override ;
+
+     // Hack functions for consistency with other solvers
+    void Get_Output_Unbounded_3D(RVector &I1, RVector &I2, RVector &I3) override {return Get_Output_Unbounded(I1, I2, I3);}   // Hack
 
     //--- Greens functions prep
     void Prepare_Fused_Kernel(FTType TF);
@@ -314,6 +374,9 @@ public:
     void Prep_Greens_Function_R2R()     override    {Prep_Greens_Function(DFT_R2R);};
     void Prep_Greens_Function_C2C()     override    {Prep_Greens_Function(DFT_C2C);};
     void Prep_Greens_Function_R2C()     override    ;
+    // void Prepare_Dif_Operators_1D(Real Hx)  override {}
+    void Prepare_Dif_Operators_2D(Real Hx, Real Hy) override;
+    void Prepare_Dif_Operators_3D(Real Hx, Real Hy, Real Hz)    override;
 
     //--- Fourier transforms (Note: Backward FFT/iFFT should not be called if Fused Kernel most employed!)
     VkFFTResult FFT_DFT(int FFTType);
@@ -335,7 +398,7 @@ public:
 
     //--- Spectral gradients- these are dummies for now
     void Spectral_Gradients_2D_Grad()       {}
-    void Spectral_Gradients_3DV_Curl()      {}
+    void Spectral_Gradients_3DV_Curl();
     void Spectral_Gradients_3DV_Nabla()     {}
     void Transfer_FTInOut_Comp()            {}
 

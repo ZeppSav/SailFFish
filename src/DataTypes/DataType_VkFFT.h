@@ -153,7 +153,7 @@ struct dim3s {int x, y, z; dim3s(int x_ = 1, int y_ = 1, int z_ = 1) : x(x_), y(
 
 // Grid ID for specifying Green's function (F-style ordering)
 inline uint GF_GID2(const uint &i, const uint &j, const uint &NX, const uint &NY) {return j*NX + i;}    // F-style ordering
-inline uint GF_GID3(const uint &i, const uint &j, const uint &k, const uint &NX, const uint &NY, const uint &NZ) {return k*NX*NY + j*NX + i;}                 // F-style ordering
+inline uint GF_GID3(const uint &i, const uint &j, const uint &k, const uint &NX, const uint &NY, const uint &NZ) {return k*NX*NY + j*NX + i;}   // F-style ordering
 inline uint GF_GID3(const dim3 &P, const dim3 &D) {return P.z*D.x*D.y + P.y*D.x + P.x;}                 // F-style ordering
 
 static cl_real      CLR0 = 0.;

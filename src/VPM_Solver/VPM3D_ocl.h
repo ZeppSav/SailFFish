@@ -14,41 +14,41 @@ class VPM3D_ocl : public VPM_3D_Solver
 {
 
     //--- Grid Arrays
-    cl_mem lg_d;         // Lagrangian grid - particle displacement
-    cl_mem lg_o;         // Lagrangian grid - particle vorticity
-    cl_mem lg_dddt;      // Lagrangian grid - Rate of change particle displacement
-    cl_mem lg_dodt;      // Lagrangian grid - Rate of change of vorticity
-    // cl_mem eu_d;         // Eulerian grid - particle displacement                    // Only necessary in initialisation-- can use a dummy array here
-    cl_mem eu_o;         // Eulerian grid - particle vorticity
-    cl_mem eu_dddt;      // Eulerian grid - Rate of change particle displacement
-    cl_mem eu_dodt;      // Eulerian grid - Rate of change of vorticity
+    cl_mem lg_d = nullptr;         // Lagrangian grid - particle displacement
+    cl_mem lg_o = nullptr;         // Lagrangian grid - particle vorticity
+    cl_mem lg_dddt = nullptr;      // Lagrangian grid - Rate of change particle displacement
+    cl_mem lg_dodt = nullptr;      // Lagrangian grid - Rate of change of vorticity
+    // cl_mem eu_d = nullptr;         // Eulerian grid - particle displacement                    // Only necessary in initialisation-- can use a dummy array here
+    cl_mem eu_o = nullptr;         // Eulerian grid - particle vorticity
+    cl_mem eu_dddt = nullptr;      // Eulerian grid - Rate of change particle displacement
+    cl_mem eu_dodt = nullptr;      // Eulerian grid - Rate of change of vorticity
 
     // Arrays required for turbulence models
-    cl_mem Laplacian;        // Laplacian of vorticity field                         // Only necessary if using hyperviscosity turbulence model
-    // cl_mem NablaU;           // Gradients of velocity field
-    cl_mem sgs;              // sub grid scale
-    cl_mem qcrit;            // qcriterion
-    cl_mem gfilt_Array1;     // Filtered vorticity field
-    cl_mem gfilt_Array2;     // Gradients of velocity field
+    cl_mem Laplacian = nullptr;        // Laplacian of vorticity field                         // Only necessary if using hyperviscosity turbulence model
+    // cl_mem NablaU = nullptr;           // Gradients of velocity field
+    cl_mem sgs = nullptr;              // sub grid scale
+    cl_mem qcrit = nullptr;            // qcriterion
+    cl_mem gfilt_Array1 = nullptr;     // Filtered vorticity field
+    cl_mem gfilt_Array2 = nullptr;     // Gradients of velocity field
 
     //--- Timestepping (temporary) arrays
-    cl_mem int_lg_d;
-    cl_mem int_lg_o;
-    cl_mem k2_d;
-    cl_mem k2_o;
-    cl_mem k3_d;
-    cl_mem k3_o;
-    cl_mem k4_d;
-    cl_mem k4_o;
-    cl_mem tm1_d;
-    cl_mem tm1_o;
-    cl_mem tm1_dddt;
-    cl_mem tm1_dodt;
+    cl_mem int_lg_d = nullptr;
+    cl_mem int_lg_o = nullptr;
+    cl_mem k2_d = nullptr;
+    cl_mem k2_o = nullptr;
+    cl_mem k3_d = nullptr;
+    cl_mem k3_o = nullptr;
+    cl_mem k4_d = nullptr;
+    cl_mem k4_o = nullptr;
+    cl_mem tm1_d = nullptr;
+    cl_mem tm1_o = nullptr;
+    cl_mem tm1_dddt = nullptr;
+    cl_mem tm1_dodt = nullptr;
 
-    cl_mem diagnostic_reduced;       // Reduced diagnostics arrays
-    // cl_mem vis_plane;                // Reduced diagnostics arrays
-    // cl_mem travx, *travy, *travz;    // Reduced diagnostics arrays
-    cl_mem magfilt_count;         // Count of particle which have non-zero strength after magnitude filtering
+    cl_mem diagnostic_reduced = nullptr;       // Reduced diagnostics arrays
+    // cl_mem vis_plane = nullptr;                // Reduced diagnostics arrays
+    // cl_mem travx, *travy, *travz = nullptr;    // Reduced diagnostics arrays
+    cl_mem magfilt_count = nullptr;         // Count of particle which have non-zero strength after magnitude filtering
 
     // Arrays for external sources
     size_t NBExt = 0, NBufferExt = 0;
@@ -63,10 +63,10 @@ class VPM3D_ocl : public VPM_3D_Solver
     static const int NDiags = 15;                             // Number of diagnostics outputs
 
     // Indices for halo data
-    cl_mem Halo1data;
-    cl_mem Halo2data;
-    cl_mem Halo3data;
-    cl_mem Halo4data;
+    cl_mem Halo1data = nullptr;
+    cl_mem Halo2data = nullptr;
+    cl_mem Halo3data = nullptr;
+    cl_mem Halo4data = nullptr;
 
     //--- cuda Block & Grid size
     dim3 blockarch_grid, blockarch_block;
@@ -142,6 +142,13 @@ class VPM3D_ocl : public VPM_3D_Solver
     //--- Block data format
     gpuDataArch Architecture = BLOCK;
 
+    // template <typename... ArgTypes>
+    // void ExecuteKernel(cl_kernel kernel, const ArgTypes&... args)
+    // {
+    //     // Add flags here for sanity & timing checks
+    //     KL.launch(std::vector<void*>({(void*)&args...}));
+    // }
+
 public:
 
     //--- Constructor
@@ -162,12 +169,15 @@ public:
 
     //--- Kernel setup
 //     void Set_Kernel_Constants(jitify::KernelInstantiation *KI, int Halo);
-    cl_kernel Generate_Kernel(const std::string &Body, const std::string &Tag);
+    cl_kernel Generate_Kernel(const std::string &Body, const std::string &Tag, bool Print = false);
     SFStatus Initialize_Kernels();
+
+    //--- Kernel execution
+    SFStatus Execute_Block_Kernel(cl_kernel kernel);
 
 //     //--- Initial vorticity distribution
     void Retrieve_Grid_Positions(RVector &xc, RVector &yc, RVector &zc);
-    void Set_Input_Arrays(RVector &xo, RVector &yo, RVector &zo);
+    void Set_Input_Arrays(RVector &x0, RVector &y0, RVector &z0);
 
 //     //--- Auxiliary grid operations
 //     Real *Get_Vorticity_Array() {return eu_o;}
@@ -197,8 +207,8 @@ public:
 //                                  const RVector &Ox, const RVector &Oy, const RVector &Oz, Mapping Map) override;
 
 
-//     //--- Timestepping
-//     void Advance_Particle_Set() override;
+    //--- Timestepping
+    void Advance_Particle_Set() override;
 //     void Update_Particle_Field() override;
 //     void Calc_Particle_RateofChange(const Real *pd, const Real *po, Real *dpddt, Real *dpodt);
 //     void Calc_Grid_FDRatesof_Change() override;
@@ -219,10 +229,10 @@ public:
 //     //--- Grid statistics
 //     void Calc_Grid_Diagnostics() override;
 
-//     //--- Output grid
-//     void Generate_VTK() override;
+    //--- Output grid
+    void Generate_VTK() override;
 //     void Generate_VTK_Scalar()  override;
-//     void Generate_VTK(const Real *vtkoutput1, const Real *vtkoutput2);
+    void Generate_VTK(cl_mem vtkoutput1, cl_mem vtkoutput2);
 //     void Generate_Plane(RVector &U) override;
 //     void Generate_Traverse(int XP, RVector &U, RVector &V, RVector &W) override;
 

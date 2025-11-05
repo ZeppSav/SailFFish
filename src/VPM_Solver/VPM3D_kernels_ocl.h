@@ -24,6 +24,96 @@ __device__ double fab(const double &a)  {return abs(a);}
 __device__ double mymax(double a, double b)  {return max(a,b);}
 )CLC";
 
+const std::string ocl_GID_functions = R"CLC(
+inline int gid (int i,int j, int k, int nx, int ny, int nz)     {return k*nx*ny + j*nx + i;}    // Grid id in F-style ordering
+inline int gidc(int i,int j, int k, int nx, int ny, int nz)     {return i*ny*nz + j*nz + k;}    // Grid id in C-style ordering
+inline int gidb(int i,int j, int k){                                                            // Global block node id
+    const int ib = i/BX, jb = j/BY, kb = k/BZ;
+    const int gl = gidc(i-ib*BX, j-jb*BY, k-kb*BZ, BX, BY, BZ);
+    const int bls = gidc(ib, jb, kb, NBX, NBY, NBZ);
+    return gl + BT*bls;
+}
+
+)CLC";
+
+const std::string VPM3D_ocl_kernels_monolith_to_block = R"CLC(
+__kernel void  Monolith_to_Block(   __global Real* src,
+                                    __global Real* dst)
+{
+    const int gx = get_local_id(0) + get_group_id(0)*BX;
+    const int gy = get_local_id(1) + get_group_id(1)*BY;
+    const int gz = get_local_id(2) + get_group_id(2)*BZ;
+    const int mid = gid(gx,gy,gz,NX,NY,NZ);           // Global id (Monolithic)
+    const int bid = gidb(gx,gy,gz);                   // Global id (Block)
+
+    dst[bid     ] += src[mid     ];
+    dst[bid+NT  ] += src[mid+NT  ];
+    dst[bid+2*NT] += src[mid+2*NT];
+}
+)CLC";
+
+const std::string VPM3D_ocl_kernels_block_to_monolith = R"CLC(
+__kernel void  Block_to_Monolith(   __global Real* src,
+                                    __global Real* dst)
+{
+    const int gx = get_local_id(0) + get_group_id(0)*BX;
+    const int gy = get_local_id(1) + get_group_id(1)*BY;
+    const int gz = get_local_id(2) + get_group_id(2)*BZ;
+    const int mid = gid(gx,gy,gz,NX,NY,NZ);           // Global id (Monolithic)
+    const int bid = gidb(gx,gy,gz);                   // Global id (Block)
+
+    dst[mid     ] += src[bid     ];
+    dst[mid+NT  ] += src[bid+NT  ];
+    dst[mid+2*NT] += src[bid+2*NT];
+}
+)CLC";
+
+const std::string VPM3D_ocl_kernels_map_to_unbounded = R"CLC(
+__kernel void  Map_toUnbounded( __global Real* src,
+                                __global Real* dst1,
+                                __global Real* dst2,
+                                __global Real* dst3)
+{
+    const int gx = get_local_id(0) + get_group_id(0)*BX;
+    const int gy = get_local_id(1) + get_group_id(1)*BY;
+    const int gz = get_local_id(2) + get_group_id(2)*BZ;
+    const int mid = gid(gx,gy,gz,2*NX,2*NY,2*NZ);       // Global id (Monolithic)
+    const int bid = gidb(gx,gy,gz);                     // Global id (Block)
+
+    dst1[mid] = src[bid     ];
+    dst2[mid] = src[bid+NT  ];
+    dst3[mid] = src[bid+2*NT];
+}
+)CLC";
+
+const std::string VPM3D_ocl_kernels_map_from_unbounded = R"CLC(
+__kernel void  Map_fromUnbounded(   __global Real* src1,
+                                    __global Real* src2,
+                                    __global Real* src3,
+                                    __global Real* dst)
+{
+    const int gx = get_local_id(0) + get_group_id(0)*BX;
+    const int gy = get_local_id(1) + get_group_id(1)*BY;
+    const int gz = get_local_id(2) + get_group_id(2)*BZ;
+    const int mid = gid(gx,gy,gz,2*NX,2*NY,2*NZ);       // Global id (Monolithic-unbounded)
+    const int bid = gidb(gx,gy,gz);                     // Global id (Block)
+
+    dst[bid     ] = src1[mid];
+    dst[bid+NT  ] = src2[mid];
+    dst[bid+2*NT] = src3[mid];
+}
+)CLC";
+
+// const int gx = threadIdx.x + blockIdx.x*BX;
+// const int gy = threadIdx.y + blockIdx.y*BY;
+// const int gz = threadIdx.z + blockIdx.z*BZ;
+// const int mid = gid(gx,gy,gz,2*NX,2*NY,2*NZ);
+// const int bid = gidb(gx,gy,gz);
+
+// dst[bid     ]  = src1[mid];
+// dst[bid+1*NT]  = src2[mid];
+// dst[bid+2*NT]  = src3[mid];
+
 const std::string VPM3D_ocl_kernels_update = R"CLC(
 
 __kernel void update(__global Real* d,

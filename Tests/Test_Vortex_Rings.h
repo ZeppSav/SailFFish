@@ -154,8 +154,6 @@ void Vortex_Ring_Evolution_Test()
     SFStatus Status = VPM->Setup_VPM(&I);
     if (Status!=NoError) {std::cout << "Error during setup" << std::endl;   return;}
 
-    return;
-
     //--- Initialize vorticity field
     int NNT;
     VPM->Retrieve_Grid_Size(NNT);
@@ -166,6 +164,8 @@ void Vortex_Ring_Evolution_Test()
 
     //--- Generate initial volume grid
     VPM->Generate_VTK();
+
+    return;
 
     //--- Execute simulation
     int NStep = 1000;

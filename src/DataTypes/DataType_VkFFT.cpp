@@ -156,13 +156,13 @@ SFStatus DataType_VkFFT::Zero_FloatBuffer(cl_mem &buffer, uint64_t bufsize)
     cl_int res = clEnqueueFillBuffer(vkGPU->commandQueue, buffer, &CLR0, sizeof(CLR0), 0, bufsize, 0, NULL, NULL);
     clFinish(vkGPU->commandQueue);  // wait for completion
     return ConvertClError(res);
-    // err = clEnqueueFillBuffer(queue,          // command queue
-    //                           buffer,         // cl_mem object
-    //                           &pattern,       // pointer to pattern
-    //                           pattern_size,   // size of pattern
-    //                           0,              // offset in buffer
-    //                           buffer_size,    // size to fill (in bytes)
-    //                           0, NULL, NULL); // wait list, events
+}
+
+SFStatus DataType_VkFFT::Copy_Buffer(cl_mem &destbuffer, cl_mem &srcbuffer, uint64_t bufsize)
+{
+    cl_int res = clEnqueueCopyBuffer(vkGPU->commandQueue, srcbuffer, destbuffer, 0, 0, bufsize, 0, NULL, NULL);
+    clFinish(vkGPU->commandQueue);  // wait for completion
+    return ConvertClError(res);
 }
 
 SFStatus DataType_VkFFT::Allocate_Arrays()

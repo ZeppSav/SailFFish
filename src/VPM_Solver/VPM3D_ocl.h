@@ -10,6 +10,11 @@ namespace SailFFish
 
 enum gpuDataArch {MONO,PENCIL,BLOCK};
 
+struct OpenCLWorkSize{
+    size_t global[3];
+    size_t local[3];
+};
+
 class VPM3D_ocl : public VPM_3D_Solver
 {
 
@@ -69,14 +74,14 @@ class VPM3D_ocl : public VPM_3D_Solver
     cl_mem Halo4data = nullptr;
 
     //--- cuda Block & Grid size
-    dim3 blockarch_grid, blockarch_block;
+    // dim3 blockarch_grid, blockarch_block;
+    OpenCLWorkSize BlockArch;
+    OpenCLWorkSize ListArch;
 
     //--- OpenCL Kernels
-    void Add_Grid_Constants(std::string &Source);
-    // std::string KID;                        // Unique kernel identifier to ensure to common kernel names compiled on GPU.
     cl_kernel ocl_VPM_convolution;
     cl_kernel ocl_VPM_reprojection;
-    cl_kernel ocl_monolith_to_block_arch;
+    // cl_kernel ocl_monolith_to_block_arch;       // Obsolete
     cl_kernel ocl_block_to_monolith_arch;
     cl_kernel ocl_block_to_monolith_single;
     cl_kernel ocl_mapM2;
@@ -142,12 +147,8 @@ class VPM3D_ocl : public VPM_3D_Solver
     //--- Block data format
     gpuDataArch Architecture = BLOCK;
 
-    // template <typename... ArgTypes>
-    // void ExecuteKernel(cl_kernel kernel, const ArgTypes&... args)
-    // {
-    //     // Add flags here for sanity & timing checks
-    //     KL.launch(std::vector<void*>({(void*)&args...}));
-    // }
+    //--- Kernel execution
+    SFStatus Execute_Kernel(cl_kernel kernel, OpenCLWorkSize &Worksize, const std::vector<cl_mem> &buffers);
 
 public:
 
@@ -168,14 +169,15 @@ public:
     void Initialize_Halo_Data();
 
     //--- Kernel setup
-//     void Set_Kernel_Constants(jitify::KernelInstantiation *KI, int Halo);
-    cl_kernel Generate_Kernel(const std::string &Body, const std::string &Tag, bool Print = false);
+    cl_kernel Generate_Kernel(  const std::string &Body,        // Body of the kernel
+                                const std::string &Tag,         // Identifier of the kernel function
+                                int Halo,                       // If a halo kernel is being used, how large is the halo?
+                                int Map,                        // If a mapping procedure is being used, what type of mapping?
+                                int NHT,                        // What is the size of the shared memory array?
+                                bool Print = false);            // Should the kernel be printed?
     SFStatus Initialize_Kernels();
 
-    //--- Kernel execution
-    SFStatus Execute_Block_Kernel(cl_kernel kernel);
-
-//     //--- Initial vorticity distribution
+    //--- Initial vorticity distribution
     void Retrieve_Grid_Positions(RVector &xc, RVector &yc, RVector &zc);
     void Set_Input_Arrays(RVector &x0, RVector &y0, RVector &z0);
 
@@ -194,8 +196,6 @@ public:
 
 //     //--- Grid operations
 //     void Extract_Field(const Real *Field, const RVector &Px, const RVector &Py, const RVector &Pz, RVector &Ux, RVector &Uy, RVector &Uz, Mapping M);
-
-//     void Add_Grid_Sources(const RVector &Px, const RVector &Py, const RVector &Pz,const RVector &Ox, const RVector &Oy, const RVector &Oz, Mapping M) override;
 
 //     void Extract_Sol_Values(const RVector &Px, const RVector &Py, const RVector &Pz, RVector &Ugx, RVector &Ugy, RVector &Ugz, Mapping Map) override {
 //         Extract_Field(eu_dddt, Px, Py, Pz, Ugx, Ugy, Ugz, Map);}
@@ -221,8 +221,8 @@ public:
 //     void Output_Max_Components(const Real *A, int N);
 //     void Output_Max_Components(const Real *A, const Real *B, const Real *C, int N);
 
-//     // //--- Grid utilities
-//     void Remesh_Particle_Set() override;
+    //--- Grid utilities
+    void Remesh_Particle_Set() override;
 //     void Reproject_Particle_Set_Spectral() override;
 //     void Magnitude_Filtering() override;
 

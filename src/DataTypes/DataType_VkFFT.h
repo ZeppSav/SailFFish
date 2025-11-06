@@ -326,6 +326,7 @@ protected:
     SFStatus Allocate_Buffer(cl_mem &buffer, uint64_t bufsize);
     SFStatus Allocate_SubBuffer(cl_mem &bufferDest, cl_mem &bufferSrc, uint64_t bufstart, uint64_t bufsize);
     SFStatus Zero_FloatBuffer(cl_mem &buffer, uint64_t bufsize);
+    SFStatus Copy_Buffer(cl_mem &destbuffer, cl_mem &srcbuffer, uint64_t bufsize);
 
 public:
 

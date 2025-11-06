@@ -11,6 +11,7 @@ namespace SailFFish
 enum gpuDataArch {MONO,PENCIL,BLOCK};
 
 struct OpenCLWorkSize{
+    cl_uint Dim;
     size_t global[3];
     size_t local[3];
 };
@@ -148,7 +149,10 @@ class VPM3D_ocl : public VPM_3D_Solver
     gpuDataArch Architecture = BLOCK;
 
     //--- Kernel execution
-    SFStatus Execute_Kernel(cl_kernel kernel, OpenCLWorkSize &Worksize, const std::vector<cl_mem> &buffers);
+    SFStatus Execute_Kernel(cl_kernel kernel,                       // Kernel identifier
+                            OpenCLWorkSize &Worksize,               // Worksize object
+                            const std::vector<cl_mem> &buffers,     // Buffer arguments
+                            const std::vector<Real> &params = {});  // Parameters
 
 public:
 
@@ -184,7 +188,6 @@ public:
 //     //--- Auxiliary grid operations
 //     Real *Get_Vorticity_Array() {return eu_o;}
 //     void Set_External_Grid(VPM_3D_Solver *G) override;
-//     void Map_to_Auxiliary_Grid() override;
 //     void Interpolate_Ext_Sources(Mapping M) override;
 //     Real* Get_Vort_Array() override {return eu_o;}
 //     Real* Get_Vel_Array() override {return eu_dddt;}
@@ -209,8 +212,8 @@ public:
 
     //--- Timestepping
     void Advance_Particle_Set() override;
-//     void Update_Particle_Field() override;
-//     void Calc_Particle_RateofChange(const Real *pd, const Real *po, Real *dpddt, Real *dpodt);
+    void Update_Particle_Field() override;
+    void Calc_Particle_RateofChange(const cl_mem pd, const cl_mem po, cl_mem dpddt, cl_mem dpodt);
 //     void Calc_Grid_FDRatesof_Change() override;
 //     void Grid_Shear_Stresses() override;
 //     void Grid_Turb_Shear_Stresses() override;
@@ -226,8 +229,8 @@ public:
 //     void Reproject_Particle_Set_Spectral() override;
 //     void Magnitude_Filtering() override;
 
-//     //--- Grid statistics
-//     void Calc_Grid_Diagnostics() override;
+    //--- Grid statistics
+    void Calc_Grid_Diagnostics() override   {};         // Dummy for now!!!
 
     //--- Output grid
     void Generate_VTK() override;

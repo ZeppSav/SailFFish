@@ -476,6 +476,8 @@ interpf2[bid+2*NT] = m2z;
 }
 )CLC";
 
+//--- Timestepping kernels
+
 const std::string VPM3D_ocl_kernels_update = R"CLC(
 
 __kernel void update(__global Real* d,
@@ -488,18 +490,18 @@ __kernel void update(__global Real* d,
     int i = get_global_id(0);
 
     // Load values
-    Real p1  = d[i];
-    Real p2  = d[i + NT];
-    Real p3  = d[i + 2*NT];
-    Real o1  = o[i];
-    Real o2  = o[i + NT];
-    Real o3  = o[i + 2*NT];
-    Real dp1 = d_d[i];
-    Real dp2 = d_d[i + NT];
-    Real dp3 = d_d[i + 2*NT];
-    Real do1 = d_o[i];
-    Real do2 = d_o[i + NT];
-    Real do3 = d_o[i + 2*NT];
+    Real p1  = d[i          ];
+    Real p2  = d[i + NT     ];
+    Real p3  = d[i + 2*NT   ];
+    Real o1  = o[i          ];
+    Real o2  = o[i + NT     ];
+    Real o3  = o[i + 2*NT   ];
+    Real dp1 = d_d[i        ];
+    Real dp2 = d_d[i + NT   ];
+    Real dp3 = d_d[i + 2*NT ];
+    Real do1 = d_o[i        ];
+    Real do2 = d_o[i + NT   ];
+    Real do3 = d_o[i + 2*NT ];
 
     // Write updated values
     d[i     ] = p1 + dt * dp1;
@@ -512,8 +514,216 @@ __kernel void update(__global Real* d,
 
 )CLC";
 
-// const std::string VPM3D_ocl_kernels_update = R"CLC(
+const std::string VPM3D_ocl_kernels_updateRK = R"CLC(
+__kernel void updateRK( __global const Real* d,
+                        __global const Real* o,
+                        __global const Real* d_d,
+                        __global const Real* d_o,
+                        __global Real* kd,
+                        __global Real* ko,
+                        const Real dt)
+{
 
-// )CLC";
+    // Set grid id
+    unsigned int i = get_group_id(0)*get_local_size(0) + get_local_id(0);
+
+    const Real p1 = d[i     ];
+    const Real p2 = d[i+NT  ];
+    const Real p3 = d[i+2*NT];
+    const Real o1 = o[i     ];
+    const Real o2 = o[i+NT  ];
+    const Real o3 = o[i+2*NT];
+
+    const Real dp1 = d_d[i      ];
+    const Real dp2 = d_d[i+NT   ];
+    const Real dp3 = d_d[i+2*NT ];
+    const Real do1 = d_o[i      ];
+    const Real do2 = d_o[i+NT   ];
+    const Real do3 = d_o[i+2*NT ];
+
+    barrier(CLK_LOCAL_MEM_FENCE);       // Probably not necessary
+
+    // Set outputs
+    kd[i     ] = p1 + dt*dp1;
+    kd[i+1*NT] = p2 + dt*dp2;
+    kd[i+2*NT] = p3 + dt*dp3;
+    ko[i     ] = o1 + dt*do1;
+    ko[i+1*NT] = o2 + dt*do2;
+    ko[i+2*NT] = o3 + dt*do3;
+}
+
+)CLC";
+
+const std::string VPM3D_ocl_kernels_updateRK2 = R"CLC(
+__kernel void updateRK2(__global Real* d,
+                        __global Real* o,
+                        __global const Real* k1d,
+                        __global const Real* k1o,
+                        __global const Real* k2d,
+                        __global const Real* k2o,
+                        const Real dt) {
+
+    // Set grid id
+    unsigned int i = get_group_id(0)*get_local_size(0) + get_local_id(0);
+
+    const Real p1 = d[i     ];
+    const Real p2 = d[i+NT  ];
+    const Real p3 = d[i+2*NT];
+    const Real o1 = o[i     ];
+    const Real o2 = o[i+NT  ];
+    const Real o3 = o[i+2*NT];
+
+    const Real dp1k1 = k1d[i    ];      const Real dp1k2 = k2d[i    ];
+    const Real dp2k1 = k1d[i+NT ];		const Real dp2k2 = k2d[i+NT ];
+    const Real dp3k1 = k1d[i+2*NT];		const Real dp3k2 = k2d[i+2*NT];
+    const Real do1k1 = k1o[i    ];      const Real do1k2 = k2o[i    ];
+    const Real do2k1 = k1o[i+NT ];		const Real do2k2 = k2o[i+NT ];
+    const Real do3k1 = k1o[i+2*NT];		const Real do3k2 = k2o[i+2*NT];
+
+    barrier(CLK_LOCAL_MEM_FENCE);       // Probably not necessary
+
+    // Set outputs
+    const Real f = (Real)0.5*dt;
+    d[i     ] = p1 + f*(dp1k1+dp1k2);
+    d[i+1*NT] = p2 + f*(dp2k1+dp2k2);
+    d[i+2*NT] = p3 + f*(dp3k1+dp3k2);
+    o[i     ] = o1 + f*(do1k1+do1k2);
+    o[i+1*NT] = o2 + f*(do2k1+do2k2);
+    o[i+2*NT] = o3 + f*(do3k1+do3k2);
+}
+
+)CLC";
+
+const std::string VPM3D_ocl_kernels_updateRK3 = R"CLC(
+__kernel void updateRK3(__global Real* d,
+                        __global Real* o,
+                        __global const Real* k1d,
+                        __global const Real* k1o,
+                        __global const Real* k2d,
+                        __global const Real* k2o,
+                        __global const Real* k3d,
+                        __global const Real* k3o,
+                        const Real dt) {
+
+// Set grid id
+unsigned int i = get_group_id(0)*get_local_size(0) + get_local_id(0);
+
+const Real p1 = d[i     ];
+const Real p2 = d[i+NT  ];
+const Real p3 = d[i+2*NT];
+const Real o1 = o[i     ];
+const Real o2 = o[i+NT  ];
+const Real o3 = o[i+2*NT];
+
+const Real dp1k1 = k1d[i    ];      const Real dp1k2 = k2d[i    ];      const Real dp1k3 = k3d[i    ];
+const Real dp2k1 = k1d[i+NT ];		const Real dp2k2 = k2d[i+NT ];		const Real dp2k3 = k3d[i+NT ];
+const Real dp3k1 = k1d[i+2*NT];		const Real dp3k2 = k2d[i+2*NT];		const Real dp3k3 = k3d[i+2*NT];
+const Real do1k1 = k1o[i    ];      const Real do1k2 = k2o[i    ];      const Real do1k3 = k3o[i    ];
+const Real do2k1 = k1o[i+NT ];		const Real do2k2 = k2o[i+NT ];		const Real do2k3 = k3o[i+NT ];
+const Real do3k1 = k1o[i+2*NT];		const Real do3k2 = k2o[i+2*NT];		const Real do3k3 = k3o[i+2*NT];
+
+
+barrier(CLK_LOCAL_MEM_FENCE);       // Probably not necessary
+
+// Set outputs
+const Real f = dt/(Real)6.0;
+d[i     ] = p1 + f*(dp1k1 + (Real)4.0*dp1k2 + dp1k3);
+d[i+1*NT] = p2 + f*(dp2k1 + (Real)4.0*dp2k2 + dp2k3);
+d[i+2*NT] = p3 + f*(dp3k1 + (Real)4.0*dp3k2 + dp3k3);
+o[i     ] = o1 + f*(do1k1 + (Real)4.0*do1k2 + do1k3);
+o[i+1*NT] = o2 + f*(do2k1 + (Real)4.0*do2k2 + do2k3);
+o[i+2*NT] = o3 + f*(do3k1 + (Real)4.0*do3k2 + do3k3);
+}
+
+)CLC";
+
+const std::string VPM3D_ocl_kernels_updateRK4 = R"CLC(
+__kernel void updateRK4(__global Real* d,
+                        __global Real* o,
+                        __global const Real* k1d,
+                        __global const Real* k1o,
+                        __global const Real* k2d,
+                        __global const Real* k2o,
+                        __global const Real* k3d,
+                        __global const Real* k3o,
+                        __global  const Real* k4d,
+                        __global const Real* k4o,
+                        const Real dt) {
+
+// Set grid id
+unsigned int i = get_group_id(0)*get_local_size(0) + get_local_id(0);
+
+const Real p1 = d[i     ];
+const Real p2 = d[i+NT  ];
+const Real p3 = d[i+2*NT];
+const Real o1 = o[i     ];
+const Real o2 = o[i+NT  ];
+const Real o3 = o[i+2*NT];
+
+const Real dp1k1 = k1d[i    ];      const Real dp1k2 = k2d[i    ];      const Real dp1k3 = k3d[i    ];      const Real dp1k4 = k4d[i    ];
+const Real dp2k1 = k1d[i+NT ];		const Real dp2k2 = k2d[i+NT ];		const Real dp2k3 = k3d[i+NT ];		const Real dp2k4 = k4d[i+NT ];
+const Real dp3k1 = k1d[i+2*NT];		const Real dp3k2 = k2d[i+2*NT];		const Real dp3k3 = k3d[i+2*NT];		const Real dp3k4 = k4d[i+2*NT];
+const Real do1k1 = k1o[i    ];      const Real do1k2 = k2o[i    ];      const Real do1k3 = k3o[i    ];      const Real do1k4 = k4o[i    ];
+const Real do2k1 = k1o[i+NT ];		const Real do2k2 = k2o[i+NT ];		const Real do2k3 = k3o[i+NT ];		const Real do2k4 = k4o[i+NT ];
+const Real do3k1 = k1o[i+2*NT];		const Real do3k2 = k2o[i+2*NT];		const Real do3k3 = k3o[i+2*NT];		const Real do3k4 = k4o[i+2*NT];
+
+barrier(CLK_LOCAL_MEM_FENCE);
+
+// Set outputs
+const Real f = dt/(Real)6.0;
+d[i     ] = p1 + f*(dp1k1 + (Real)2.0*dp1k2 + (Real)2.0*dp1k3 + dp1k4);
+d[i+1*NT] = p2 + f*(dp2k1 + (Real)2.0*dp2k2 + (Real)2.0*dp2k3 + dp2k4);
+d[i+2*NT] = p3 + f*(dp3k1 + (Real)2.0*dp3k2 + (Real)2.0*dp3k3 + dp3k4);
+o[i     ] = o1 + f*(do1k1 + (Real)2.0*do1k2 + (Real)2.0*do1k3 + do1k4);
+o[i+1*NT] = o2 + f*(do2k1 + (Real)2.0*do2k2 + (Real)2.0*do2k3 + do2k4);
+o[i+2*NT] = o3 + f*(do3k1 + (Real)2.0*do3k2 + (Real)2.0*do3k3 + do3k4);
+
+}
+
+)CLC";
+
+const std::string VPM3D_ocl_kernels_updateRKLS = R"CLC(
+__kernel void updateRK_LS(  __global Real* d,
+                            __global Real* o,
+                            __global const Real* d_d,
+                            __global const Real* d_o,
+                            __global Real* s_d,
+                            __global Real* s_o,
+                            const Real A,
+                            const Real B,
+                            const Real h)
+{
+
+// Set grid id
+unsigned int i = get_group_id(0)*get_local_size(0) + get_local_id(0);
+
+// Intermediate vars
+Real s21 = A*s_d[i      ]   + h*d_d[i       ];
+Real s22 = A*s_d[i+NT   ]   + h*d_d[i+NT    ];
+Real s23 = A*s_d[i+2*NT ] 	+ h*d_d[i+2*NT  ];
+Real s24 = A*s_o[i      ]   + h*d_o[i       ];
+Real s25 = A*s_o[i+NT   ]   + h*d_o[i+NT    ];
+Real s26 = A*s_o[i+2*NT ]	+ h*d_o[i+2*NT  ];
+
+barrier(CLK_LOCAL_MEM_FENCE);       // Probably unecessary
+
+// Update intermediate vector
+s_d[i     ] = s21;
+s_d[i+1*NT] = s22;
+s_d[i+2*NT] = s23;
+s_o[i     ] = s24;
+s_o[i+1*NT] = s25;
+s_o[i+2*NT] = s26;
+
+// Update state vector
+d[i     ] += B*s21;
+d[i+1*NT] += B*s22;
+d[i+2*NT] += B*s23;
+o[i     ] += B*s24;
+o[i+1*NT] += B*s25;
+o[i+2*NT] += B*s26;
+}
+
+)CLC";
 
 }

@@ -1233,6 +1233,27 @@ inline void KER_Update_RK(const TensorGrid &p_d_Vals,
     k_o_Array[2][id] = p_o_Vals[2][id] + dpdt_o_Vals[2][id]*dT;
 }
 
+// Constants for Low-storage Runge-Kutta schemes
+
+static const Real RK3A[4] = {0.0,
+                             -756391.0/934407.0,
+                             -36441873.0/15625000.0,
+                             -1953125.0/1085297.0};
+static const Real RK3B[4] = {8.0/141.0,
+                             6627.0/2000.0,
+                             609375.0/1085297.0,
+                             198961.0/526283.0};
+static const Real RK4A[5] = {0.0,
+                             -567301805773.0/1357537059087.0,
+                             -2404267990393.0/2016746695238.0,
+                             -3550918686646.0/2091501179385.0,
+                             -1275806237668.0/842570457699.0};
+static const Real RK4B[5] = {1432997174477.0/9575080441755.0,
+                             5161836677717.0/13612068292357.0,
+                             1720146321549.0/2090206949498.0,
+                             3134564353537.0/4481467310338.0,
+                             2277821191437.0/14882151754819.0};
+
 inline void KER_Update_RKLS(TensorGrid &p_d_Vals,
                             TensorGrid &p_o_Vals,
                             const TensorGrid &dpdt_d_Vals,

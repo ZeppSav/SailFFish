@@ -40,9 +40,6 @@ enum GridDefinition     {NODES, BLOCKS, ADAPTIVE};
 enum Turbulence         {LAM, HYP, RVM1, RVM2, RVM3, RVM2_DGC};
 
 static int const NBlock3 = 1024;
-// using OrdPart = std::tuple<dim3, Vector3, int>;                 // Object contains node id, vorticity vector and mapping indices
-// using OrdMap = std::tuple<int, dim3s, Vector3, Matrix, bool>;   // Object contains node id, node indices, vorticity vector and mapping indices
-
 typedef Real (*BS_Kernel)(const Real &r, const Real &sigma);
 typedef void (*Map_Kernel)(const Real &d, Real &f);
 

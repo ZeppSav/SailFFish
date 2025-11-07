@@ -74,10 +74,14 @@ class VPM3D_ocl : public VPM_3D_Solver
     cl_mem Halo3data = nullptr;
     cl_mem Halo4data = nullptr;
 
+    //--- Auxiliary source data
+    void Map_from_Auxiliary_Grid() override {};
+
     //--- cuda Block & Grid size
     // dim3 blockarch_grid, blockarch_block;
-    OpenCLWorkSize BlockArch;
-    OpenCLWorkSize ListArch;
+    OpenCLWorkSize BlockArch;   // Work group for block-style operations
+    OpenCLWorkSize ListArch;    // Work group for linear operations
+    OpenCLWorkSize ConvArch;    // Work group for linear convolutions
 
     //--- OpenCL Kernels
     cl_kernel ocl_VPM_convolution;
@@ -126,24 +130,26 @@ class VPM3D_ocl : public VPM_3D_Solver
     // cudaKernel *ocl_interpM6D_block2;
 
     // Turbulence Kernels
-    cl_kernel ocl_Laplacian_FD2;
-    cl_kernel ocl_Laplacian_FD4;
-    cl_kernel ocl_Laplacian_FD6;
-    cl_kernel ocl_Laplacian_FD8;
-    cl_kernel ocl_Turb_Hyp_FD2;
-    cl_kernel ocl_Turb_Hyp_FD4;
-    cl_kernel ocl_Turb_Hyp_FD6;
-    cl_kernel ocl_Turb_Hyp_FD8;
-    cl_kernel ocl_sg_discfilt;
-    // cl_kernel ocl_sg_discfilt2;
+    // cl_kernel ocl_Laplacian_FD2;
+    // cl_kernel ocl_Laplacian_FD4;
+    // cl_kernel ocl_Laplacian_FD6;
+    // cl_kernel ocl_Laplacian_FD8;
+    // cl_kernel ocl_Turb_Hyp_FD2;
+    // cl_kernel ocl_Turb_Hyp_FD4;
+    // cl_kernel ocl_Turb_Hyp_FD6;
+    // cl_kernel ocl_Turb_Hyp_FD8;
+    cl_kernel ocl_sg_discfiltx;
+    cl_kernel ocl_sg_discfilty;
+    cl_kernel ocl_sg_discfiltz;
+    cl_kernel ocl_sg_discfiltss;
     cl_kernel ocl_Turb_RVM_FD2;
     cl_kernel ocl_Turb_RVM_FD4;
     cl_kernel ocl_Turb_RVM_FD6;
     cl_kernel ocl_Turb_RVM_FD8;
-    cl_kernel ocl_Turb_RVM_DGC_FD2;
-    cl_kernel ocl_Turb_RVM_DGC_FD4;
-    cl_kernel ocl_Turb_RVM_DGC_FD6;
-    cl_kernel ocl_Turb_RVM_DGC_FD8;
+    // cl_kernel ocl_Turb_RVM_DGC_FD2;
+    // cl_kernel ocl_Turb_RVM_DGC_FD4;
+    // cl_kernel ocl_Turb_RVM_DGC_FD6;
+    // cl_kernel ocl_Turb_RVM_DGC_FD8;
 
     //--- Block data format
     gpuDataArch Architecture = BLOCK;
@@ -214,9 +220,9 @@ public:
     void Advance_Particle_Set() override;
     void Update_Particle_Field() override;
     void Calc_Particle_RateofChange(const cl_mem pd, const cl_mem po, cl_mem dpddt, cl_mem dpodt);
-//     void Calc_Grid_FDRatesof_Change() override;
-//     void Grid_Shear_Stresses() override;
-//     void Grid_Turb_Shear_Stresses() override;
+    void Calc_Grid_FDRatesof_Change() override;
+    void Grid_Shear_Stresses() override;
+    void Grid_Turb_Shear_Stresses() override;
 //     void Add_Freestream_Velocity() override;
 //     void Solve_Velocity() override;
 
@@ -230,7 +236,7 @@ public:
 //     void Magnitude_Filtering() override;
 
     //--- Grid statistics
-    void Calc_Grid_Diagnostics() override   {};         // Dummy for now!!!
+    void Calc_Grid_Diagnostics() override;
 
     //--- Output grid
     void Generate_VTK() override;

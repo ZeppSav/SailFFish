@@ -11,17 +11,17 @@ namespace SailFFish
 {
 
 const std::string VPM3D_ocl_kernels_float = R"CLC(
-typedef float Real;
+typedef float   Real;
+typedef float2  Complex;
 // inline float fastma(const float &a, const float &b, const float &c)    {return fmaf(a,b,c);}
 inline float fab(float a)   {return fabs(a);}
-// inline float mymax(float a, float b)   {return fmaxf(a,b);}
 )CLC";
 
 const std::string VPM3D_ocl_kernels_double = R"CLC(
-typedef double Real;
+typedef double  Real;
+typedef double2 Complex;
 // inline double fastma(const double &a, const double &b, const double &c) {return fma(a,b,c);}
 inline double fab(float a)  {return abs(a);}
-// inline double mymax(double a, double b)  {return max(a,b);}
 )CLC";
 
 const std::string ocl_GID_functions = R"CLC(
@@ -36,8 +36,63 @@ inline int gidb(int i,int j, int k){                                            
 
 )CLC";
 
+//--- Convolution kernels
+
+// const std::string VPM3D_ocl_kernels_convolution = R"CLC(
+
+// __kernel void vpm_convolution(  __global const Complex *OX,
+//                                 __global const Complex *OY,
+//                                 __global const Complex *OZ,
+//                                 __global const Complex *GF,
+//                                 __global const Complex *iX,
+//                                 __global const Complex *iY,
+//                                 __global const Complex *iZ,
+//                                 __global Complex *UX,
+//                                 __global Complex *UY,
+//                                 __global Complex *UZ) {
+
+// // Specify grid id
+// unsigned int i = get_group_id(0)*get_local_size(0) + get_local_id(0);
+
+// // Load values for this node into memory
+// const Complex ox = OX[i];
+// const Complex oy = OY[i];
+// const Complex oz = OZ[i];
+// const Complex gf = GF[i];
+// const Complex ix = iX[i];
+// const Complex iy = iY[i];
+// const Complex iz = iZ[i];
+
+// barrier(CLK_LOCAL_MEM_FENCE);
+
+// // Carry out convolution in frequency space.
+// const Complex gfx = {ox.x*gf.x - ox.y*gf.y , ox.x*gf.y + ox.y*gf.x};
+// const Complex gfy = {oy.x*gf.x - oy.y*gf.y , oy.x*gf.y + oy.y*gf.x};
+// const Complex gfz = {oz.x*gf.x - oz.y*gf.y , oz.x*gf.y + oz.y*gf.x};
+
+// // Extract curl of vector in frequency space
+// const Complex ux1 = {gfz.x*iy.x - gfz.y*iy.y , gfz.x*iy.y + gfz.y*iy.x};
+// const Complex ux2 = {gfy.x*iz.x - gfy.y*iz.y , gfy.x*iz.y + gfy.y*iz.x};
+// const Complex uy1 = {gfx.x*iz.x - gfx.y*iz.y , gfx.x*iz.y + gfx.y*iz.x};
+// const Complex uy2 = {gfz.x*ix.x - gfz.y*ix.y , gfz.x*ix.y + gfz.y*ix.x};
+// const Complex uz1 = {gfy.x*ix.x - gfy.y*ix.y , gfy.x*ix.y + gfy.y*ix.x};
+// const Complex uz2 = {gfx.x*iy.x - gfx.y*iy.y , gfx.x*iy.y + gfx.y*iy.x};
+
+// const Complex UX = {ux2.x - ux1.x, ux2.y - ux1.y};
+// const Complex UY = {uy2.x - uy1.x, uy2.y - uy1.y};
+// const Complex UZ = {uz2.x - uz1.x, uz2.y - uz1.y};
+
+// barrier(CLK_LOCAL_MEM_FENCE);
+
+// // Write outputs
+// Ux[i] = UX;
+// Uy[i] = UY;
+// Uz[i] = UZ;
+// }
+// )CLC";
+
 // const std::string VPM3D_ocl_kernels_monolith_to_block = R"CLC(       // OBSOLETE
-// __kernel void  Monolith_to_Block(   __global Real* src,
+// __kernel void  Monolith_to_Block(   __global  Real* src,
 //                                     __global Real* dst)
 // {
 //     const int gx = get_local_id(0) + get_group_id(0)*BX;
@@ -683,7 +738,7 @@ o[i+2*NT] = o3 + f*(do3k1 + (Real)2.0*do3k2 + (Real)2.0*do3k3 + do3k4);
 )CLC";
 
 const std::string VPM3D_ocl_kernels_updateRKLS = R"CLC(
-__kernel void updateRK_LS(  __global Real* d,
+__kernel void updateRK_LS(  __global  Real* d,
                             __global Real* o,
                             __global const Real* d_d,
                             __global const Real* d_o,
@@ -725,5 +780,880 @@ o[i+2*NT] += B*s26;
 }
 
 )CLC";
+
+//--- Turbulence Kernels
+
+const std::string VPM3D_ocl_kernels_subgrid_discfilter = R"CLC(
+
+__kernel void SubGrid_DiscFilter(   __global const Real* Om,
+                                    __global const int* hs,
+                                    __global const Real *O,
+                                    __global Real *filtO,
+                                    const int option) {
+
+// Declare shared memory arrays
+__local Real ox[NHT];
+__local Real oy[NHT];
+__local Real oz[NHT];
+
+// Prepare relevant indices
+const int gx0 = get_group_id(0)*BX;
+const int gy0 = get_group_id(1)*BY;
+const int gz0 = get_group_id(2)*BZ;
+const int tx = get_local_id(0);
+const int ty = get_local_id(1);
+const int tz = get_local_id(2);
+const int gx = tx + gx0;
+const int gy = ty + gy0;
+const int gz = tz + gz0;
+const int txh = get_local_id(0) + Halo;                                          // Local x id within padded grid
+const int tyh = get_local_id(1) + Halo;                                          // Local y id within padded grid
+const int tzh = get_local_id(2) + Halo;                                          // Local z id within padded grid
+
+// Monolith structure
+// if (Data==Monolith) Kernel.append(const int bid = gid(gx,gy,gz,NX,NY,NZ););
+// if (Data==Block)    Kernel.append(const int bid = gidb(gx,gy,gz););
+const int bid = gidb(gx,gy,gz);
+
+const int lid = gid(tx,ty,tz,BX,BY,BZ);           // Local id within block
+const int pid = gid(txh,tyh,tzh,NFDX,NFDY,NFDZ);                             // Local id within padded block
+
+// Fill centre volume
+ox[pid] = O[bid		];
+oy[pid] = O[bid+1*NT];
+oz[pid] = O[bid+2*NT];
+
+// Extract vorticity here
+const Real Omx = Om[bid     ];
+const Real Omy = Om[bid+1*NT];
+const Real Omz = Om[bid+2*NT];
+
+barrier(CLK_LOCAL_MEM_FENCE);
+
+//--- Fill Halo (with coalesced index read)
+for (int i=0; i<NHIT; i++){
+    const int hid = BT*i + lid;
+    const int hsx = hs[hid];                           // global x-shift relative to position
+    const int hsy = hs[hid+BT*NHIT];                 // global y-shift relative to position
+    const int hsz = hs[hid+2*BT*NHIT];               // global z-shift relative to position
+    if (hsx<NFDX){                                 // Catch: is id within padded indices?
+        const int ghx = gx0-Halo+hsx;             // Global x-value of retrieved node
+        const int ghy = gy0-Halo+hsy;             // Global y-value of retrieved node
+        const int ghz = gz0-Halo+hsz;             // Global z-value of retrieved node
+        const int lhid = gid(hsx,hsy,hsz,NFDX,NFDY,NFDZ);
+
+        // if (Data==Monolith) Kernel.append(const int bhid = gid(ghx,ghy,ghz,NX,NY,NZ););
+        // if (Data==Block)    Kernel.append(const int bhid = gidb(ghx,ghy,ghz););
+        const int bhid = gidb(ghx,ghy,ghz);
+
+        const bool exx = (ghx<0 || ghx>=NX);      // Is x coordinate outside of the domain?
+        const bool exy = (ghy<0 || ghy>=NY);      // Is x coordinate outside of the domain?
+        const bool exz = (ghz<0 || ghz>=NZ);      // Is x coordinate outside of the domain?
+        if (exx || exy || exz){                    // Catch: is id within domain?
+            ox[lhid] = (Real)0.0;
+            oy[lhid] = (Real)0.0;
+            oz[lhid] = (Real)0.0;
+        }
+        else {
+            ox[lhid] = O[bhid     ];
+            oy[lhid] = O[bhid+1*NT];
+            oz[lhid] = O[bhid+2*NT];
+        }
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+}
+
+//------- Calculate discrete filter
+
+Real fx = (Real)0.0, fy = (Real)0.0, fz = (Real)0.0;                                                                                                         // Laplacian of Omega
+const bool mxx = (gx>(Halo-1) && gx<(NX-Halo));
+const bool mxy = (gy>(Halo-1) && gy<(NY-Halo));
+const bool mxz = (gz>(Halo-1) && gz<(NZ-Halo));
+
+if (mxx && mxy && mxz){
+
+    #if (Map==0)            // Carry out discrete filtering operation in x direction
+        fx = (Real)0.25*ox[gid(txh-1,tyh  ,tzh  ,NFDX,NFDY,NFDZ)] + (Real)0.5*ox[gid(txh  ,tyh  ,tzh  ,NFDX,NFDY,NFDZ)] + (Real)0.25*ox[gid(txh+1,tyh  ,tzh  ,NFDX,NFDY,NFDZ)];
+        fy = (Real)0.25*oy[gid(txh-1,tyh  ,tzh  ,NFDX,NFDY,NFDZ)] + (Real)0.5*oy[gid(txh  ,tyh  ,tzh  ,NFDX,NFDY,NFDZ)] + (Real)0.25*oy[gid(txh+1,tyh  ,tzh  ,NFDX,NFDY,NFDZ)];
+        fz = (Real)0.25*oz[gid(txh-1,tyh  ,tzh  ,NFDX,NFDY,NFDZ)] + (Real)0.5*oz[gid(txh  ,tyh  ,tzh  ,NFDX,NFDY,NFDZ)] + (Real)0.25*oz[gid(txh+1,tyh  ,tzh  ,NFDX,NFDY,NFDZ)];
+    #elif (Map==1)          // Carry out discrete filtering operation in y direction
+        fx = (Real)0.25*ox[gid(txh  ,tyh-1,tzh  ,NFDX,NFDY,NFDZ)] + (Real)0.5*ox[gid(txh  ,tyh  ,tzh  ,NFDX,NFDY,NFDZ)] + (Real)0.25*ox[gid(txh  ,tyh+1,tzh  ,NFDX,NFDY,NFDZ)];
+        fy = (Real)0.25*oy[gid(txh  ,tyh-1,tzh  ,NFDX,NFDY,NFDZ)] + (Real)0.5*oy[gid(txh  ,tyh  ,tzh  ,NFDX,NFDY,NFDZ)] + (Real)0.25*oy[gid(txh  ,tyh+1,tzh  ,NFDX,NFDY,NFDZ)];
+        fz = (Real)0.25*oz[gid(txh  ,tyh-1,tzh  ,NFDX,NFDY,NFDZ)] + (Real)0.5*oz[gid(txh  ,tyh  ,tzh  ,NFDX,NFDY,NFDZ)] + (Real)0.25*oz[gid(txh  ,tyh+1,tzh  ,NFDX,NFDY,NFDZ)];
+    #elif (Map==2)      // Carry out discrete filtering operation in z direction
+        fx = (Real)0.25*ox[gid(txh  ,tyh  ,tzh-1,NFDX,NFDY,NFDZ)] + (Real)0.5*ox[gid(txh  ,tyh  ,tzh  ,NFDX,NFDY,NFDZ)] + (Real)0.25*ox[gid(txh  ,tyh  ,tzh+1,NFDX,NFDY,NFDZ)];
+        fy = (Real)0.25*oy[gid(txh  ,tyh  ,tzh-1,NFDX,NFDY,NFDZ)] + (Real)0.5*oy[gid(txh  ,tyh  ,tzh  ,NFDX,NFDY,NFDZ)] + (Real)0.25*oy[gid(txh  ,tyh  ,tzh+1,NFDX,NFDY,NFDZ)];
+        fz = (Real)0.25*oz[gid(txh  ,tyh  ,tzh-1,NFDX,NFDY,NFDZ)] + (Real)0.5*oz[gid(txh  ,tyh  ,tzh  ,NFDX,NFDY,NFDZ)] + (Real)0.25*oz[gid(txh  ,tyh  ,tzh+1,NFDX,NFDY,NFDZ)];
+    #elif (Map==3)      // Subtract filtered scale
+        fx = Omx - ox[pid];
+        fy = Omy - oy[pid];
+        fz = Omz - oz[pid];
+    #endif
+
+}
+
+barrier(CLK_LOCAL_MEM_FENCE);
+
+// Assign output vars
+filtO[bid]      = fx;
+filtO[bid+NT]   = fy;
+filtO[bid+2*NT] = fz;
+
+}
+
+)CLC";
+
+const std::string VPM3D_ocl_kernels_RVM = R"CLC(
+
+//--- Central FD Constants
+__constant Real D1C2[2] =  {-0.5, 0.5};
+__constant Real D1C4[4] =  {1.0/12.0,-2.0/3.0, 2.0/3.0, -1.0/12.0};
+__constant Real D1C6[6] =  {-1.0/60.0, 3.0/20.0, -3.0/4.0, 3.0/4.0, -3.0/20.0, 1.0/60.0};
+__constant Real D1C8[8] =  {1.0/280.0, -4.0/105.0, 1.0/5.0, -4.0/5.0, 4.0/5.0, -1.0/5.0, 4.0/105.0, -1.0/280.0 };
+
+__constant Real D2C2[3] = {1.0, -2.0, 1.0};
+__constant Real D2C4[5] = {-1.0/12.0, 4.0/3.0, -5.0/2.0, 4.0/3.0, -1.0/12.0};
+__constant Real D2C6[7] = {1.0/90.0, -3.0/20.0, 3.0/2.0, -49.0/18.0, 3.0/2.0, -3.0/20.0, 1.0/90.0};
+__constant Real D2C8[9] = {-1.0/560.0, 8.0/315.0, -1.0/5.0, 8.0/5.0, -205.0/72.0, 8.0/5.0, -1.0/5.0, 8.0/315.0, -1.0/560.0};
+
+//--- Isotropic Laplacians
+// __constant Real L1 = 2.0/30.0, L2 = 1.0/30.0, L3 = 18.0/30.0, L4 = -136.0/30.0;    // Cocle 2008
+// __constant Real L1 =0.0, L2 = 1.0/6.0, L3 = 1.0/3.0, L4 = -4.0;                   // Patra 2006 - variant 2 (compact)
+// __constant Real L1 = 1.0/30.0, L2 = 3.0/30.0, L3 = 14.0/30.0, L4 = -128.0/30.0;    // Patra 2006 - variant 5
+// __constant Real LAP_ISO_3D[27] = {   L1,L2,L1,L2,L3,L2,L1,L2,L1,
+//                                      L2,L3,L2,L3,L4,L3,L2,L3,L2,
+//                                      L1,L2,L1,L2,L3,L2,L1,L2,L1};
+__constant Real LAP_ISO_3D[27] = {   1.0/30.0,3.0/30.0,1.0/30.0,3.0/30.0,14.0/30.0,3.0/30.0,1.0/30.0,3.0/30.0,1.0/30.0,
+                                     3.0/30.0,14.0/30.0,3.0/30.0,14.0/30.0,-128.0/30.0,14.0/30.0,3.0/30.0,14.0/30.0,3.0/30.0,
+                                     1.0/30.0,3.0/30.0,1.0/30.0,3.0/30.0,14.0/30.0,3.0/30.0,1.0/30.0,3.0/30.0,1.0/30.0};
+
+__kernel void RVM_turbulentstress(  __global const Real* fO,
+                                    __global const Real* sgs,
+                                    __global const int* hs,
+                                    __global Real *dOmdt,
+                                    const Real smag) {
+
+// Declare shared memory arrays
+__local Real gsx[NHT];
+__local Real gsy[NHT];
+__local Real gsz[NHT];
+__local Real sg[NHT];
+
+// Prepare relevant indices
+const int gx0 = get_group_id(0)*BX;
+const int gy0 = get_group_id(1)*BY;
+const int gz0 = get_group_id(2)*BZ;
+const int tx = get_local_id(0);
+const int ty = get_local_id(1);
+const int tz = get_local_id(2);
+const int gx = tx + gx0;
+const int gy = ty + gy0;
+const int gz = tz + gz0;
+const int txh = get_local_id(0) + Halo;                                          // Local x id within padded grid
+const int tyh = get_local_id(1) + Halo;                                          // Local y id within padded grid
+const int tzh = get_local_id(2) + Halo;                                          // Local z id within padded grid
+
+// Monolith structure
+// if (Data==Monolith) Kernel.append(const int bid = gid(gx,gy,gz,NX,NY,NZ););
+// if (Data==Block)    Kernel.append(const int bid = gidb(gx,gy,gz););
+const int bid = gidb(gx,gy,gz);
+
+const int lid = gid(tx,ty,tz,BX,BY,BZ);             // Local id within block
+const int pid = gid(txh,tyh,tzh,NFDX,NFDY,NFDZ);    // Local id within padded block
+
+// Fill centre volume
+gsx[pid] = fO[bid       ];
+gsy[pid] = fO[bid+NT    ];
+gsz[pid] = fO[bid+2*NT  ];
+sg[pid] = smag*sgs[bid];
+
+barrier(CLK_LOCAL_MEM_FENCE);
+
+//--- Fill Halo (with coalesced index read)
+for (int i=0; i<NHIT; i++){
+   const int hid = BT*i + lid;
+   const int hsx = hs[hid];                           // global x-shift relative to position
+   const int hsy = hs[hid+BT*NHIT];                 // global y-shift relative to position
+   const int hsz = hs[hid+2*BT*NHIT];               // global z-shift relative to position
+   if (hsx<NFDX){                                 // Catch: is id within padded indices?
+        const int ghx = gx0-Halo+hsx;             // Global x-value of retrieved node
+        const int ghy = gy0-Halo+hsy;             // Global y-value of retrieved node
+        const int ghz = gz0-Halo+hsz;             // Global z-value of retrieved node
+        const int lhid = gid(hsx,hsy,hsz,NFDX,NFDY,NFDZ);
+
+        // if (Data==Monolith) Kernel.append(const int bhid = gid(ghx,ghy,ghz,NX,NY,NZ););
+        // if (Data==Block)    Kernel.append(const int bhid = gidb(ghx,ghy,ghz););
+        const int bhid = gidb(ghx,ghy,ghz);
+
+        const bool exx = (ghx<0 || ghx>=NX);      // Is x coordinate outside of the domain?
+        const bool exy = (ghy<0 || ghy>=NY);      // Is x coordinate outside of the domain?
+        const bool exz = (ghz<0 || ghz>=NZ);      // Is x coordinate outside of the domain?
+        if (exx || exy || exz){                    // Catch: is id within domain?
+            gsx[lhid] = (Real)0.0;
+            gsy[lhid] = (Real)0.0;
+            gsz[lhid] = (Real)0.0;
+            sg[lhid] = (Real)0.0;
+        }
+        else {
+            gsx[lhid] = fO[bhid     ];
+            gsy[lhid] = fO[bhid+1*NT];
+            gsz[lhid] = fO[bhid+2*NT];
+            sg[lhid] = smag*sgs[bhid];
+        }
+   }
+   barrier(CLK_LOCAL_MEM_FENCE);
+}
+
+//------- Calculate turbulent shear stress
+
+Real lx = (Real)0.0, ly = (Real)0.0, lz = (Real)0.0;           	// Laplacian of Omega
+const bool mxx = (gx>(Halo-1) && gx<(NX-Halo));
+const bool mxy = (gy>(Halo-1) && gy<(NY-Halo));
+const bool mxz = (gz>(Halo-1) && gz<(NZ-Halo));
+
+if (mxx && mxy && mxz){
+
+    int ids;  // Dummy value
+
+    // Specify centre values
+    Real gxm = gsx[pid];
+    Real gym = gsy[pid];
+    Real gzm = gsz[pid];
+    Real sgm = sg[pid];
+    Real lfm;
+
+    const Real Hlf = (Real)0.5;
+
+    #if (Map==2)
+        ids = gid(txh-1,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C2[0]*(gsx[ids]-gxm)*lfm;  ly += D2C2[0]*(gsy[ids]-gym)*lfm;  lz += D2C2[0]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C2[1]*(gsx[ids]-gxm)*lfm;  ly += D2C2[1]*(gsy[ids]-gym)*lfm;  lz += D2C2[1]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh+1,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C2[2]*(gsx[ids]-gxm)*lfm;  ly += D2C2[2]*(gsy[ids]-gym)*lfm;  lz += D2C2[2]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh-1,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C2[0]*(gsx[ids]-gxm)*lfm;  ly += D2C2[0]*(gsy[ids]-gym)*lfm;  lz += D2C2[0]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C2[1]*(gsx[ids]-gxm)*lfm;  ly += D2C2[1]*(gsy[ids]-gym)*lfm;  lz += D2C2[1]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh+1,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C2[2]*(gsx[ids]-gxm)*lfm;  ly += D2C2[2]*(gsy[ids]-gym)*lfm;  lz += D2C2[2]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh  ,tzh-1,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C2[0]*(gsx[ids]-gxm)*lfm;  ly += D2C2[0]*(gsy[ids]-gym)*lfm;  lz += D2C2[0]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C2[1]*(gsx[ids]-gxm)*lfm;  ly += D2C2[1]*(gsy[ids]-gym)*lfm;  lz += D2C2[1]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh  ,tzh+1,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C2[2]*(gsx[ids]-gxm)*lfm;  ly += D2C2[2]*(gsy[ids]-gym)*lfm;  lz += D2C2[2]*(gsz[ids]-gzm)*lfm;
+   #elif (Map==4)
+        ids = gid(txh-2,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C4[0]*(gsx[ids]-gxm)*lfm;  ly += D2C4[0]*(gsy[ids]-gym)*lfm;  lz += D2C4[0]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh-1,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C4[1]*(gsx[ids]-gxm)*lfm;  ly += D2C4[1]*(gsy[ids]-gym)*lfm;  lz += D2C4[1]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C4[2]*(gsx[ids]-gxm)*lfm;  ly += D2C4[2]*(gsy[ids]-gym)*lfm;  lz += D2C4[2]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh+1,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C4[3]*(gsx[ids]-gxm)*lfm;  ly += D2C4[3]*(gsy[ids]-gym)*lfm;  lz += D2C4[3]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh+2,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C4[4]*(gsx[ids]-gxm)*lfm;  ly += D2C4[4]*(gsy[ids]-gym)*lfm;  lz += D2C4[4]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh-2,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C4[0]*(gsx[ids]-gxm)*lfm;  ly += D2C4[0]*(gsy[ids]-gym)*lfm;  lz += D2C4[0]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh-1,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C4[1]*(gsx[ids]-gxm)*lfm;  ly += D2C4[1]*(gsy[ids]-gym)*lfm;  lz += D2C4[1]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C4[2]*(gsx[ids]-gxm)*lfm;  ly += D2C4[2]*(gsy[ids]-gym)*lfm;  lz += D2C4[2]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh+1,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C4[3]*(gsx[ids]-gxm)*lfm;  ly += D2C4[3]*(gsy[ids]-gym)*lfm;  lz += D2C4[3]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh+2,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C4[4]*(gsx[ids]-gxm)*lfm;  ly += D2C4[4]*(gsy[ids]-gym)*lfm;  lz += D2C4[4]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh  ,tzh-2,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C4[0]*(gsx[ids]-gxm)*lfm;  ly += D2C4[0]*(gsy[ids]-gym)*lfm;  lz += D2C4[0]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh  ,tzh-1,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C4[1]*(gsx[ids]-gxm)*lfm;  ly += D2C4[1]*(gsy[ids]-gym)*lfm;  lz += D2C4[1]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C4[2]*(gsx[ids]-gxm)*lfm;  ly += D2C4[2]*(gsy[ids]-gym)*lfm;  lz += D2C4[2]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh  ,tzh+1,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C4[3]*(gsx[ids]-gxm)*lfm;  ly += D2C4[3]*(gsy[ids]-gym)*lfm;  lz += D2C4[3]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh  ,tzh+2,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C4[4]*(gsx[ids]-gxm)*lfm;  ly += D2C4[4]*(gsy[ids]-gym)*lfm;  lz += D2C4[4]*(gsz[ids]-gzm)*lfm;
+   #elif (Map==6)
+        ids = gid(txh-3,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C6[0]*(gsx[ids]-gxm)*lfm;  ly += D2C6[0]*(gsy[ids]-gym)*lfm;  lz += D2C6[0]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh-2,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C6[1]*(gsx[ids]-gxm)*lfm;  ly += D2C6[1]*(gsy[ids]-gym)*lfm;  lz += D2C6[1]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh-1,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C6[2]*(gsx[ids]-gxm)*lfm;  ly += D2C6[2]*(gsy[ids]-gym)*lfm;  lz += D2C6[2]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C6[3]*(gsx[ids]-gxm)*lfm;  ly += D2C6[3]*(gsy[ids]-gym)*lfm;  lz += D2C6[3]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh+1,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C6[4]*(gsx[ids]-gxm)*lfm;  ly += D2C6[4]*(gsy[ids]-gym)*lfm;  lz += D2C6[4]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh+2,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C6[5]*(gsx[ids]-gxm)*lfm;  ly += D2C6[5]*(gsy[ids]-gym)*lfm;  lz += D2C6[5]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh+3,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C6[6]*(gsx[ids]-gxm)*lfm;  ly += D2C6[6]*(gsy[ids]-gym)*lfm;  lz += D2C6[6]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh-3,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C6[0]*(gsx[ids]-gxm)*lfm;  ly += D2C6[0]*(gsy[ids]-gym)*lfm;  lz += D2C6[0]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh-2,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C6[1]*(gsx[ids]-gxm)*lfm;  ly += D2C6[1]*(gsy[ids]-gym)*lfm;  lz += D2C6[1]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh-1,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C6[2]*(gsx[ids]-gxm)*lfm;  ly += D2C6[2]*(gsy[ids]-gym)*lfm;  lz += D2C6[2]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C6[3]*(gsx[ids]-gxm)*lfm;  ly += D2C6[3]*(gsy[ids]-gym)*lfm;  lz += D2C6[3]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh+1,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C6[4]*(gsx[ids]-gxm)*lfm;  ly += D2C6[4]*(gsy[ids]-gym)*lfm;  lz += D2C6[4]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh+2,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C6[5]*(gsx[ids]-gxm)*lfm;  ly += D2C6[5]*(gsy[ids]-gym)*lfm;  lz += D2C6[5]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh+3,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C6[6]*(gsx[ids]-gxm)*lfm;  ly += D2C6[6]*(gsy[ids]-gym)*lfm;  lz += D2C6[6]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh  ,tzh-3,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C6[0]*(gsx[ids]-gxm)*lfm;  ly += D2C6[0]*(gsy[ids]-gym)*lfm;  lz += D2C6[0]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh  ,tzh-2,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C6[1]*(gsx[ids]-gxm)*lfm;  ly += D2C6[1]*(gsy[ids]-gym)*lfm;  lz += D2C6[1]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh  ,tzh-1,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C6[2]*(gsx[ids]-gxm)*lfm;  ly += D2C6[2]*(gsy[ids]-gym)*lfm;  lz += D2C6[2]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C6[3]*(gsx[ids]-gxm)*lfm;  ly += D2C6[3]*(gsy[ids]-gym)*lfm;  lz += D2C6[3]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh  ,tzh+1,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C6[4]*(gsx[ids]-gxm)*lfm;  ly += D2C6[4]*(gsy[ids]-gym)*lfm;  lz += D2C6[4]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh  ,tzh+2,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C6[5]*(gsx[ids]-gxm)*lfm;  ly += D2C6[5]*(gsy[ids]-gym)*lfm;  lz += D2C6[5]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh  ,tzh+3,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C6[6]*(gsx[ids]-gxm)*lfm;  ly += D2C6[6]*(gsy[ids]-gym)*lfm;  lz += D2C6[6]*(gsz[ids]-gzm)*lfm;
+    #elif (Map==8)
+        ids = gid(txh-4,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C8[0]*(gsx[ids]-gxm)*lfm;  ly += D2C8[0]*(gsy[ids]-gym)*lfm;  lz += D2C8[0]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh-3,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C8[1]*(gsx[ids]-gxm)*lfm;  ly += D2C8[1]*(gsy[ids]-gym)*lfm;  lz += D2C8[1]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh-2,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C8[2]*(gsx[ids]-gxm)*lfm;  ly += D2C8[2]*(gsy[ids]-gym)*lfm;  lz += D2C8[2]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh-1,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C8[3]*(gsx[ids]-gxm)*lfm;  ly += D2C8[3]*(gsy[ids]-gym)*lfm;  lz += D2C8[3]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C8[4]*(gsx[ids]-gxm)*lfm;  ly += D2C8[4]*(gsy[ids]-gym)*lfm;  lz += D2C8[4]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh+1,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C8[5]*(gsx[ids]-gxm)*lfm;  ly += D2C8[5]*(gsy[ids]-gym)*lfm;  lz += D2C8[5]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh+2,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C8[6]*(gsx[ids]-gxm)*lfm;  ly += D2C8[6]*(gsy[ids]-gym)*lfm;  lz += D2C8[6]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh+3,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C8[7]*(gsx[ids]-gxm)*lfm;  ly += D2C8[7]*(gsy[ids]-gym)*lfm;  lz += D2C8[7]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh+4,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C8[8]*(gsx[ids]-gxm)*lfm;  ly += D2C8[8]*(gsy[ids]-gym)*lfm;  lz += D2C8[8]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh-4,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C8[0]*(gsx[ids]-gxm)*lfm;  ly += D2C8[0]*(gsy[ids]-gym)*lfm;  lz += D2C8[0]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh-3,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C8[1]*(gsx[ids]-gxm)*lfm;  ly += D2C8[1]*(gsy[ids]-gym)*lfm;  lz += D2C8[1]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh-2,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C8[2]*(gsx[ids]-gxm)*lfm;  ly += D2C8[2]*(gsy[ids]-gym)*lfm;  lz += D2C8[2]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh-1,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C8[3]*(gsx[ids]-gxm)*lfm;  ly += D2C8[3]*(gsy[ids]-gym)*lfm;  lz += D2C8[3]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C8[4]*(gsx[ids]-gxm)*lfm;  ly += D2C8[4]*(gsy[ids]-gym)*lfm;  lz += D2C8[4]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh+1,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C8[5]*(gsx[ids]-gxm)*lfm;  ly += D2C8[5]*(gsy[ids]-gym)*lfm;  lz += D2C8[5]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh+2,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C8[6]*(gsx[ids]-gxm)*lfm;  ly += D2C8[6]*(gsy[ids]-gym)*lfm;  lz += D2C8[6]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh+3,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C8[7]*(gsx[ids]-gxm)*lfm;  ly += D2C8[7]*(gsy[ids]-gym)*lfm;  lz += D2C8[7]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh+4,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C8[8]*(gsx[ids]-gxm)*lfm;  ly += D2C8[8]*(gsy[ids]-gym)*lfm;  lz += D2C8[8]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh  ,tzh-4,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C8[0]*(gsx[ids]-gxm)*lfm;  ly += D2C8[0]*(gsy[ids]-gym)*lfm;  lz += D2C8[0]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh  ,tzh-3,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C8[1]*(gsx[ids]-gxm)*lfm;  ly += D2C8[1]*(gsy[ids]-gym)*lfm;  lz += D2C8[1]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh  ,tzh-2,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C8[2]*(gsx[ids]-gxm)*lfm;  ly += D2C8[2]*(gsy[ids]-gym)*lfm;  lz += D2C8[2]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh  ,tzh-1,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C8[2]*(gsx[ids]-gxm)*lfm;  ly += D2C8[3]*(gsy[ids]-gym)*lfm;  lz += D2C8[3]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C8[4]*(gsx[ids]-gxm)*lfm;  ly += D2C8[4]*(gsy[ids]-gym)*lfm;  lz += D2C8[4]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh  ,tzh+1,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C8[5]*(gsx[ids]-gxm)*lfm;  ly += D2C8[5]*(gsy[ids]-gym)*lfm;  lz += D2C8[5]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh  ,tzh+2,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C8[6]*(gsx[ids]-gxm)*lfm;  ly += D2C8[6]*(gsy[ids]-gym)*lfm;  lz += D2C8[6]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh  ,tzh+3,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C8[7]*(gsx[ids]-gxm)*lfm;  ly += D2C8[7]*(gsy[ids]-gym)*lfm;  lz += D2C8[7]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh  ,tzh+4,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C8[8]*(gsx[ids]-gxm)*lfm;  ly += D2C8[8]*(gsy[ids]-gym)*lfm;  lz += D2C8[8]*(gsz[ids]-gzm)*lfm;
+    #endif
+
+    // Scale for grid size
+    lx *= (Real)1.0/hx/hx;
+    ly *= (Real)1.0/hy/hy;
+    lz *= (Real)1.0/hz/hz;
+}
+
+barrier(CLK_LOCAL_MEM_FENCE);
+
+// Assign output vars
+dOmdt[bid]      += lx;
+dOmdt[bid+NT]   += ly;
+dOmdt[bid+2*NT] += lz;
+
+}
+
+
+)CLC";
+
+//--- Diagnostics Kernel
+
+const std::string VPM3D_ocl_kernels_Diagnostics = R"CLC(
+
+// Unroll telescoping sum
+inline void warpReduceVector(   __local volatile Real* sx,
+                                __local volatile Real* sy,
+                                __local volatile Real* sz,
+                                uint tid) {
+    if (BT >= 64)   {sx[tid] += sx[tid + 32];     sy[tid] += sy[tid + 32];  sz[tid] += sz[tid + 32]; }
+    if (BT >= 32)   {sx[tid] += sx[tid + 16];     sy[tid] += sy[tid + 16];  sz[tid] += sz[tid + 16]; }
+    if (BT >= 16)   {sx[tid] += sx[tid +  8];     sy[tid] += sy[tid +  8];  sz[tid] += sz[tid +  8]; }
+    if (BT >= 8)    {sx[tid] += sx[tid +  4];     sy[tid] += sy[tid +  4];  sz[tid] += sz[tid +  4]; }
+    if (BT >= 4)    {sx[tid] += sx[tid +  2];     sy[tid] += sy[tid +  2];  sz[tid] += sz[tid +  2]; }
+    if (BT >= 2)    {sx[tid] += sx[tid +  1];     sy[tid] += sy[tid +  1];  sz[tid] += sz[tid +  1]; }
+}
+
+inline void warpReduceScalar(__local volatile Real* src, uint tid) {
+    if (BT >= 64)   src[tid] += src[tid + 32];
+    if (BT >= 32)   src[tid] += src[tid + 16];
+    if (BT >= 16)   src[tid] += src[tid + 8];
+    if (BT >= 8)    src[tid] += src[tid + 4];
+    if (BT >= 4)    src[tid] += src[tid + 2];
+    if (BT >= 2)    src[tid] += src[tid + 1];
+}
+
+inline void warpReduceMag(__local volatile Real* src, uint tid) {
+    if (BT >= 64)   {src[tid] = fmax(src[tid],src[tid+32]);  }
+    if (BT >= 32)   {src[tid] = fmax(src[tid],src[tid+16]);  }
+    if (BT >= 16)   {src[tid] = fmax(src[tid],src[tid+ 8]);  }
+    if (BT >= 8)    {src[tid] = fmax(src[tid],src[tid+ 4]);  }
+    if (BT >= 4)    {src[tid] = fmax(src[tid],src[tid+ 2]);  }
+    if (BT >= 2)    {src[tid] = fmax(src[tid],src[tid+ 1]);  }
+}
+
+// __constant__ int NDiags = 15;          // Number of diagnostic outputs
+
+__kernel void DiagnosticsKernel(__global const Real *omega,
+                                __global const Real *vel,
+                                __global Real *d) {
+
+    // Declare shared memory arrays for diagnostic vales
+    __local Real C[3][BT];      	// Circulation
+    __local Real L[3][BT];      	// Linear Impulse
+    __local Real A[3][BT];      	// Angular Impulse
+    __local Real K1[BT];        	// Kinetic energy 1
+    __local Real K2[BT];        	// Kinetic energy 2
+    __local Real E[BT];         	// Enstropy
+    __local Real H[BT];         	// Helicity
+    __local Real normO[BT];      // Magnitude of vorticity
+    __local Real normU[BT];      // Magnitude of velocity
+
+    // Specify grid ids
+    unsigned int tid = get_local_id(0);
+    unsigned int i = get_group_id(0)*get_local_size(0) + get_local_id(0);
+
+    // Calculate global indices based on index
+    const int K = (int)i/(BX*BY*BZ);
+    const int KX = (int)K/(NBY*NBZ);
+    const int KY = (int)(K-KX*NBY*NBZ)/NBZ;
+    const int KZ = K-KX*NBY*NBZ-KY*NBZ;
+    const int ib = i-K*BX*BY*BZ;
+    const int bx = (int)ib/(BY*BZ);
+    const int by = (int)(ib-bx*BY*BZ)/BZ;
+    const int bz = ib-bx*BY*BZ-by*BZ;
+    const Real Px = XN1 + (KX*BX+bx)*hx;
+    const Real Py = YN1 + (KY*BY+by)*hy;
+    const Real Pz = ZN1 + (KZ*BZ+bz)*hz;
+
+    const Real Ox = omega[i     ];
+    const Real Oy = omega[i+1*NT];
+    const Real Oz = omega[i+2*NT];
+    const Real Ux = vel[i     ];
+    const Real Uy = vel[i+1*NT];
+    const Real Uz = vel[i+2*NT];
+
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    // Linear diagnostics
+    C[0][tid] = Ox;
+    C[1][tid] = Oy;
+    C[2][tid] = Oz;
+    const Real cx = Py*Oz - Pz*Oy;
+    const Real cy = Pz*Ox - Px*Oz;
+    const Real cz = Px*Oy - Py*Ox;
+    L[0][tid] = cx*(Real)0.5;
+    L[1][tid] = cy*(Real)0.5;
+    L[2][tid] = cz*(Real)0.5;
+    A[0][tid] = (Py*cz - Pz*cy)/(Real)3.0;
+    A[1][tid] = (Pz*cx - Px*cz)/(Real)3.0;
+    A[2][tid] = (Px*cy - Py*cx)/(Real)3.0;
+
+    // Quadratic diagnostics
+    normO[tid] = sqrt(Ox*Ox + Oy*Oy + Oz*Oz);
+    normU[tid] = sqrt(Ux*Ux + Uy*Uy + Uz*Uz);
+    K1[tid] = (Real)0.5*normU[tid]*normU[tid];      // Approach 1: Winckelmans
+    K2[tid] =  (Ux*cx + Uy*cy + Uz*cz);             // Approach 2: Liska
+    E[tid] = normO[tid]*normO[tid];
+    H[tid] = Ox*Ux + Oy*Uy + Oz*Uz;
+
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    // // // Shear components: Private Correspondence with Gregoire Winckelmans
+    // // // Compute the 1-norm of the deformation tensor, It bounds the 2-norm...
+    // // // Nb: NablaU = [dudx, dudy, dudz, dvdx, dvdy, dvdz, dwdx, dwdy, dwdz];
+    // // Real dsu = fabs(NablaU[0][id_src]) + 0.5*fabs(NablaU[1][id_src]+NablaU[3][id_src]) + 0.5*fabs(NablaU[2][id_src]+NablaU[6][id_src]);
+    // // Real dsv = 0.5*fabs(NablaU[3][id_src]+NablaU[1][id_src]) + fabs(NablaU[4][id_src]) + 0.5*fabs(NablaU[5][id_src]+NablaU[7][id_src]);
+    // // Real dsw = 0.5*fabs(NablaU[6][id_src]+NablaU[2][id_src]) + 0.5*fabs(NablaU[7][id_src]+NablaU[5][id_src]) + fabs(NablaU[8][id_src]);
+    // // Real dsm = std::max(dsu,std::max(dsv,dsw));
+    // // if (SMax[id_dest] < dsm)  SMax[id_dest] = dsm;          // Stretching
+
+    // Initial step to accumulate the values  above  the lowest power of two... and then after this, continue with NVidia approach
+    unsigned int p = 2;
+    while (p<BT)  p*=2;
+    if (p-BT!=0){                               // If the block has size power of 2, go straight to reduction
+        p /= 2;                                 // Otherwise, increment terms
+        if (tid>=p){
+            C[0][tid-p] += C[0][tid] ;
+            C[1][tid-p] += C[1][tid] ;
+            C[2][tid-p] += C[2][tid] ;
+            L[0][tid-p] += L[0][tid] ;
+            L[1][tid-p] += L[1][tid] ;
+            L[2][tid-p] += L[2][tid] ;
+            A[0][tid-p] += A[0][tid] ;
+            A[1][tid-p] += A[1][tid] ;
+            A[2][tid-p] += A[2][tid] ;
+            K1  [tid-p] += K1  [tid] ;
+            K2  [tid-p] += K2  [tid] ;
+            E   [tid-p] += E   [tid] ;
+            H   [tid-p] += H   [tid] ;
+            normO[tid-p] = fmax(normO[tid-p],normO[tid]);
+            normU[tid-p] = fmax(normU[tid-p],normU[tid]);
+        }
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    // Carry out first reduction stage. I have written this as a for loop simply to improve readability
+    for (int k=512; k>=64; k/=2){
+        if (BT >= 2*k){
+            if (tid<k){
+                C[0][tid] += C[0][tid+k] ;
+                C[1][tid] += C[1][tid+k] ;
+                C[2][tid] += C[2][tid+k] ;
+                L[0][tid] += L[0][tid+k] ;
+                L[1][tid] += L[1][tid+k] ;
+                L[2][tid] += L[2][tid+k] ;
+                A[0][tid] += A[0][tid+k] ;
+                A[1][tid] += A[1][tid+k] ;
+                A[2][tid] += A[2][tid+k] ;
+                K1  [tid] += K1  [tid+k] ;
+                K2  [tid] += K2  [tid+k] ;
+                E   [tid] += E   [tid+k] ;
+                H   [tid] += H   [tid+k] ;
+                normO[tid] = fmax(normO[tid+k],normO[tid]);
+                normU[tid] = fmax(normU[tid+k],normU[tid]);
+            }
+            barrier(CLK_LOCAL_MEM_FENCE);
+        }
+    }
+
+    // Optimised unrolled final warp
+    if (tid < 32){
+        warpReduceVector(C[0], C[1], C[2], tid);
+        warpReduceVector(L[0], L[1], L[2], tid);
+        warpReduceVector(A[0], A[1], A[2], tid);
+        warpReduceScalar(K1, tid);
+        warpReduceScalar(K2, tid);
+        warpReduceScalar(E, tid);
+        warpReduceScalar(H, tid);
+        warpReduceMag(normO, tid);
+        warpReduceMag(normU, tid);
+    }
+
+    // Write result for this block to global mem
+    // Note: This is output in such a way that the values can be transferred directly to the next reduction pass
+
+    //  if (i==0) printf(\ gridDim x %i circulation %f %f %f \\n\ , get_num_groups(0), C[0][0], C[0][1], C[0][2]);\n
+
+    if (tid == 0){
+        const int ngroups = get_num_groups(0);
+        d[ 0*ngroups + get_group_id(0)] = C[0][0];
+        d[ 1*ngroups + get_group_id(0)] = C[1][0];
+        d[ 2*ngroups + get_group_id(0)] = C[2][0];
+        d[ 3*ngroups + get_group_id(0)] = L[0][0];
+        d[ 4*ngroups + get_group_id(0)] = L[1][0];
+        d[ 5*ngroups + get_group_id(0)] = L[2][0];
+        d[ 6*ngroups + get_group_id(0)] = A[0][0];
+        d[ 7*ngroups + get_group_id(0)] = A[1][0];
+        d[ 8*ngroups + get_group_id(0)] = A[2][0];
+        d[ 9*ngroups + get_group_id(0)] = K1[0];
+        d[10*ngroups + get_group_id(0)] = K2[0];
+        d[11*ngroups + get_group_id(0)] = E[0];
+        d[12*ngroups + get_group_id(0)] = H[0];
+        d[13*ngroups + get_group_id(0)] = normO[0];
+        d[14*ngroups + get_group_id(0)] = normU[0];
+    }
+}
+)CLC";
+
+//--- Finite difference kernels
+
+// Note: In the kernel below the variable "Map" is highjacked as this variable is used in other kernels
+// It represents the order of the finite differences
+
+const std::string VPM3D_ocl_kernels_ShearStress = R"CLC(
+
+//--- Central FD Constants
+__constant Real D1C2[2] =  {-0.5, 0.5};
+__constant Real D1C4[4] =  {1.0/12.0,-2.0/3.0, 2.0/3.0, -1.0/12.0};
+__constant Real D1C6[6] =  {-1.0/60.0, 3.0/20.0, -3.0/4.0, 3.0/4.0, -3.0/20.0, 1.0/60.0};
+__constant Real D1C8[8] =  {1.0/280.0, -4.0/105.0, 1.0/5.0, -4.0/5.0, 4.0/5.0, -1.0/5.0, 4.0/105.0, -1.0/280.0 };
+
+__constant Real D2C2[3] = {1.0, -2.0, 1.0};
+__constant Real D2C4[5] = {-1.0/12.0, 4.0/3.0, -5.0/2.0, 4.0/3.0, -1.0/12.0};
+__constant Real D2C6[7] = {1.0/90.0, -3.0/20.0, 3.0/2.0, -49.0/18.0, 3.0/2.0, -3.0/20.0, 1.0/90.0};
+__constant Real D2C8[9] = {-1.0/560.0, 8.0/315.0, -1.0/5.0, 8.0/5.0, -205.0/72.0, 8.0/5.0, -1.0/5.0, 8.0/315.0, -1.0/560.0};
+
+//--- Isotropic Laplacians
+// __constant Real L1 = 2.0/30.0, L2 = 1.0/30.0, L3 = 18.0/30.0, L4 = -136.0/30.0;    // Cocle 2008
+// __constant Real L1 =0.0, L2 = 1.0/6.0, L3 = 1.0/3.0, L4 = -4.0;                   // Patra 2006 - variant 2 (compact)
+// __constant Real L1 = 1.0/30.0, L2 = 3.0/30.0, L3 = 14.0/30.0, L4 = -128.0/30.0;    // Patra 2006 - variant 5
+// __constant Real LAP_ISO_3D[27] = {   L1,L2,L1,L2,L3,L2,L1,L2,L1,
+//                                      L2,L3,L2,L3,L4,L3,L2,L3,L2,
+//                                      L1,L2,L1,L2,L3,L2,L1,L2,L1};
+__constant Real LAP_ISO_3D[27] = {   1.0/30.0,3.0/30.0,1.0/30.0,3.0/30.0,14.0/30.0,3.0/30.0,1.0/30.0,3.0/30.0,1.0/30.0,
+                                     3.0/30.0,14.0/30.0,3.0/30.0,14.0/30.0,-128.0/30.0,14.0/30.0,3.0/30.0,14.0/30.0,3.0/30.0,
+                                     1.0/30.0,3.0/30.0,1.0/30.0,3.0/30.0,14.0/30.0,3.0/30.0,1.0/30.0,3.0/30.0,1.0/30.0};
+
+__kernel void Shear_Stress( __global const Real* w,
+                            __global const Real* u,
+                            __global const int* hs,
+                            __global Real* grad,
+                            __global Real* smag,
+                            __global Real* qcrit) {
+
+// Declare shared memory arrays
+__local Real wx[NHT];
+__local Real wy[NHT];
+__local Real wz[NHT];
+__local Real ux[NHT];
+__local Real uy[NHT];
+__local Real uz[NHT];
+
+// Prepare relevant indices
+const int gx0 = get_group_id(0)*BX;
+const int gy0 = get_group_id(1)*BY;
+const int gz0 = get_group_id(2)*BZ;
+const int tx = get_local_id(0);
+const int ty = get_local_id(1);
+const int tz = get_local_id(2);
+const int gx = tx + gx0;
+const int gy = ty + gy0;
+const int gz = tz + gz0;
+const int txh = tx + Halo;                                          // Local x id within padded grid
+const int tyh = ty + Halo;                                          // Local y id within padded grid
+const int tzh = tz + Halo;                                          // Local z id within padded grid
+
+// Monolith structure
+// if (Data==Monolith) Kernel.append(const int bid = gid(gx,gy,gz,NX,NY,NZ););
+// if (Data==Block)    Kernel.append(const int bid = gidb(gx,gy,gz););
+const int bid = gidb(gx,gy,gz);
+
+const int lid = gid(tx,ty,tz,BX,BY,BZ);           // Local id within block
+const int pid = gid(txh,tyh,tzh,NFDX,NFDY,NFDZ);                             // Local id within padded block
+
+// Fill centre volume
+wx[pid] = w[bid     ];
+wy[pid] = w[bid+NT  ];
+wz[pid] = w[bid+2*NT];
+ux[pid] = u[bid     ];
+uy[pid] = u[bid+NT  ];
+uz[pid] = u[bid+2*NT];
+
+barrier(CLK_LOCAL_MEM_FENCE);
+
+//--- Fill Halo (with coalesced index read)
+for (int i=0; i<NHIT; i++){
+   const int hid = BT*i + lid;
+   const int hsx = hs[hid];                           // global x-shift relative to position
+   const int hsy = hs[hid+BT*NHIT];                 // global y-shift relative to position
+   const int hsz = hs[hid+2*BT*NHIT];               // global z-shift relative to position
+   if (hsx<NFDX){                                 // Catch: is id within padded indices?
+        const int ghx = gx0-Halo+hsx;             // Global x-value of retrieved node
+        const int ghy = gy0-Halo+hsy;             // Global y-value of retrieved node
+        const int ghz = gz0-Halo+hsz;             // Global z-value of retrieved node
+        const int lhid = gid(hsx,hsy,hsz,NFDX,NFDY,NFDZ);
+
+        // if (Data==Monolith) Kernel.append(const int bhid = gid(ghx,ghy,ghz,NX,NY,NZ););
+        // if (Data==Block)    Kernel.append(const int bhid = gidb(ghx,ghy,ghz););
+        const int bhid = gidb(ghx,ghy,ghz);
+
+        const bool exx = (ghx<0 || ghx>=NX);      // Is x coordinate outside of the domain?
+        const bool exy = (ghy<0 || ghy>=NY);      // Is x coordinate outside of the domain?
+        const bool exz = (ghz<0 || ghz>=NZ);      // Is x coordinate outside of the domain?
+        if (exx || exy || exz){                    // Catch: is id within domain?
+            wx[lhid] = (Real)0.0;
+            wy[lhid] = (Real)0.0;
+            wz[lhid] = (Real)0.0;
+            ux[lhid] = (Real)0.0;
+            uy[lhid] = (Real)0.0;
+            uz[lhid] = (Real)0.0;
+        }
+        else {
+            wx[lhid] = w[bhid     ];
+            wy[lhid] = w[bhid+1*NT];
+            wz[lhid] = w[bhid+2*NT];
+            ux[lhid] = u[bhid     ];
+            uy[lhid] = u[bhid+1*NT];
+            uz[lhid] = u[bhid+2*NT];
+        }
+   }
+   barrier(CLK_LOCAL_MEM_FENCE);
+}
+
+//------- Calculate finite differences
+
+Real duxdx = (Real)0.0;
+Real duxdy = (Real)0.0;
+Real duxdz = (Real)0.0;
+Real duydx = (Real)0.0;
+Real duydy = (Real)0.0;
+Real duydz = (Real)0.0;
+Real duzdx = (Real)0.0;
+Real duzdy = (Real)0.0;
+Real duzdz = (Real)0.0;    // Nabla U
+Real sgs = (Real)0.0;
+Real qc = (Real)0.0;																													// Smagorinksi term
+Real lx = (Real)0.0, ly = (Real)0.0, lz = (Real)0.0;                                                                                                     	// Laplacian of Omega
+const bool mxx = (gx>(Halo-1) && gx<(NX-Halo));
+const bool mxy = (gy>(Halo-1) && gy<(NY-Halo));
+const bool mxz = (gz>(Halo-1) && gz<(NZ-Halo));
+
+if (mxx && mxy && mxz){
+
+    int ids;	// Dummy integer
+
+    //-- Calculate velocity gradients
+    #if (Map==2)
+        ids = gid(txh-1,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    duxdx += D1C2[0]*ux[ids];   duydx += D1C2[0]*uy[ids];  duzdx += D1C2[0]*uz[ids];
+        ids = gid(txh+1,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    duxdx += D1C2[1]*ux[ids];   duydx += D1C2[1]*uy[ids];  duzdx += D1C2[1]*uz[ids];
+        ids = gid(txh  ,tyh-1,tzh  ,NFDX,NFDY,NFDZ);    duxdy += D1C2[0]*ux[ids];   duydy += D1C2[0]*uy[ids];  duzdy += D1C2[0]*uz[ids];
+        ids = gid(txh  ,tyh+1,tzh  ,NFDX,NFDY,NFDZ);    duxdy += D1C2[1]*ux[ids];   duydy += D1C2[1]*uy[ids];  duzdy += D1C2[1]*uz[ids];
+        ids = gid(txh  ,tyh  ,tzh-1,NFDX,NFDY,NFDZ);    duxdz += D1C2[0]*ux[ids];   duydz += D1C2[0]*uy[ids];  duzdz += D1C2[0]*uz[ids];
+        ids = gid(txh  ,tyh  ,tzh+1,NFDX,NFDY,NFDZ);    duxdz += D1C2[1]*ux[ids];   duydz += D1C2[1]*uy[ids];  duzdz += D1C2[1]*uz[ids];
+    #elif (Map==4)
+        ids = gid(txh-2,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    duxdx += D1C4[0]*ux[ids];   duydx += D1C4[0]*uy[ids];  duzdx += D1C4[0]*uz[ids];
+        ids = gid(txh-1,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    duxdx += D1C4[1]*ux[ids];   duydx += D1C4[1]*uy[ids];  duzdx += D1C4[1]*uz[ids];
+        ids = gid(txh+1,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    duxdx += D1C4[2]*ux[ids];   duydx += D1C4[2]*uy[ids];  duzdx += D1C4[2]*uz[ids];
+        ids = gid(txh+2,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    duxdx += D1C4[3]*ux[ids];   duydx += D1C4[3]*uy[ids];  duzdx += D1C4[3]*uz[ids];
+        ids = gid(txh  ,tyh-2,tzh  ,NFDX,NFDY,NFDZ);    duxdy += D1C4[0]*ux[ids];   duydy += D1C4[0]*uy[ids];  duzdy += D1C4[0]*uz[ids];
+        ids = gid(txh  ,tyh-1,tzh  ,NFDX,NFDY,NFDZ);    duxdy += D1C4[1]*ux[ids];   duydy += D1C4[1]*uy[ids];  duzdy += D1C4[1]*uz[ids];
+        ids = gid(txh  ,tyh+1,tzh  ,NFDX,NFDY,NFDZ);    duxdy += D1C4[2]*ux[ids];   duydy += D1C4[2]*uy[ids];  duzdy += D1C4[2]*uz[ids];
+        ids = gid(txh  ,tyh+2,tzh  ,NFDX,NFDY,NFDZ);    duxdy += D1C4[3]*ux[ids];   duydy += D1C4[3]*uy[ids];  duzdy += D1C4[3]*uz[ids];
+        ids = gid(txh  ,tyh  ,tzh-2,NFDX,NFDY,NFDZ);    duxdz += D1C4[0]*ux[ids];   duydz += D1C4[0]*uy[ids];  duzdz += D1C4[0]*uz[ids];
+        ids = gid(txh  ,tyh  ,tzh-1,NFDX,NFDY,NFDZ);    duxdz += D1C4[1]*ux[ids];   duydz += D1C4[1]*uy[ids];  duzdz += D1C4[1]*uz[ids];
+        ids = gid(txh  ,tyh  ,tzh+1,NFDX,NFDY,NFDZ);    duxdz += D1C4[2]*ux[ids];   duydz += D1C4[2]*uy[ids];  duzdz += D1C4[2]*uz[ids];
+        ids = gid(txh  ,tyh  ,tzh+2,NFDX,NFDY,NFDZ);    duxdz += D1C4[3]*ux[ids];   duydz += D1C4[3]*uy[ids];  duzdz += D1C4[3]*uz[ids];
+    #elif (Map==6)
+        ids = gid(txh-3,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    duxdx += D1C6[0]*ux[ids];   duydx += D1C6[0]*uy[ids];  duzdx += D1C6[0]*uz[ids];
+        ids = gid(txh-2,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    duxdx += D1C6[1]*ux[ids];   duydx += D1C6[1]*uy[ids];  duzdx += D1C6[1]*uz[ids];
+        ids = gid(txh-1,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    duxdx += D1C6[2]*ux[ids];   duydx += D1C6[2]*uy[ids];  duzdx += D1C6[2]*uz[ids];
+        ids = gid(txh+1,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    duxdx += D1C6[3]*ux[ids];   duydx += D1C6[3]*uy[ids];  duzdx += D1C6[3]*uz[ids];
+        ids = gid(txh+2,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    duxdx += D1C6[4]*ux[ids];   duydx += D1C6[4]*uy[ids];  duzdx += D1C6[4]*uz[ids];
+        ids = gid(txh+3,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    duxdx += D1C6[5]*ux[ids];   duydx += D1C6[5]*uy[ids];  duzdx += D1C6[5]*uz[ids];
+        ids = gid(txh  ,tyh-3,tzh  ,NFDX,NFDY,NFDZ);    duxdy += D1C6[0]*ux[ids];   duydy += D1C6[0]*uy[ids];  duzdy += D1C6[0]*uz[ids];
+        ids = gid(txh  ,tyh-2,tzh  ,NFDX,NFDY,NFDZ);    duxdy += D1C6[1]*ux[ids];   duydy += D1C6[1]*uy[ids];  duzdy += D1C6[1]*uz[ids];
+        ids = gid(txh  ,tyh-1,tzh  ,NFDX,NFDY,NFDZ);    duxdy += D1C6[2]*ux[ids];   duydy += D1C6[2]*uy[ids];  duzdy += D1C6[2]*uz[ids];
+        ids = gid(txh  ,tyh+1,tzh  ,NFDX,NFDY,NFDZ);    duxdy += D1C6[3]*ux[ids];   duydy += D1C6[3]*uy[ids];  duzdy += D1C6[3]*uz[ids];
+        ids = gid(txh  ,tyh+2,tzh  ,NFDX,NFDY,NFDZ);    duxdy += D1C6[4]*ux[ids];   duydy += D1C6[4]*uy[ids];  duzdy += D1C6[4]*uz[ids];
+        ids = gid(txh  ,tyh+3,tzh  ,NFDX,NFDY,NFDZ);    duxdy += D1C6[5]*ux[ids];   duydy += D1C6[5]*uy[ids];  duzdy += D1C6[5]*uz[ids];
+        ids = gid(txh  ,tyh  ,tzh-3,NFDX,NFDY,NFDZ);    duxdz += D1C6[0]*ux[ids];   duydz += D1C6[0]*uy[ids];  duzdz += D1C6[0]*uz[ids];
+        ids = gid(txh  ,tyh  ,tzh-2,NFDX,NFDY,NFDZ);    duxdz += D1C6[1]*ux[ids];   duydz += D1C6[1]*uy[ids];  duzdz += D1C6[1]*uz[ids];
+        ids = gid(txh  ,tyh  ,tzh-1,NFDX,NFDY,NFDZ);    duxdz += D1C6[2]*ux[ids];   duydz += D1C6[2]*uy[ids];  duzdz += D1C6[2]*uz[ids];
+        ids = gid(txh  ,tyh  ,tzh+1,NFDX,NFDY,NFDZ);    duxdz += D1C6[3]*ux[ids];   duydz += D1C6[3]*uy[ids];  duzdz += D1C6[3]*uz[ids];
+        ids = gid(txh  ,tyh  ,tzh+2,NFDX,NFDY,NFDZ);    duxdz += D1C6[4]*ux[ids];   duydz += D1C6[4]*uy[ids];  duzdz += D1C6[4]*uz[ids];
+        ids = gid(txh  ,tyh  ,tzh+3,NFDX,NFDY,NFDZ);    duxdz += D1C6[5]*ux[ids];   duydz += D1C6[5]*uy[ids];  duzdz += D1C6[5]*uz[ids];
+    #elif (Map==8)
+        ids = gid(txh-4,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    duxdx += D1C8[0]*ux[ids];   duydx += D1C8[0]*uy[ids];  duzdx += D1C8[0]*uz[ids];
+        ids = gid(txh-3,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    duxdx += D1C8[1]*ux[ids];   duydx += D1C8[1]*uy[ids];  duzdx += D1C8[1]*uz[ids];
+        ids = gid(txh-2,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    duxdx += D1C8[2]*ux[ids];   duydx += D1C8[2]*uy[ids];  duzdx += D1C8[2]*uz[ids];
+        ids = gid(txh-1,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    duxdx += D1C8[3]*ux[ids];   duydx += D1C8[3]*uy[ids];  duzdx += D1C8[3]*uz[ids];
+        ids = gid(txh+1,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    duxdx += D1C8[4]*ux[ids];   duydx += D1C8[4]*uy[ids];  duzdx += D1C8[4]*uz[ids];
+        ids = gid(txh+2,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    duxdx += D1C8[5]*ux[ids];   duydx += D1C8[5]*uy[ids];  duzdx += D1C8[5]*uz[ids];
+        ids = gid(txh+3,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    duxdx += D1C8[6]*ux[ids];   duydx += D1C8[6]*uy[ids];  duzdx += D1C8[6]*uz[ids];
+        ids = gid(txh+4,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    duxdx += D1C8[7]*ux[ids];   duydx += D1C8[7]*uy[ids];  duzdx += D1C8[7]*uz[ids];
+        ids = gid(txh  ,tyh-4,tzh  ,NFDX,NFDY,NFDZ);    duxdy += D1C8[0]*ux[ids];   duydy += D1C8[0]*uy[ids];  duzdy += D1C8[0]*uz[ids];
+        ids = gid(txh  ,tyh-3,tzh  ,NFDX,NFDY,NFDZ);    duxdy += D1C8[1]*ux[ids];   duydy += D1C8[1]*uy[ids];  duzdy += D1C8[1]*uz[ids];
+        ids = gid(txh  ,tyh-2,tzh  ,NFDX,NFDY,NFDZ);    duxdy += D1C8[2]*ux[ids];   duydy += D1C8[2]*uy[ids];  duzdy += D1C8[2]*uz[ids];
+        ids = gid(txh  ,tyh-1,tzh  ,NFDX,NFDY,NFDZ);    duxdy += D1C8[3]*ux[ids];   duydy += D1C8[3]*uy[ids];  duzdy += D1C8[3]*uz[ids];
+        ids = gid(txh  ,tyh+1,tzh  ,NFDX,NFDY,NFDZ);    duxdy += D1C8[4]*ux[ids];   duydy += D1C8[4]*uy[ids];  duzdy += D1C8[4]*uz[ids];
+        ids = gid(txh  ,tyh+2,tzh  ,NFDX,NFDY,NFDZ);    duxdy += D1C8[5]*ux[ids];   duydy += D1C8[5]*uy[ids];  duzdy += D1C8[5]*uz[ids];
+        ids = gid(txh  ,tyh+3,tzh  ,NFDX,NFDY,NFDZ);    duxdy += D1C8[6]*ux[ids];   duydy += D1C8[6]*uy[ids];  duzdy += D1C8[6]*uz[ids];
+        ids = gid(txh  ,tyh+4,tzh  ,NFDX,NFDY,NFDZ);    duxdy += D1C8[7]*ux[ids];   duydy += D1C8[7]*uy[ids];  duzdy += D1C8[7]*uz[ids];
+        ids = gid(txh  ,tyh  ,tzh-4,NFDX,NFDY,NFDZ);    duxdz += D1C8[0]*ux[ids];   duydz += D1C8[0]*uy[ids];  duzdz += D1C8[0]*uz[ids];
+        ids = gid(txh  ,tyh  ,tzh-3,NFDX,NFDY,NFDZ);    duxdz += D1C8[1]*ux[ids];   duydz += D1C8[1]*uy[ids];  duzdz += D1C8[1]*uz[ids];
+        ids = gid(txh  ,tyh  ,tzh-2,NFDX,NFDY,NFDZ);    duxdz += D1C8[2]*ux[ids];   duydz += D1C8[2]*uy[ids];  duzdz += D1C8[2]*uz[ids];
+        ids = gid(txh  ,tyh  ,tzh-1,NFDX,NFDY,NFDZ);    duxdz += D1C8[3]*ux[ids];   duydz += D1C8[3]*uy[ids];  duzdz += D1C8[3]*uz[ids];
+        ids = gid(txh  ,tyh  ,tzh+1,NFDX,NFDY,NFDZ);    duxdz += D1C8[4]*ux[ids];   duydz += D1C8[4]*uy[ids];  duzdz += D1C8[4]*uz[ids];
+        ids = gid(txh  ,tyh  ,tzh+2,NFDX,NFDY,NFDZ);    duxdz += D1C8[5]*ux[ids];   duydz += D1C8[5]*uy[ids];  duzdz += D1C8[5]*uz[ids];
+        ids = gid(txh  ,tyh  ,tzh+3,NFDX,NFDY,NFDZ);    duxdz += D1C8[6]*ux[ids];   duydz += D1C8[6]*uy[ids];  duzdz += D1C8[6]*uz[ids];
+        ids = gid(txh  ,tyh  ,tzh+4,NFDX,NFDY,NFDZ);    duxdz += D1C8[7]*ux[ids];   duydz += D1C8[7]*uy[ids];  duzdz += D1C8[7]*uz[ids];
+    #endif
+
+    // Scale gradients for grid size
+    const Real invhx = (Real)1.0/hx, invhy = (Real)1.0/hy, invhz = (Real)1.0/hz;
+    duxdx *= invhx;
+    duydx *= invhx;
+    duzdx *= invhx;
+    duxdy *= invhy;
+    duydy *= invhy;
+    duzdy *= invhy;
+    duxdz *= invhz;
+    duydz *= invhz;
+    duzdz *= invhz;
+
+    // Calculate subgrid scale term for this grid node
+    const Real s11 = duxdx                    , q11 = (Real)0.0;
+    const Real s12 = (Real)0.5*(duxdy + duydx), q12 = (Real)0.5*(duxdy - duydx)  ;
+    const Real s13 = (Real)0.5*(duxdz + duzdx), q13 = (Real)0.5*(duxdz - duzdx)  ;
+    const Real s21 = (Real)0.5*(duydx + duxdy), q21 = (Real)0.5*(duydx - duxdy)  ;
+    const Real s22 = duydy                    , q22 = (Real)0.0;
+    const Real s23 = (Real)0.5*(duydz + duzdy), q23 = (Real)0.5*(duydz - duzdy)  ;
+    const Real s31 = (Real)0.5*(duzdx + duxdz), q31 = (Real)0.5*(duzdx - duxdz)  ;
+    const Real s32 = (Real)0.5*(duzdy + duydz), q32 = (Real)0.5*(duzdy - duydz)  ;
+    const Real s33 = duzdz                    , q33 = (Real)0.0;
+    const Real s_ij2 = s11*s11 + s12*s12 + s13*s13 + s21*s21 + s22*s22 + s23*s23 + s31*s31 + s32*s32 + s33*s33;
+    const Real q_ij2 = q11*q11 + q12*q12 + q13*q13 + q21*q21 + q22*q22 + q23*q23 + q31*q31 + q32*q32 + q33*q33;
+    // This assumes uniform grid spacing!
+    sgs = hx*hx*sqrt((Real)2.0*s_ij2);
+    qc = (Real)0.5*(q_ij2-s_ij2);
+
+    //--- Calculate Laplacian
+    #if (Map==2)
+        ids = gid(txh-1,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C2[0]*wx[ids];  ly += D2C2[0]*wy[ids];  lz += D2C2[0]*wz[ids];
+        ids = gid(txh  ,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C2[1]*wx[ids];  ly += D2C2[1]*wy[ids];  lz += D2C2[1]*wz[ids];
+        ids = gid(txh+1,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C2[2]*wx[ids];  ly += D2C2[2]*wy[ids];  lz += D2C2[2]*wz[ids];
+        ids = gid(txh  ,tyh-1,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C2[0]*wx[ids];  ly += D2C2[0]*wy[ids];  lz += D2C2[0]*wz[ids];
+        ids = gid(txh  ,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C2[1]*wx[ids];  ly += D2C2[1]*wy[ids];  lz += D2C2[1]*wz[ids];
+        ids = gid(txh  ,tyh+1,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C2[2]*wx[ids];  ly += D2C2[2]*wy[ids];  lz += D2C2[2]*wz[ids];
+        ids = gid(txh  ,tyh  ,tzh-1,NFDX,NFDY,NFDZ);    lx += D2C2[0]*wx[ids];  ly += D2C2[0]*wy[ids];  lz += D2C2[0]*wz[ids];
+        ids = gid(txh  ,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C2[1]*wx[ids];  ly += D2C2[1]*wy[ids];  lz += D2C2[1]*wz[ids];
+        ids = gid(txh  ,tyh  ,tzh+1,NFDX,NFDY,NFDZ);    lx += D2C2[2]*wx[ids];  ly += D2C2[2]*wy[ids];  lz += D2C2[2]*wz[ids];
+    #elif (Map==4)
+        ids = gid(txh-2,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C4[0]*wx[ids];  ly += D2C4[0]*wy[ids];  lz += D2C4[0]*wz[ids];
+        ids = gid(txh-1,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C4[1]*wx[ids];  ly += D2C4[1]*wy[ids];  lz += D2C4[1]*wz[ids];
+        ids = gid(txh  ,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C4[2]*wx[ids];  ly += D2C4[2]*wy[ids];  lz += D2C4[2]*wz[ids];
+        ids = gid(txh+1,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C4[3]*wx[ids];  ly += D2C4[3]*wy[ids];  lz += D2C4[3]*wz[ids];
+        ids = gid(txh+2,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C4[4]*wx[ids];  ly += D2C4[4]*wy[ids];  lz += D2C4[4]*wz[ids];
+        ids = gid(txh  ,tyh-2,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C4[0]*wx[ids];  ly += D2C4[0]*wy[ids];  lz += D2C4[0]*wz[ids];
+        ids = gid(txh  ,tyh-1,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C4[1]*wx[ids];  ly += D2C4[1]*wy[ids];  lz += D2C4[1]*wz[ids];
+        ids = gid(txh  ,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C4[2]*wx[ids];  ly += D2C4[2]*wy[ids];  lz += D2C4[2]*wz[ids];
+        ids = gid(txh  ,tyh+1,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C4[3]*wx[ids];  ly += D2C4[3]*wy[ids];  lz += D2C4[3]*wz[ids];
+        ids = gid(txh  ,tyh+2,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C4[4]*wx[ids];  ly += D2C4[4]*wy[ids];  lz += D2C4[4]*wz[ids];
+        ids = gid(txh  ,tyh  ,tzh-2,NFDX,NFDY,NFDZ);    lx += D2C4[0]*wx[ids];  ly += D2C4[0]*wy[ids];  lz += D2C4[0]*wz[ids];
+        ids = gid(txh  ,tyh  ,tzh-1,NFDX,NFDY,NFDZ);    lx += D2C4[1]*wx[ids];  ly += D2C4[1]*wy[ids];  lz += D2C4[1]*wz[ids];
+        ids = gid(txh  ,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C4[2]*wx[ids];  ly += D2C4[2]*wy[ids];  lz += D2C4[2]*wz[ids];
+        ids = gid(txh  ,tyh  ,tzh+1,NFDX,NFDY,NFDZ);    lx += D2C4[3]*wx[ids];  ly += D2C4[3]*wy[ids];  lz += D2C4[3]*wz[ids];
+        ids = gid(txh  ,tyh  ,tzh+2,NFDX,NFDY,NFDZ);    lx += D2C4[4]*wx[ids];  ly += D2C4[4]*wy[ids];  lz += D2C4[4]*wz[ids];
+     #elif (Map==6)
+        ids = gid(txh-3,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C6[0]*wx[ids];  ly += D2C6[0]*wy[ids];  lz += D2C6[0]*wz[ids];
+        ids = gid(txh-2,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C6[1]*wx[ids];  ly += D2C6[1]*wy[ids];  lz += D2C6[1]*wz[ids];
+        ids = gid(txh-1,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C6[2]*wx[ids];  ly += D2C6[2]*wy[ids];  lz += D2C6[2]*wz[ids];
+        ids = gid(txh  ,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C6[3]*wx[ids];  ly += D2C6[3]*wy[ids];  lz += D2C6[3]*wz[ids];
+        ids = gid(txh+1,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C6[4]*wx[ids];  ly += D2C6[4]*wy[ids];  lz += D2C6[4]*wz[ids];
+        ids = gid(txh+2,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C6[5]*wx[ids];  ly += D2C6[5]*wy[ids];  lz += D2C6[5]*wz[ids];
+        ids = gid(txh+3,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C6[6]*wx[ids];  ly += D2C6[6]*wy[ids];  lz += D2C6[6]*wz[ids];
+        ids = gid(txh  ,tyh-3,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C6[0]*wx[ids];  ly += D2C6[0]*wy[ids];  lz += D2C6[0]*wz[ids];
+        ids = gid(txh  ,tyh-2,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C6[1]*wx[ids];  ly += D2C6[1]*wy[ids];  lz += D2C6[1]*wz[ids];
+        ids = gid(txh  ,tyh-1,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C6[2]*wx[ids];  ly += D2C6[2]*wy[ids];  lz += D2C6[2]*wz[ids];
+        ids = gid(txh  ,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C6[3]*wx[ids];  ly += D2C6[3]*wy[ids];  lz += D2C6[3]*wz[ids];
+        ids = gid(txh  ,tyh+1,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C6[4]*wx[ids];  ly += D2C6[4]*wy[ids];  lz += D2C6[4]*wz[ids];
+        ids = gid(txh  ,tyh+2,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C6[5]*wx[ids];  ly += D2C6[5]*wy[ids];  lz += D2C6[5]*wz[ids];
+        ids = gid(txh  ,tyh+3,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C6[6]*wx[ids];  ly += D2C6[6]*wy[ids];  lz += D2C6[6]*wz[ids];
+        ids = gid(txh  ,tyh  ,tzh-3,NFDX,NFDY,NFDZ);    lx += D2C6[0]*wx[ids];  ly += D2C6[0]*wy[ids];  lz += D2C6[0]*wz[ids];
+        ids = gid(txh  ,tyh  ,tzh-2,NFDX,NFDY,NFDZ);    lx += D2C6[1]*wx[ids];  ly += D2C6[1]*wy[ids];  lz += D2C6[1]*wz[ids];
+        ids = gid(txh  ,tyh  ,tzh-1,NFDX,NFDY,NFDZ);    lx += D2C6[2]*wx[ids];  ly += D2C6[2]*wy[ids];  lz += D2C6[2]*wz[ids];
+        ids = gid(txh  ,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C6[3]*wx[ids];  ly += D2C6[3]*wy[ids];  lz += D2C6[3]*wz[ids];
+        ids = gid(txh  ,tyh  ,tzh+1,NFDX,NFDY,NFDZ);    lx += D2C6[4]*wx[ids];  ly += D2C6[4]*wy[ids];  lz += D2C6[4]*wz[ids];
+        ids = gid(txh  ,tyh  ,tzh+2,NFDX,NFDY,NFDZ);    lx += D2C6[5]*wx[ids];  ly += D2C6[5]*wy[ids];  lz += D2C6[5]*wz[ids];
+        ids = gid(txh  ,tyh  ,tzh+3,NFDX,NFDY,NFDZ);    lx += D2C6[6]*wx[ids];  ly += D2C6[6]*wy[ids];  lz += D2C6[6]*wz[ids];
+     #elif (Map==8)
+        ids = gid(txh-4,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C8[0]*wx[ids];  ly += D2C8[0]*wy[ids];  lz += D2C8[0]*wz[ids];
+        ids = gid(txh-3,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C8[1]*wx[ids];  ly += D2C8[1]*wy[ids];  lz += D2C8[1]*wz[ids];
+        ids = gid(txh-2,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C8[2]*wx[ids];  ly += D2C8[2]*wy[ids];  lz += D2C8[2]*wz[ids];
+        ids = gid(txh-1,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C8[3]*wx[ids];  ly += D2C8[3]*wy[ids];  lz += D2C8[3]*wz[ids];
+        ids = gid(txh  ,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C8[4]*wx[ids];  ly += D2C8[4]*wy[ids];  lz += D2C8[4]*wz[ids];
+        ids = gid(txh+1,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C8[5]*wx[ids];  ly += D2C8[5]*wy[ids];  lz += D2C8[5]*wz[ids];
+        ids = gid(txh+2,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C8[6]*wx[ids];  ly += D2C8[6]*wy[ids];  lz += D2C8[6]*wz[ids];
+        ids = gid(txh+3,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C8[7]*wx[ids];  ly += D2C8[7]*wy[ids];  lz += D2C8[7]*wz[ids];
+        ids = gid(txh+4,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C8[8]*wx[ids];  ly += D2C8[8]*wy[ids];  lz += D2C8[8]*wz[ids];
+        ids = gid(txh  ,tyh-4,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C8[0]*wx[ids];  ly += D2C8[0]*wy[ids];  lz += D2C8[0]*wz[ids];
+        ids = gid(txh  ,tyh-3,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C8[1]*wx[ids];  ly += D2C8[1]*wy[ids];  lz += D2C8[1]*wz[ids];
+        ids = gid(txh  ,tyh-2,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C8[2]*wx[ids];  ly += D2C8[2]*wy[ids];  lz += D2C8[2]*wz[ids];
+        ids = gid(txh  ,tyh-1,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C8[3]*wx[ids];  ly += D2C8[3]*wy[ids];  lz += D2C8[3]*wz[ids];
+        ids = gid(txh  ,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C8[4]*wx[ids];  ly += D2C8[4]*wy[ids];  lz += D2C8[4]*wz[ids];
+        ids = gid(txh  ,tyh+1,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C8[5]*wx[ids];  ly += D2C8[5]*wy[ids];  lz += D2C8[5]*wz[ids];
+        ids = gid(txh  ,tyh+2,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C8[6]*wx[ids];  ly += D2C8[6]*wy[ids];  lz += D2C8[6]*wz[ids];
+        ids = gid(txh  ,tyh+3,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C8[7]*wx[ids];  ly += D2C8[7]*wy[ids];  lz += D2C8[7]*wz[ids];
+        ids = gid(txh  ,tyh+4,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C8[8]*wx[ids];  ly += D2C8[8]*wy[ids];  lz += D2C8[8]*wz[ids];
+        ids = gid(txh  ,tyh  ,tzh-4,NFDX,NFDY,NFDZ);    lx += D2C8[0]*wx[ids];  ly += D2C8[0]*wy[ids];  lz += D2C8[0]*wz[ids];
+        ids = gid(txh  ,tyh  ,tzh-3,NFDX,NFDY,NFDZ);    lx += D2C8[1]*wx[ids];  ly += D2C8[1]*wy[ids];  lz += D2C8[1]*wz[ids];
+        ids = gid(txh  ,tyh  ,tzh-2,NFDX,NFDY,NFDZ);    lx += D2C8[2]*wx[ids];  ly += D2C8[2]*wy[ids];  lz += D2C8[2]*wz[ids];
+        ids = gid(txh  ,tyh  ,tzh-1,NFDX,NFDY,NFDZ);    lx += D2C8[2]*wx[ids];  ly += D2C8[3]*wy[ids];  lz += D2C8[3]*wz[ids];
+        ids = gid(txh  ,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C8[4]*wx[ids];  ly += D2C8[4]*wy[ids];  lz += D2C8[4]*wz[ids];
+        ids = gid(txh  ,tyh  ,tzh+1,NFDX,NFDY,NFDZ);    lx += D2C8[5]*wx[ids];  ly += D2C8[5]*wy[ids];  lz += D2C8[5]*wz[ids];
+        ids = gid(txh  ,tyh  ,tzh+2,NFDX,NFDY,NFDZ);    lx += D2C8[6]*wx[ids];  ly += D2C8[6]*wy[ids];  lz += D2C8[6]*wz[ids];
+        ids = gid(txh  ,tyh  ,tzh+3,NFDX,NFDY,NFDZ);    lx += D2C8[7]*wx[ids];  ly += D2C8[7]*wy[ids];  lz += D2C8[7]*wz[ids];
+        ids = gid(txh  ,tyh  ,tzh+4,NFDX,NFDY,NFDZ);    lx += D2C8[8]*wx[ids];  ly += D2C8[8]*wy[ids];  lz += D2C8[8]*wz[ids];
+     #endif
+
+    // Scale laplacian for grid size
+    lx *= (Real)1.0/hx/hx;
+    ly *= (Real)1.0/hy/hy;
+    lz *= (Real)1.0/hz/hz;
+}
+
+// Calculate outputs
+const Real sx = duxdx*wx[pid] + duxdy*wy[pid] + duxdz*wz[pid] + KinVisc*lx;
+const Real sy = duydx*wx[pid] + duydy*wy[pid] + duydz*wz[pid] + KinVisc*ly;
+const Real sz = duzdx*wx[pid] + duzdy*wy[pid] + duzdz*wz[pid] + KinVisc*lz;
+
+barrier(CLK_LOCAL_MEM_FENCE);
+
+// Assign output vars
+grad[bid]      = sx;
+grad[bid+NT]   = sy;
+grad[bid+2*NT] = sz;
+smag[bid]	   = sgs;
+qcrit[bid]   = qc;
+
+}
+
+)CLC";
+
+
 
 }

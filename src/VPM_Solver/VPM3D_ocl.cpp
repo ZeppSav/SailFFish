@@ -71,10 +71,15 @@ SFStatus VPM3D_ocl::Setup_VPM(VPM_Input *I)
     BlockArch.local[1] = (size_t)BY;
     BlockArch.local[2] = (size_t)BZ;
 
-    // List architecture is for 1D workgroups
+    // List architecture for 1D workgroups
     ListArch.Dim = 1;
     ListArch.global[0] = (size_t)NNT;
     ListArch.local[0] = (size_t)BT;
+
+    // List architecture for 1D workgroups
+    ConvArch.Dim = 1;
+    ConvArch.global[0] = (size_t)NTM;
+    ConvArch.local[0] = (size_t)BT;
 
     //--- Carry out sanity check here
     if (Hx!=H_Grid || Hy!=H_Grid || Hy!=H_Grid)
@@ -333,7 +338,8 @@ void VPM3D_ocl::Set_Input_Arrays(RVector &x0, RVector &y0, RVector &z0)
 
     // Transfer to ocl buffer
     if (Architecture==BLOCK){
-        SFStatus stat = Execute_Kernel(ocl_map_fromUnbounded, BlockArch, {cl_r_Input1, cl_r_Input2, cl_r_Input3, eu_o});
+        // SFStatus stat = Execute_Kernel(ocl_map_fromUnbounded, BlockArch, {cl_r_Input1, cl_r_Input2, cl_r_Input3, eu_o}); // Testing initial grid
+        SFStatus stat = Execute_Kernel(ocl_map_fromUnbounded, BlockArch, {cl_r_Input1, cl_r_Input2, cl_r_Input3, lg_o});
     }
 }
 
@@ -540,9 +546,13 @@ cl_kernel VPM3D_ocl::Generate_Kernel(const std::string &Body,       // Body of t
     Source.append("#define NBX " + std::to_string(NBX) + "\n");
     Source.append("#define NBY " + std::to_string(NBY) + "\n");
     Source.append("#define NBZ " + std::to_string(NBZ) + "\n");
-    Source.append("#define hx " + std::to_string(Hx) + "\n");
-    Source.append("#define hy " + std::to_string(Hy) + "\n");
-    Source.append("#define hz " + std::to_string(Hz) + "\n");
+    Source.append("__constant Real hx = " + std::to_string(Hx) + "; \n");
+    Source.append("__constant Real hy = " + std::to_string(Hy) + "; \n");
+    Source.append("__constant Real hz = " + std::to_string(Hz) + "; \n");
+    Source.append("__constant Real XN1 = " + std::to_string(XN1) + "; \n");
+    Source.append("__constant Real YN1 = " + std::to_string(YN1) + "; \n");
+    Source.append("__constant Real ZN1 = " + std::to_string(ZN1) + "; \n");
+    Source.append("__constant Real KinVisc = " + std::to_string(KinVisc) + "; \n");     // Only used for FD kernels
 
     // Add mapping and halo parameters
     if (Map!=0){
@@ -605,11 +615,10 @@ SFStatus VPM3D_ocl::Initialize_Kernels()
         // blockIdx.z -> get_group_id(2)
         // Real(x) -> (Real)x
         // __syncthreads() -> barrier(CLK_LOCAL_MEM_FENCE);
+        // gridDim.x -> get_num_groups(0)
 
-        // // Compile kernels
-        // using jitify::reflection::type_of;
-        // CUDAComplex ComplexType = CUDAComplex(0,0);
-        // ocl_VPM_convolution = new cudaKernel(Source,"vpm_convolution", type_of(ComplexType));
+        // Compile kernels
+        ocl_VPM_convolution  = Generate_Kernel(ocl_curl,"curl",0,0,0);
         // ocl_VPM_reprojection = new cudaKernel(Source,"vpm_reprojection", type_of(ComplexType));
         // ocl_monolith_to_block_arch = Generate_Kernel(VPM3D_ocl_kernels_monolith_to_block,"Monolith_to_Block",0,0,0);    // Obsolete
         ocl_block_to_monolith_arch  = Generate_Kernel(VPM3D_ocl_kernels_block_to_monolith,"Block_to_Monolith",0,0,0);   // Used for export to vtk
@@ -630,11 +639,11 @@ SFStatus VPM3D_ocl::Initialize_Kernels()
         ocl_updateRK3 = Generate_Kernel(VPM3D_ocl_kernels_updateRK3,"updateRK3",0,0,0);
         ocl_updateRK4 = Generate_Kernel(VPM3D_ocl_kernels_updateRK4,"updateRK4",0,0,0);
         ocl_updateRKLS = Generate_Kernel(VPM3D_ocl_kernels_updateRKLS,"updateRK_LS",0,0,0);
-        // ocl_stretch_FD2 = new cudaKernel(Source,"Shear_Stress", 1 ,2,(BX+2)*(BY+2)*(BZ+2));
-        // ocl_stretch_FD4 = new cudaKernel(Source,"Shear_Stress", 2 ,4,(BX+4)*(BY+4)*(BZ+4));
-        // ocl_stretch_FD6 = new cudaKernel(Source,"Shear_Stress", 3 ,6,(BX+6)*(BY+6)*(BZ+6));
-        // ocl_stretch_FD8 = new cudaKernel(Source,"Shear_Stress", 4 ,8,(BX+8)*(BY+8)*(BZ+8));
-        // ocl_Diagnostics = new cudaKernel(Source,"DiagnosticsKernel",BT);
+        ocl_stretch_FD2 = Generate_Kernel(VPM3D_ocl_kernels_ShearStress,"Shear_Stress", 1, 2, (BX+2)*(BY+2)*(BZ+2));
+        ocl_stretch_FD4 = Generate_Kernel(VPM3D_ocl_kernels_ShearStress,"Shear_Stress", 2, 4, (BX+4)*(BY+4)*(BZ+4));
+        ocl_stretch_FD6 = Generate_Kernel(VPM3D_ocl_kernels_ShearStress,"Shear_Stress", 3, 6, (BX+6)*(BY+6)*(BZ+6));
+        ocl_stretch_FD8 = Generate_Kernel(VPM3D_ocl_kernels_ShearStress,"Shear_Stress", 4, 8, (BX+8)*(BY+8)*(BZ+8));
+        ocl_Diagnostics = Generate_Kernel(VPM3D_ocl_kernels_Diagnostics,"DiagnosticsKernel",0,0,0);
         // ocl_MagFilt1 = new cudaKernel(Source,"MagnitudeFiltering_Step1",BT);
         // ocl_MagFilt2 = new cudaKernel(Source,"MagnitudeFiltering_Step2",BT);
         // ocl_MagFilt3 = new cudaKernel(Source,"MagnitudeFiltering_Step3");
@@ -666,12 +675,14 @@ SFStatus VPM3D_ocl::Initialize_Kernels()
         // ocl_Turb_Hyp_FD4 = new cudaKernel(Source,"Hyperviscosity_Operator",2,4,(BX+4)*(BY+4)*(BZ+4));
         // ocl_Turb_Hyp_FD6 = new cudaKernel(Source,"Hyperviscosity_Operator",3,6,(BX+6)*(BY+6)*(BZ+6));
         // ocl_Turb_Hyp_FD8 = new cudaKernel(Source,"Hyperviscosity_Operator",4,8,(BX+8)*(BY+8)*(BZ+8));
-        // ocl_sg_discfilt = new cudaKernel(Source,"SubGrid_DiscFilter",1,(BX+2)*(BY+2)*(BZ+2));
-        // // ocl_sg_discfilt2 = new cudaKernel(Source,"SubGrid_DiscFilter2",1,(BX+2)*(BY+2)*(BZ+2));
-        // ocl_Turb_RVM_FD2 = new cudaKernel(Source,"RVM_turbulentstress",1,2,(BX+2)*(BY+2)*(BZ+2));
-        // ocl_Turb_RVM_FD4 = new cudaKernel(Source,"RVM_turbulentstress",2,4,(BX+4)*(BY+4)*(BZ+4));
-        // ocl_Turb_RVM_FD6 = new cudaKernel(Source,"RVM_turbulentstress",3,6,(BX+6)*(BY+6)*(BZ+6));
-        // ocl_Turb_RVM_FD8 = new cudaKernel(Source,"RVM_turbulentstress",4,8,(BX+8)*(BY+8)*(BZ+8));
+        ocl_sg_discfiltx  = Generate_Kernel(VPM3D_ocl_kernels_subgrid_discfilter,"SubGrid_DiscFilter",1,0,(BX+2)*(BY+2)*(BZ+2));
+        ocl_sg_discfilty  = Generate_Kernel(VPM3D_ocl_kernels_subgrid_discfilter,"SubGrid_DiscFilter",1,1,(BX+2)*(BY+2)*(BZ+2));
+        ocl_sg_discfiltz  = Generate_Kernel(VPM3D_ocl_kernels_subgrid_discfilter,"SubGrid_DiscFilter",1,2,(BX+2)*(BY+2)*(BZ+2));
+        ocl_sg_discfiltss = Generate_Kernel(VPM3D_ocl_kernels_subgrid_discfilter,"SubGrid_DiscFilter",1,3,(BX+2)*(BY+2)*(BZ+2));
+        ocl_Turb_RVM_FD2 = Generate_Kernel(VPM3D_ocl_kernels_RVM,"RVM_turbulentstress",1,2,(BX+2)*(BY+2)*(BZ+2));
+        ocl_Turb_RVM_FD4 = Generate_Kernel(VPM3D_ocl_kernels_RVM,"RVM_turbulentstress",2,4,(BX+4)*(BY+4)*(BZ+4));
+        ocl_Turb_RVM_FD6 = Generate_Kernel(VPM3D_ocl_kernels_RVM,"RVM_turbulentstress",3,6,(BX+6)*(BY+6)*(BZ+6));
+        ocl_Turb_RVM_FD8 = Generate_Kernel(VPM3D_ocl_kernels_RVM,"RVM_turbulentstress",4,8,(BX+8)*(BY+8)*(BZ+8));
         // ocl_Turb_RVM_DGC_FD2 = new cudaKernel(Source,"RVM_DGC_turbulentstress",1,2,(BX+2)*(BY+2)*(BZ+2));
         // ocl_Turb_RVM_DGC_FD4 = new cudaKernel(Source,"RVM_DGC_turbulentstress",2,4,(BX+4)*(BY+4)*(BZ+4));
         // ocl_Turb_RVM_DGC_FD6 = new cudaKernel(Source,"RVM_DGC_turbulentstress",3,6,(BX+6)*(BY+6)*(BZ+6));
@@ -731,7 +742,7 @@ SFStatus VPM3D_ocl::Execute_Kernel(cl_kernel kernel, OpenCLWorkSize &Worksize, c
     // The required parameters are passed to the kernel
     for (size_t i = 0; i<params.size(); i++)
     {
-        cl_int err = clSetKernelArg(kernel, static_cast<cl_uint>(i+buffers.size()), sizeof(cl_mem), &params[i]);
+        cl_int err = clSetKernelArg(kernel, static_cast<cl_uint>(i+buffers.size()), sizeof(cl_real), &params[i]);
         if (err != CL_SUCCESS){
             std::cout << "VPM3D_ocl::Execute_Kernel: Setting parameters failed." << std::endl;
             return ExecError;
@@ -744,9 +755,9 @@ SFStatus VPM3D_ocl::Execute_Kernel(cl_kernel kernel, OpenCLWorkSize &Worksize, c
     return ConvertClError(err);
 }
 
-// //-------------------------------------------
-// //------------- Timestepping ----------------
-// //-------------------------------------------
+//-------------------------------------------
+//------------- Timestepping ----------------
+//-------------------------------------------
 
 void VPM3D_ocl::Advance_Particle_Set()
 {
@@ -770,12 +781,12 @@ void VPM3D_ocl::Advance_Particle_Set()
 
 void VPM3D_ocl::Update_Particle_Field()
 {
+    SFStatus Stat = NoError;
     if (Integrator == EF)       // Eulerian forward
     {
         Calc_Particle_RateofChange(lg_d, lg_o, lg_dddt, lg_dodt);
         Calc_Grid_Diagnostics();
-        Execute_Kernel(ocl_update, ListArch, {lg_d, lg_o, lg_dddt, lg_dodt}, {Real(dT)});
-        // ocl_update->Execute(lg_d, lg_o, lg_dddt, lg_dodt, Real(dT));
+        Stat = Execute_Kernel(ocl_update, ListArch, {lg_d, lg_o, lg_dddt, lg_dodt}, {cl_real(dT)});
     }
 
     if (Integrator == EM)       // Explicit midpoint
@@ -785,9 +796,9 @@ void VPM3D_ocl::Update_Particle_Field()
         Copy_Buffer(int_lg_d, lg_d, 3*NNT*sizeof(Real));
         Copy_Buffer(int_lg_o, lg_o, 3*NNT*sizeof(Real));
 
-        Execute_Kernel(ocl_update, ListArch, {int_lg_d, int_lg_o, lg_dddt, lg_dodt}, {Real(0.5*dT)});
+        Stat = Execute_Kernel(ocl_update, ListArch, {int_lg_d, int_lg_o, lg_dddt, lg_dodt}, {cl_real(0.5*dT)});
         Calc_Particle_RateofChange(int_lg_d, int_lg_o, k2_d, k2_o);
-        Execute_Kernel(ocl_update, ListArch, {lg_d, lg_o, k2_d, k2_o}, {Real(dT)});
+        Stat = Execute_Kernel(ocl_update, ListArch, {lg_d, lg_o, k2_d, k2_o}, {cl_real(dT)});
     }
 
     if (Integrator == AB2LF)
@@ -823,34 +834,34 @@ void VPM3D_ocl::Update_Particle_Field()
     {
         Calc_Particle_RateofChange(lg_d, lg_o, lg_dddt, lg_dodt);
         Calc_Grid_Diagnostics();
-        Execute_Kernel(ocl_updateRK, ListArch, {lg_d, lg_o, lg_dddt, lg_dodt, int_lg_d, int_lg_o}, {Real(dT)});
+        Stat = Execute_Kernel(ocl_updateRK, ListArch, {lg_d, lg_o, lg_dddt, lg_dodt, int_lg_d, int_lg_o}, {cl_real(dT)});
         Calc_Particle_RateofChange(int_lg_d, int_lg_o, k2_d, k2_o);
-        Execute_Kernel(ocl_updateRK2, ListArch, {lg_d, lg_o, lg_dddt, lg_dodt, k2_d, k2_o}, {Real(dT)});
+        Stat = Execute_Kernel(ocl_updateRK2, ListArch, {lg_d, lg_o, lg_dddt, lg_dodt, k2_d, k2_o}, {cl_real(dT)});
     }
 
     if (Integrator == RK3)      // Runge-Kutta third order
     {
         Calc_Particle_RateofChange(lg_d, lg_o, lg_dddt, lg_dodt);
         Calc_Grid_Diagnostics();
-        Execute_Kernel(ocl_updateRK, ListArch, {lg_d, lg_o, lg_dddt, lg_dodt, int_lg_d, int_lg_o}, {Real(0.5*dT)});
+        Stat = Execute_Kernel(ocl_updateRK, ListArch, {lg_d, lg_o, lg_dddt, lg_dodt, int_lg_d, int_lg_o}, {cl_real(0.5*dT)});
         Calc_Particle_RateofChange(int_lg_d, int_lg_o, k2_d, k2_o);
-        Execute_Kernel(ocl_updateRK, ListArch, {lg_d, lg_o, lg_dddt, lg_dodt, int_lg_d, int_lg_o}, {Real(-dT)});
-        Execute_Kernel(ocl_update, ListArch, {int_lg_d, int_lg_o, k2_d, k2_o}, {Real(2.0*dT)});
+        Stat = Execute_Kernel(ocl_updateRK, ListArch, {lg_d, lg_o, lg_dddt, lg_dodt, int_lg_d, int_lg_o}, {cl_real(-dT)});
+        Stat = Execute_Kernel(ocl_update, ListArch, {int_lg_d, int_lg_o, k2_d, k2_o}, {cl_real(2.0*dT)});
         Calc_Particle_RateofChange(int_lg_d, int_lg_o, k3_d, k3_o);
-        Execute_Kernel(ocl_updateRK3, ListArch, {lg_d, lg_o, lg_dddt, lg_dodt, k2_d, k2_o, k3_d, k3_o}, {Real(dT)});
+        Stat = Execute_Kernel(ocl_updateRK3, ListArch, {lg_d, lg_o, lg_dddt, lg_dodt, k2_d, k2_o, k3_d, k3_o}, {cl_real(dT)});
     }
 
     if (Integrator == RK4)      // Runge-Kutta fourth order
     {
         Calc_Particle_RateofChange(lg_d, lg_o, lg_dddt, lg_dodt);
         Calc_Grid_Diagnostics();
-        Execute_Kernel(ocl_updateRK, ListArch, {lg_d, lg_o, lg_dddt, lg_dodt, int_lg_d, int_lg_o}, {Real(0.5*dT)});
+        Stat = Execute_Kernel(ocl_updateRK, ListArch, {lg_d, lg_o, lg_dddt, lg_dodt, int_lg_d, int_lg_o}, {cl_real(0.5*dT)});
         Calc_Particle_RateofChange(int_lg_d, int_lg_o, k2_d, k2_o);
-        Execute_Kernel(ocl_updateRK, ListArch, {lg_d, lg_o, k2_d, k2_o, int_lg_d, int_lg_o}, {Real(0.5*dT)});
+        Stat = Execute_Kernel(ocl_updateRK, ListArch, {lg_d, lg_o, k2_d, k2_o, int_lg_d, int_lg_o}, {cl_real(0.5*dT)});
         Calc_Particle_RateofChange(int_lg_d, int_lg_o, k3_d, k3_o);
-        Execute_Kernel(ocl_updateRK, ListArch, {lg_d, lg_o, k3_d, k3_o, int_lg_d, int_lg_o}, {Real(dT)});
+        Stat = Execute_Kernel(ocl_updateRK, ListArch, {lg_d, lg_o, k3_d, k3_o, int_lg_d, int_lg_o}, {cl_real(dT)});
         Calc_Particle_RateofChange(int_lg_d, int_lg_o, k4_d, k4_o);
-        Execute_Kernel(ocl_updateRK4, ListArch, {lg_d, lg_o, lg_dddt, lg_dodt, k2_d, k2_o, k3_d, k3_o, k4_d, k4_o}, {Real(dT)});
+        Stat = Execute_Kernel(ocl_updateRK4, ListArch, {lg_d, lg_o, lg_dddt, lg_dodt, k2_d, k2_o, k3_d, k3_o, k4_d, k4_o}, {cl_real(dT)});
     }
 
     if (Integrator == LSRK3)    // Runge-Kutta third order low-storage (4-stage)
@@ -859,13 +870,13 @@ void VPM3D_ocl::Update_Particle_Field()
         // Zero_FloatBuffer(int_lg_o,    0, 3*NNT*sizeof(Real));       // Clear intermediate arrays (Necessary?)
         Calc_Particle_RateofChange(lg_d, lg_o, lg_dddt, lg_dodt);
         Calc_Grid_Diagnostics();
-        Execute_Kernel(ocl_updateRKLS, ListArch, {lg_d, lg_o, lg_dddt, lg_dodt, int_lg_d, int_lg_o}, {Real(RK3A[0]), Real(RK3B[0]), Real(dT)});
+        Stat = Execute_Kernel(ocl_updateRKLS, ListArch, {lg_d, lg_o, lg_dddt, lg_dodt, int_lg_d, int_lg_o}, {cl_real(RK3A[0]), cl_real(RK3B[0]), cl_real(dT)});
         Calc_Particle_RateofChange(lg_d, lg_o, lg_dddt, lg_dodt);
-        Execute_Kernel(ocl_updateRKLS, ListArch, {lg_d, lg_o, lg_dddt, lg_dodt, int_lg_d, int_lg_o}, {Real(RK3A[1]), Real(RK3B[1]), Real(dT)});
+        Stat = Execute_Kernel(ocl_updateRKLS, ListArch, {lg_d, lg_o, lg_dddt, lg_dodt, int_lg_d, int_lg_o}, {cl_real(RK3A[1]), cl_real(RK3B[1]), cl_real(dT)});
         Calc_Particle_RateofChange(lg_d, lg_o, lg_dddt, lg_dodt);
-        Execute_Kernel(ocl_updateRKLS, ListArch, {lg_d, lg_o, lg_dddt, lg_dodt, int_lg_d, int_lg_o}, {Real(RK3A[2]), Real(RK3B[2]), Real(dT)});
+        Stat = Execute_Kernel(ocl_updateRKLS, ListArch, {lg_d, lg_o, lg_dddt, lg_dodt, int_lg_d, int_lg_o}, {cl_real(RK3A[2]), cl_real(RK3B[2]), cl_real(dT)});
         Calc_Particle_RateofChange(lg_d, lg_o, lg_dddt, lg_dodt);
-        Execute_Kernel(ocl_updateRKLS, ListArch, {lg_d, lg_o, lg_dddt, lg_dodt, int_lg_d, int_lg_o}, {Real(RK3A[3]), Real(RK3B[3]), Real(dT)});
+        Stat = Execute_Kernel(ocl_updateRKLS, ListArch, {lg_d, lg_o, lg_dddt, lg_dodt, int_lg_d, int_lg_o}, {cl_real(RK3A[3]), cl_real(RK3B[3]), cl_real(dT)});
     }
 
     if (Integrator == LSRK4)    // Runge-Kutta fourth order low-storage (5-stage)
@@ -874,15 +885,15 @@ void VPM3D_ocl::Update_Particle_Field()
         // Zero_FloatBuffer(int_lg_o, 3*NNT*sizeof(Real));       // Clear intermediate arrays (Necessary?)
         Calc_Particle_RateofChange(lg_d, lg_o, lg_dddt, lg_dodt);
         Calc_Grid_Diagnostics();
-        Execute_Kernel(ocl_updateRKLS, ListArch, {lg_d, lg_o, lg_dddt, lg_dodt, int_lg_d, int_lg_o}, {Real(RK4A[0]), Real(RK4B[0]), Real(dT)});
+        Stat = Execute_Kernel(ocl_updateRKLS, ListArch, {lg_d, lg_o, lg_dddt, lg_dodt, int_lg_d, int_lg_o}, {cl_real(RK4A[0]), cl_real(RK4B[0]), cl_real(dT)});
         Calc_Particle_RateofChange(lg_d, lg_o, lg_dddt, lg_dodt);
-        Execute_Kernel(ocl_updateRKLS, ListArch, {lg_d, lg_o, lg_dddt, lg_dodt, int_lg_d, int_lg_o}, {Real(RK4A[1]), Real(RK4B[1]), Real(dT)});
+        Stat = Execute_Kernel(ocl_updateRKLS, ListArch, {lg_d, lg_o, lg_dddt, lg_dodt, int_lg_d, int_lg_o}, {cl_real(RK4A[1]), cl_real(RK4B[1]), cl_real(dT)});
         Calc_Particle_RateofChange(lg_d, lg_o, lg_dddt, lg_dodt);
-        Execute_Kernel(ocl_updateRKLS, ListArch, {lg_d, lg_o, lg_dddt, lg_dodt, int_lg_d, int_lg_o}, {Real(RK4A[2]), Real(RK4B[2]), Real(dT)});
+        Stat = Execute_Kernel(ocl_updateRKLS, ListArch, {lg_d, lg_o, lg_dddt, lg_dodt, int_lg_d, int_lg_o}, {cl_real(RK4A[2]), cl_real(RK4B[2]), cl_real(dT)});
         Calc_Particle_RateofChange(lg_d, lg_o, lg_dddt, lg_dodt);
-        Execute_Kernel(ocl_updateRKLS, ListArch, {lg_d, lg_o, lg_dddt, lg_dodt, int_lg_d, int_lg_o}, {Real(RK4A[3]), Real(RK4B[3]), Real(dT)});
+        Stat = Execute_Kernel(ocl_updateRKLS, ListArch, {lg_d, lg_o, lg_dddt, lg_dodt, int_lg_d, int_lg_o}, {cl_real(RK4A[3]), cl_real(RK4B[3]), cl_real(dT)});
         Calc_Particle_RateofChange(lg_d, lg_o, lg_dddt, lg_dodt);
-        Execute_Kernel(ocl_updateRKLS, ListArch, {lg_d, lg_o, lg_dddt, lg_dodt, int_lg_d, int_lg_o}, {Real(RK4A[4]), Real(RK4B[4]), Real(dT)});
+        Stat = Execute_Kernel(ocl_updateRKLS, ListArch, {lg_d, lg_o, lg_dddt, lg_dodt, int_lg_d, int_lg_o}, {cl_real(RK4A[4]), cl_real(RK4B[4]), cl_real(dT)});
     }
 }
 
@@ -898,160 +909,159 @@ void VPM3D_ocl::Calc_Particle_RateofChange(const cl_mem pd, const cl_mem po, cl_
     Zero_FloatBuffer(eu_dodt, 3*NNT*sizeof(Real));       // Clear Eulerian grid rate of change arrays
 
     // Map vorticity from Lagrangian grid to Eulerian grid
+    SFStatus Stat = NoError;
     switch (SolverMap)
     {
-        case (M2):  {Execute_Kernel(ocl_mapM2 , BlockArch, {po, pd, Halo1data, eu_o});    break;}
-        case (M4):  {Execute_Kernel(ocl_mapM4 , BlockArch, {po, pd, Halo2data, eu_o});    break;}
-        case (M4D): {Execute_Kernel(ocl_mapM4D, BlockArch, {po, pd, Halo2data, eu_o});    break;}
-        case (M6D): {Execute_Kernel(ocl_mapM6D, BlockArch, {po, pd, Halo3data, eu_o});    break;}
+        case (M2):  {Stat = Execute_Kernel(ocl_mapM2 , BlockArch, {po, pd, Halo1data, eu_o});    break;}
+        case (M4):  {Stat = Execute_Kernel(ocl_mapM4 , BlockArch, {po, pd, Halo2data, eu_o});    break;}
+        case (M4D): {Stat = Execute_Kernel(ocl_mapM4D, BlockArch, {po, pd, Halo2data, eu_o});    break;}
+        case (M6D): {Stat = Execute_Kernel(ocl_mapM6D, BlockArch, {po, pd, Halo3data, eu_o});    break;}
         default:    {std::cout << "VPM3D_ocl::Calc_Particle_RateofChange(). Mapping undefined.";   return;}
     }
 
-    // if (NStep==2)  Generate_VTK();      // rates of change not yet calculated. no problems
-
-    // Calc_Grid_SpectralRatesof_Change();         // The rates of change are calculated on the fixed grid
+    // // Calc_Grid_SpectralRatesof_Change();         // The rates of change are calculated on the fixed grid
     Calc_Grid_FDRatesof_Change();                 // The rates of change are calculated on the fixed grid
-
-    // if (NStep==2)  Generate_VTK();      // Velocity is behaving weirdly here..
 
     // Map grid values to particles
     switch (SolverMap)
     {
-        case (M2):  {Execute_Kernel(ocl_interpM2 , BlockArch, {eu_dddt, eu_dodt, pd, Halo1data, dpddt, dpodt});    break;}
-        case (M4):  {Execute_Kernel(ocl_interpM4 , BlockArch, {eu_dddt, eu_dodt, pd, Halo2data, dpddt, dpodt});    break;}
-        case (M4D): {Execute_Kernel(ocl_interpM4D, BlockArch, {eu_dddt, eu_dodt, pd, Halo2data, dpddt, dpodt});    break;}
-        case (M6D): {Execute_Kernel(ocl_interpM6D, BlockArch, {eu_dddt, eu_dodt, pd, Halo3data, dpddt, dpodt});    break;}
+        case (M2):  {Stat = Execute_Kernel(ocl_interpM2 , BlockArch, {eu_dddt, eu_dodt, pd, Halo1data, dpddt, dpodt});    break;}
+        case (M4):  {Stat = Execute_Kernel(ocl_interpM4 , BlockArch, {eu_dddt, eu_dodt, pd, Halo2data, dpddt, dpodt});    break;}
+        case (M4D): {Stat = Execute_Kernel(ocl_interpM4D, BlockArch, {eu_dddt, eu_dodt, pd, Halo2data, dpddt, dpodt});    break;}
+        case (M6D): {Stat = Execute_Kernel(ocl_interpM6D, BlockArch, {eu_dddt, eu_dodt, pd, Halo3data, dpddt, dpodt});    break;}
         default:    {std::cout << "VPM3D_ocl::Calc_Particle_RateofChange(). Mapping undefined.";   return;}
     }
 }
 
-// void VPM3D_ocl::Calc_Grid_FDRatesof_Change()
-// {
-//     // The rates of change on the grid (eu_dddt, eu_dodt) are calculated using SailFFish and finite differences
+void VPM3D_ocl::Calc_Grid_FDRatesof_Change()
+{
+    // The rates of change on the grid (eu_dddt, eu_dodt) are calculated using SailFFish and finite differences
 
-//     // Calculate velocity on the grid- the method due to eastwood requires an expanded domain, so this must be mapped
-//     // NOTE: We are skipping mapping external sources for now... will include this later
+    // Calculate velocity on the grid- the method due to eastwood requires an expanded domain, so this must be mapped
+    // NOTE: We are skipping mapping external sources for now... will include this later
 
-//     // Reset input arrays for FFT solver
-//     Zero_FloatBuffer(cl_r_Input1,   Real(0.0), NT*sizeof(Real));
-//     Zero_FloatBuffer(cl_r_Input2,   Real(0.0), NT*sizeof(Real));
-//     Zero_FloatBuffer(cl_r_Input3,   Real(0.0), NT*sizeof(Real));
+    // Reset input arrays for FFT solver
+    Zero_FloatBuffer(cl_r_Input1, NT*sizeof(Real));
+    Zero_FloatBuffer(cl_r_Input2, NT*sizeof(Real));
+    Zero_FloatBuffer(cl_r_Input3, NT*sizeof(Real));
 
-//     // Specify input arrays for FFT solver
-//     ocl_map_toUnbounded->Execute(eu_o, cl_r_Input1, cl_r_Input2, cl_r_Input3);
-//     // if (AuxGrid) ocl_map_aux_toUnboundedVPM->Execute(AuxGrid->Get_Vort_Array(), cl_r_Input1, cl_r_Input2, cl_r_Input3);
-//     Map_from_Auxiliary_Grid();
-//     Forward_Transform();
-//     ocl_VPM_convolution->Execute(c_FTInput1, c_FTInput2, c_FTInput3, c_FG, c_FGi, c_FGj, c_FGk, c_FTOutput1, c_FTOutput2, c_FTOutput3);
-//     Backward_Transform();
-//     ocl_map_fromUnbounded->Execute(cl_r_Output1, cl_r_Output2, cl_r_Output3, eu_dddt);
+    // Stat = Execute_Kernel(Kernel, Arch, {});
 
-//     //--- Calculate shear stresses on grid
-//     Grid_Shear_Stresses();
-//     Grid_Turb_Shear_Stresses();
+    // Specify input arrays for FFT solver
+    SFStatus Stat = NoError;
+    Stat = Execute_Kernel(ocl_map_toUnbounded, BlockArch, {eu_o, cl_r_Input1, cl_r_Input2, cl_r_Input3});
+    Map_from_Auxiliary_Grid();
+    Forward_Transform();
+    Stat = Execute_Kernel(ocl_VPM_convolution, ConvArch, {c_FTInput1, c_FTInput2, c_FTInput3, c_FG, c_FGi, c_FGj, c_FGk, c_FTOutput1, c_FTOutput2, c_FTOutput3});
+    Backward_Transform();
+    Stat = Execute_Kernel(ocl_map_fromUnbounded, BlockArch, {cl_r_Output1, cl_r_Output2, cl_r_Output3, eu_dddt});
 
-//     //--- Add freestream velocity
-//     Add_Freestream_Velocity();
-// }
+    //--- Calculate shear stresses on grid
+    Grid_Shear_Stresses();
+    // Grid_Turb_Shear_Stresses();
 
-// void VPM3D_ocl::Grid_Shear_Stresses()
-// {
-//     // We shall execute the different fd depending on the order of the FD
-//     switch (FDOrder)
-//     {
-//     case (CD2): {ocl_stretch_FD2->Execute(eu_o, eu_dddt, Halo1data, eu_dodt, sgs, qcrit);   break;}
-//     case (CD4): {ocl_stretch_FD4->Execute(eu_o, eu_dddt, Halo2data, eu_dodt, sgs, qcrit);   break;}
-//     case (CD6): {ocl_stretch_FD6->Execute(eu_o, eu_dddt, Halo3data, eu_dodt, sgs, qcrit);   break;}
-//     case (CD8): {ocl_stretch_FD8->Execute(eu_o, eu_dddt, Halo4data, eu_dodt, sgs, qcrit);   break;}
-//     default:    {std::cout << "VPM3D_ocl::Grid_Shear_Stresses(). FDOrder undefined.";   break;}
-//     }
-//     return;
-// }
+    //--- Add freestream velocity
+    // Add_Freestream_Velocity();
+}
 
-// void VPM3D_ocl::Grid_Turb_Shear_Stresses()
-// {
-//     // Turbulent shear stresses are calculated on the Eulerian grid
-//     if (Turb==LAM) return;
+void VPM3D_ocl::Grid_Shear_Stresses()
+{
+    // We shall execute the different fd depending on the order of the FD
+    SFStatus Stat = NoError;
+    switch (FDOrder)
+    {
+        case (CD2): {Stat = Execute_Kernel(ocl_stretch_FD2, BlockArch, {eu_o, eu_dddt, Halo1data, eu_dodt, sgs, qcrit});   break;}
+        case (CD4): {Stat = Execute_Kernel(ocl_stretch_FD4, BlockArch, {eu_o, eu_dddt, Halo2data, eu_dodt, sgs, qcrit});   break;}
+        case (CD6): {Stat = Execute_Kernel(ocl_stretch_FD6, BlockArch, {eu_o, eu_dddt, Halo3data, eu_dodt, sgs, qcrit});   break;}
+        case (CD8): {Stat = Execute_Kernel(ocl_stretch_FD8, BlockArch, {eu_o, eu_dddt, Halo4data, eu_dodt, sgs, qcrit});   break;}
+        default:    {std::cout << "VPM3D_ocl::Grid_Shear_Stresses(). FDOrder undefined.";   break;}
+    }
+    return;
+}
 
-//     if (Turb==HYP)
-//     {
-//         // As the storage of the laplacian operator incurs a lot of additional overhead, unlike for the CPU implementation,
-//         // I will here recalculate it.
+void VPM3D_ocl::Grid_Turb_Shear_Stresses()
+{
+    SFStatus Stat = NoError;
 
-//         Zero_FloatBuffer(Laplacian, Real(0.0), 3*NNT*sizeof(Real));
+    // Turbulent shear stresses are calculated on the Eulerian grid
+    if (Turb==LAM) return;
 
-//         switch (FDOrder)
-//         {
-//         case (CD2): {ocl_Laplacian_FD2->Execute(eu_o, Halo1data, Laplacian);     break; }
-//         case (CD4): {ocl_Laplacian_FD4->Execute(eu_o, Halo2data, Laplacian);     break; }
-//         case (CD6): {ocl_Laplacian_FD6->Execute(eu_o, Halo3data, Laplacian);     break; }
-//         case (CD8): {ocl_Laplacian_FD8->Execute(eu_o, Halo4data, Laplacian);     break; }
-//         default:    {std::cout << "VPM3D_cpu::Grid_Turb_Shear_Stresses. FDOrder undefined.";  break; }
-//         }
+    if (Turb==HYP)
+    {
+        // As the storage of the laplacian operator incurs a lot of additional overhead, unlike for the CPU implementation,
+        // I will here recalculate it.
 
-//         switch (FDOrder)
-//         {
-//         case (CD2): {ocl_Turb_Hyp_FD2->Execute(Laplacian, Halo1data, C_smag, eu_dodt);     break; }
-//         case (CD4): {ocl_Turb_Hyp_FD4->Execute(Laplacian, Halo2data, C_smag, eu_dodt);     break; }
-//         case (CD6): {ocl_Turb_Hyp_FD6->Execute(Laplacian, Halo3data, C_smag, eu_dodt);     break; }
-//         case (CD8): {ocl_Turb_Hyp_FD8->Execute(Laplacian, Halo4data, C_smag, eu_dodt);     break; }
-//         default:    {std::cout << "VPM3D_cpu::Grid_Turb_Shear_Stresses. FDOrder undefined.";  break; }
-//         }
-//     }
+        std::cout << "VPM3D_ocl::Grid_Turb_Shear_Stresses(): Hyperviscosity style Turbulence kernels not yet implemented." << std::endl;
 
-//     // Regularized variational multiscale models
+        // Zero_FloatBuffer(Laplacian, Real(0.0), 3*NNT*sizeof(Real));
 
-//     if (Turb==RVM1)         // RVM first order
-//     {
-//         // Copy Omega array into temp array.
-//         Zero_FloatBuffer(gfilt_Array1, Real(0.0), 3*NNT*sizeof(Real));
-//         Zero_FloatBuffer(gfilt_Array2, Real(0.0), 3*NNT*sizeof(Real));
+        // switch (FDOrder)
+        // {
+        // case (CD2): {ocl_Laplacian_FD2->Execute(eu_o, Halo1data, Laplacian);     break; }
+        // case (CD4): {ocl_Laplacian_FD4->Execute(eu_o, Halo2data, Laplacian);     break; }
+        // case (CD6): {ocl_Laplacian_FD6->Execute(eu_o, Halo3data, Laplacian);     break; }
+        // case (CD8): {ocl_Laplacian_FD8->Execute(eu_o, Halo4data, Laplacian);     break; }
+        // default:    {std::cout << "VPM3D_ocl::Grid_Turb_Shear_Stresses. FDOrder undefined.";  break; }
+        // }
 
-//         Copy_Buffer(gfilt_Array2, eu_o, 3*NNT*sizeof(Real), cudaMemcpyDeviceToDevice);
-//         ocl_sg_discfilt->Execute(eu_o, Halo1data, gfilt_Array2, gfilt_Array1, int(2));   // Z sweep
-//         ocl_sg_discfilt->Execute(eu_o, Halo1data, gfilt_Array1, gfilt_Array2, int(1));   // Y sweep
-//         ocl_sg_discfilt->Execute(eu_o, Halo1data, gfilt_Array2, gfilt_Array1, int(0));   // X sweep
-//         ocl_sg_discfilt->Execute(eu_o, Halo1data, gfilt_Array1, gfilt_Array2, int(3));   // set small scale
+        // switch (FDOrder)
+        // {
+        // case (CD2): {ocl_Turb_Hyp_FD2->Execute(Laplacian, Halo1data, C_smag, eu_dodt);     break; }
+        // case (CD4): {ocl_Turb_Hyp_FD4->Execute(Laplacian, Halo2data, C_smag, eu_dodt);     break; }
+        // case (CD6): {ocl_Turb_Hyp_FD6->Execute(Laplacian, Halo3data, C_smag, eu_dodt);     break; }
+        // case (CD8): {ocl_Turb_Hyp_FD8->Execute(Laplacian, Halo4data, C_smag, eu_dodt);     break; }
+        // default:    {std::cout << "VPM3D_ocl::Grid_Turb_Shear_Stresses. FDOrder undefined.";  break; }
+        // }
+    }
 
-//         // ocl_sg_discfilt2->Execute(eu_o, Halo1data, gfilt_Array2, gfilt_Array1, int(0));   // Full sweep
-//         // ocl_sg_discfilt2->Execute(eu_o, Halo1data, gfilt_Array1, gfilt_Array2, int(1));   // set small scale
+    // Regularized variational multiscale models
 
-//         switch (FDOrder)
-//         {
-//         case (CD2): {ocl_Turb_RVM_FD2->Execute(gfilt_Array2, sgs, Halo1data, C_smag , eu_dodt);     break; }
-//         case (CD4): {ocl_Turb_RVM_FD4->Execute(gfilt_Array2, sgs, Halo2data, C_smag , eu_dodt);     break; }
-//         case (CD6): {ocl_Turb_RVM_FD6->Execute(gfilt_Array2, sgs, Halo3data, C_smag , eu_dodt);     break; }
-//         case (CD8): {ocl_Turb_RVM_FD8->Execute(gfilt_Array2, sgs, Halo4data, C_smag , eu_dodt);     break; }
-//         default:    {std::cout << "VPM3D_cpu::Grid_Turb_Shear_Stresses. FDOrder undefined for RVM2.";  break; }
-//         }
-//     }
+    if (Turb==RVM1)         // RVM first order
+    {
+        // Copy Omega array into temp array.
+        Zero_FloatBuffer(gfilt_Array1, 3*NNT*sizeof(Real));
+        Zero_FloatBuffer(gfilt_Array2, 3*NNT*sizeof(Real));
+        Copy_Buffer(gfilt_Array2, eu_o, 3*NNT*sizeof(Real));
+        Stat = Execute_Kernel(ocl_sg_discfiltz, BlockArch, {eu_o, Halo1data, gfilt_Array2, gfilt_Array1});   // Z sweep
+        Stat = Execute_Kernel(ocl_sg_discfilty, BlockArch, {eu_o, Halo1data, gfilt_Array1, gfilt_Array2});   // Y sweep
+        Stat = Execute_Kernel(ocl_sg_discfiltx, BlockArch, {eu_o, Halo1data, gfilt_Array2, gfilt_Array1});   // X sweep
+        Stat = Execute_Kernel(ocl_sg_discfiltss, BlockArch, {eu_o, Halo1data, gfilt_Array1, gfilt_Array2});  // set small scale
 
-//     if (Turb==RVM2)         // RVM second order
-//     {
-//         // Copy Omega array into temp array.
-//         Zero_FloatBuffer(gfilt_Array1, Real(0.0), 3*NNT*sizeof(Real));
-//         Zero_FloatBuffer(gfilt_Array2, Real(0.0), 3*NNT*sizeof(Real));
+        switch (FDOrder)
+        {
+            case (CD2): {Stat = Execute_Kernel(ocl_Turb_RVM_FD2, BlockArch, {gfilt_Array2, sgs, Halo1data, eu_dodt}, {C_smag});    break; }
+            case (CD4): {Stat = Execute_Kernel(ocl_Turb_RVM_FD4, BlockArch, {gfilt_Array2, sgs, Halo2data, eu_dodt}, {C_smag});    break; }
+            case (CD6): {Stat = Execute_Kernel(ocl_Turb_RVM_FD6, BlockArch, {gfilt_Array2, sgs, Halo3data, eu_dodt}, {C_smag});    break; }
+            case (CD8): {Stat = Execute_Kernel(ocl_Turb_RVM_FD8, BlockArch, {gfilt_Array2, sgs, Halo4data, eu_dodt}, {C_smag});    break; }
+            default:    {std::cout << "VPM3D_ocl::Grid_Turb_Shear_Stresses. FDOrder undefined for RVM2.";  break; }
+        }
+    }
 
-//         Copy_Buffer(gfilt_Array1, eu_o, 3*NNT*sizeof(Real), cudaMemcpyDeviceToDevice);
-//         ocl_sg_discfilt->Execute(eu_o, Halo1data, gfilt_Array1, gfilt_Array2, int(2));   // Z sweep 1
-//         ocl_sg_discfilt->Execute(eu_o, Halo1data, gfilt_Array2, gfilt_Array1, int(2));   // Z sweep 2
-//         ocl_sg_discfilt->Execute(eu_o, Halo1data, gfilt_Array1, gfilt_Array2, int(1));   // Y sweep 1
-//         ocl_sg_discfilt->Execute(eu_o, Halo1data, gfilt_Array2, gfilt_Array1, int(1));   // Y sweep 2
-//         ocl_sg_discfilt->Execute(eu_o, Halo1data, gfilt_Array1, gfilt_Array2, int(0));   // X sweep 1
-//         ocl_sg_discfilt->Execute(eu_o, Halo1data, gfilt_Array2, gfilt_Array1, int(0));   // X sweep 2
-//         ocl_sg_discfilt->Execute(eu_o, Halo1data, gfilt_Array1, gfilt_Array2, int(3));   // set small scale
+    if (Turb==RVM2)         // RVM second order
+    {
+        // Copy Omega array into temp array.
+        Zero_FloatBuffer(gfilt_Array1, 3*NNT*sizeof(Real));
+        Zero_FloatBuffer(gfilt_Array2, 3*NNT*sizeof(Real));
+        Copy_Buffer(gfilt_Array1, eu_o, 3*NNT*sizeof(Real));
+        Stat = Execute_Kernel(ocl_sg_discfiltz, BlockArch, {eu_o, Halo1data, gfilt_Array1, gfilt_Array2});  // Z sweep 1
+        Stat = Execute_Kernel(ocl_sg_discfiltz, BlockArch, {eu_o, Halo1data, gfilt_Array2, gfilt_Array1});  // Z sweep 2
+        Stat = Execute_Kernel(ocl_sg_discfilty, BlockArch, {eu_o, Halo1data, gfilt_Array1, gfilt_Array2});  // Y sweep 1
+        Stat = Execute_Kernel(ocl_sg_discfilty, BlockArch, {eu_o, Halo1data, gfilt_Array2, gfilt_Array1});  // Y sweep 2
+        Stat = Execute_Kernel(ocl_sg_discfiltx, BlockArch, {eu_o, Halo1data, gfilt_Array1, gfilt_Array2});  // X sweep 1
+        Stat = Execute_Kernel(ocl_sg_discfiltx, BlockArch, {eu_o, Halo1data, gfilt_Array2, gfilt_Array1});  // X sweep 2
+        Stat = Execute_Kernel(ocl_sg_discfiltss, BlockArch, {eu_o, Halo1data, gfilt_Array1, gfilt_Array2}); // set small scale
 
-//         switch (FDOrder)
-//         {
-//         case (CD2): {ocl_Turb_RVM_FD2->Execute(gfilt_Array2, sgs, Halo1data, C_smag , eu_dodt);     break; }
-//         case (CD4): {ocl_Turb_RVM_FD4->Execute(gfilt_Array2, sgs, Halo2data, C_smag , eu_dodt);     break; }
-//         case (CD6): {ocl_Turb_RVM_FD6->Execute(gfilt_Array2, sgs, Halo3data, C_smag , eu_dodt);     break; }
-//         case (CD8): {ocl_Turb_RVM_FD8->Execute(gfilt_Array2, sgs, Halo4data, C_smag , eu_dodt);     break; }
-//         default:    {std::cout << "VPM3D_cpu::Grid_Turb_Shear_Stresses. FDOrder undefined for RVM2.";  break; }
-//         }
-//     }
+        switch (FDOrder)
+        {
+            case (CD2): {Stat = Execute_Kernel(ocl_Turb_RVM_FD2, BlockArch, {gfilt_Array2, sgs, Halo1data, eu_dodt}, {C_smag});    break; }
+            case (CD4): {Stat = Execute_Kernel(ocl_Turb_RVM_FD4, BlockArch, {gfilt_Array2, sgs, Halo2data, eu_dodt}, {C_smag});    break; }
+            case (CD6): {Stat = Execute_Kernel(ocl_Turb_RVM_FD6, BlockArch, {gfilt_Array2, sgs, Halo3data, eu_dodt}, {C_smag});    break; }
+            case (CD8): {Stat = Execute_Kernel(ocl_Turb_RVM_FD8, BlockArch, {gfilt_Array2, sgs, Halo4data, eu_dodt}, {C_smag});    break; }
+            default:    {std::cout << "VPM3D_ocl::Grid_Turb_Shear_Stresses. FDOrder undefined for RVM2.";  break; }
+        }
+    }
 
-// }
+}
 
 void VPM3D_ocl::Remesh_Particle_Set()
 {
@@ -1151,96 +1161,97 @@ void VPM3D_ocl::Remesh_Particle_Set()
 //     ocl_map_fromUnbounded->Execute(cl_r_Output1, cl_r_Output2, cl_r_Output3, eu_dddt);
 // }
 
-// void VPM3D_ocl::Calc_Grid_Diagnostics()
-// {
-//     // Diagnostics are calculated in blocks of size BS This is transferred back to the CPU and summed there for simplicity
-//     Zero_FloatBuffer(diagnostic_reduced,     Real(0.0), NDiags*NBT*sizeof(Real));
-//     ocl_Diagnostics->Execute(Real(XN1), Real(YN1), Real(ZN1), eu_o, eu_dddt, diagnostic_reduced);
-
-//     // Transfer back to host
-//     RVector dred(NDiags*NBT);
-//     Copy_Buffer(dred.data(), diagnostic_reduced, NDiags*NBT*sizeof(Real), cudaMemcpyDeviceToHost);
-
-//     // Carry out sum on host (could be optimised, but for now this probably isn't a bottleneck
-//     RVector Sums(15,0);
-//     Parallel_Kernel(15) {
-//         if (i<13)   Sums[i] = std::accumulate(dred.begin()+i*NBT,dred.begin()+(i+1)*NBT,0.0);
-//         else        Sums[i] = *std::max_element(dred.begin()+i*NBT, dred.begin()+(i+1)*NBT);
-//     }
-
-//     Real dV = Hx*Hy*Hz;
-//     Real C[3] = {Sums[0 ]*dV, Sums[1 ]*dV, Sums[2 ]*dV};
-//     Real L[3] = {Sums[3 ]*dV, Sums[4 ]*dV, Sums[5 ]*dV};
-//     Real A[3] = {Sums[6 ]*dV, Sums[7 ]*dV, Sums[8 ]*dV};
-//     Real K1 = Sums[9]*dV;
-//     Real K2 = Sums[10]*dV;
-//     Real E = Sums[11]*dV;
-//     Real H = Sums[12]*dV;
-//     Real OmMax = Sums[13];
-//     Real UMax = Sums[14];
-//     Real CFL = UMax*dT/H_Grid;
-//     // Real SMax =  *std::max_element(t_SMax.begin(), t_SMax.end());
-
-//     //--------------------- Output these values into a file in the output called "Diagnostics.dat"
-//     //--------------------- Create the file & directory if they don't yet exist
-
-//     if (Log)
-//     {
-//         // File target location
-//         std::string OutputDirectory = "Output/" + OutputFolder;
-//         std::string FilePath = OutputDirectory + "/Diagnostics.dat";
-
-//         if (NStep==NInit)
-//         {
-//             create_directory(std::filesystem::path(OutputDirectory));   // Generate directory
-//             std::ofstream file;
-//             file.open(FilePath, std::ofstream::out | std::ofstream::trunc); // Clear!
-//             file.close();
-//         }
-
-//         // Print diagnostics to file
-//         std::ofstream file;
-//         file.open(FilePath, std::ios_base::app);
-//         if (file.is_open())
-//         {           //1      //2            //3     //4     //5       //6       //7     //8     //9
-//             file << NStep csp NStep*dT csp CFL csp C[0] csp C[1] csp C[2] csp L[0] csp L[1] csp L[2] csp
-//                             //10      //11    //12     //13  //14    //15  //16  //17
-//                             A[0] csp A[1] csp A[2] csp K1 csp K2 csp E csp H csp OmMax << std::endl;
-//         }
-//     }
-
-//     if (Debug) std::cout     << "Step "          << NStep
-//                   << ", UMax: "       << UMax
-//                   << ", OmegaMax: "   << OmMax
-//                   << ", CFL: "        << CFL
-//                   << ", Max Om*dt (<=0.4): "<< OmMax*dT
-//                   << ", Max S*dt (<=0.2): "    << SMax*dT << std::endl;
-
-//     // std::cout << C[0]   << std::endl;
-//     // std::cout << C[1]   << std::endl;
-//     // std::cout << C[2]   << std::endl;
-//     // std::cout << L[0]   << std::endl;
-//     // std::cout << L[1]   << std::endl;
-//     // std::cout << L[2]   << std::endl;
-//     // std::cout << A[0]   << std::endl;
-//     // std::cout << A[1]   << std::endl;
-//     // std::cout << A[2]   << std::endl;
-//     // std::cout << K1     << std::endl;
-//     // std::cout << K2     << std::endl;
-//     // std::cout << E      << std::endl;
-//     // std::cout << H      << std::endl;
-//     // std::cout << OmMax  << std::endl;
+void VPM3D_ocl::Calc_Grid_Diagnostics()
+{
+    // Diagnostics are calculated in blocks of size BS This is transferred back to the CPU and summed there for simplicity
+    Zero_FloatBuffer(diagnostic_reduced, NDiags*NBT*sizeof(Real));
+    SFStatus Stat = Execute_Kernel(ocl_Diagnostics, ListArch, {eu_o, eu_dddt, diagnostic_reduced});
 
 
-//     // Winckelmans: |S|*dt <= 0.2   , |omega|*dt <= 0.4
+    // Transfer back to host
+    RVector dred(NDiags*NBT);
+    VkFFTResult res = transferDataToCPU(vkGPU, dred.data(), &diagnostic_reduced, (uint64_t)NDiags*NBT*sizeof(Real));
 
-//     // Saffman Centroid
-//     //    Real Saffman_Cent_X = SaffCent[0];
-//     //    Real dUxdT = (Saffman_Cent_X-Saffman_Cent_X_prev)/dT;
-//     //    Saffman_Cent_X_prev = Saffman_Cent_X;
-//     //    std::cout << "Saffman Centroid dUx/dt: " << dUxdT << std::endl;
+    // Carry out sum on host (could be optimised, but for now this probably isn't a bottleneck
+    RVector Sums(15,0);
+    Parallel_Kernel(15) {
+        if (i<13)   Sums[i] = std::accumulate(dred.begin()+i*NBT,dred.begin()+(i+1)*NBT,0.0);
+        else        Sums[i] = *std::max_element(dred.begin()+i*NBT, dred.begin()+(i+1)*NBT);
+    }
 
-// }
+    Real dV = Hx*Hy*Hz;
+    Real C[3] = {Sums[0 ]*dV, Sums[1 ]*dV, Sums[2 ]*dV};
+    Real L[3] = {Sums[3 ]*dV, Sums[4 ]*dV, Sums[5 ]*dV};
+    Real A[3] = {Sums[6 ]*dV, Sums[7 ]*dV, Sums[8 ]*dV};
+    Real K1 = Sums[9]*dV;
+    Real K2 = Sums[10]*dV;
+    Real E = Sums[11]*dV;
+    Real H = Sums[12]*dV;
+    Real OmMax = Sums[13];
+    Real UMax = Sums[14];
+    Real CFL = UMax*dT/H_Grid;
+    // Real SMax =  *std::max_element(t_SMax.begin(), t_SMax.end());
+
+    //--------------------- Output these values into a file in the output called "Diagnostics.dat"
+    //--------------------- Create the file & directory if they don't yet exist
+
+    if (Log)
+    {
+        // File target location
+        std::string OutputDirectory = "Output/" + OutputFolder;
+        std::string FilePath = OutputDirectory + "/Diagnostics.dat";
+
+        if (NStep==NInit)
+        {
+            create_directory(std::filesystem::path(OutputDirectory));   // Generate directory
+            std::ofstream file;
+            file.open(FilePath, std::ofstream::out | std::ofstream::trunc); // Clear!
+            file.close();
+        }
+
+        // Print diagnostics to file
+        std::ofstream file;
+        file.open(FilePath, std::ios_base::app);
+        if (file.is_open())
+        {           //1      //2            //3     //4     //5       //6       //7     //8     //9
+            file << NStep csp NStep*dT csp CFL csp C[0] csp C[1] csp C[2] csp L[0] csp L[1] csp L[2] csp
+                            //10      //11    //12     //13  //14    //15  //16  //17
+                            A[0] csp A[1] csp A[2] csp K1 csp K2 csp E csp H csp OmMax << std::endl;
+        }
+    }
+
+    if (Debug) std::cout     << "Step "          << NStep
+                  << ", UMax: "       << UMax
+                  << ", OmegaMax: "   << OmMax
+                  << ", CFL: "        << CFL
+                  << ", Max Om*dt (<=0.4): "<< OmMax*dT
+                  << ", Max S*dt (<=0.2): "    << SMax*dT << std::endl;
+
+    // std::cout << C[0]   << std::endl;
+    // std::cout << C[1]   << std::endl;
+    // std::cout << C[2]   << std::endl;
+    // std::cout << L[0]   << std::endl;
+    // std::cout << L[1]   << std::endl;
+    // std::cout << L[2]   << std::endl;
+    // std::cout << A[0]   << std::endl;
+    // std::cout << A[1]   << std::endl;
+    // std::cout << A[2]   << std::endl;
+    // std::cout << K1     << std::endl;
+    // std::cout << K2     << std::endl;
+    // std::cout << E      << std::endl;
+    // std::cout << H      << std::endl;
+    // std::cout << OmMax  << std::endl;
+
+
+    // Winckelmans: |S|*dt <= 0.2   , |omega|*dt <= 0.4
+
+    // Saffman Centroid
+    //    Real Saffman_Cent_X = SaffCent[0];
+    //    Real dUxdT = (Saffman_Cent_X-Saffman_Cent_X_prev)/dT;
+    //    Saffman_Cent_X_prev = Saffman_Cent_X;
+    //    std::cout << "Saffman Centroid dUx/dt: " << dUxdT << std::endl;
+
+}
 
 // void VPM3D_ocl::MatMultTest()
 // {

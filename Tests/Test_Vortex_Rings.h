@@ -165,10 +165,11 @@ void Vortex_Ring_Evolution_Test()
     //--- Generate initial volume grid
     VPM->Generate_VTK();
 
-    return;
+    // return;
 
     //--- Execute simulation
-    int NStep = 1000;
+    // int NStep = 1000;
+    int NStep = 1;
     for (int i=0; i<NStep; i++) VPM->Advance_Particle_Set();
 
     //--- Finalise simulation

@@ -53,6 +53,8 @@ public:
         Grid = G;
         Greens_Kernel = B;
 
+        std::cout << "Calling here" << std::endl;
+
         // Specify operator
         Specify_Operator(SailFFish::CURL);
         InPlace = false;        // Specify that transforms should occur either in place of out of place (reduced memory footprint)

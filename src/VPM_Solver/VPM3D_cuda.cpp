@@ -1626,14 +1626,6 @@ void VPM3D_cuda::Interpolate_Ext_Sources(Mapping M)
 
     // reset vorticity grid
     cudaMemset(eu_dddt, 0, 3*NNT*sizeof(Real));                 // Dummy grid (currently unused)
-
-
-    // __global__ void Interp_Block2(  const Real* src,                                // Source grid values (permanently mapped particles)
-    //                                 const int *blX, const int *blY, const int *blZ, // Block indices
-    //                                 const Real* disp,                               // Particle displacement
-    //                                 const int* hs,                                  // Halo indices
-    //                                 Real* dest)                                     // Destination grid (vorticity)
-
 }
 
 //-----------------------------------

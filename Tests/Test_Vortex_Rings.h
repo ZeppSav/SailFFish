@@ -26,9 +26,13 @@
 #define TEST_RINGS_H
 
 #include "../src/SailFFish_Math_Types.h"
-// #include "../src/VPM_Solver/VPM3D_cpu.h"
-// #include "../src/VPM_Solver/VPM3D_cuda.h"
-#include "../src/VPM_Solver/VPM3D_ocl.h"
+#ifdef FFTW
+    #include "../src/VPM_Solver/VPM3D_cpu.h"
+#elif CUFFT
+    #include "../src/VPM_Solver/VPM3D_cuda.h"
+#elif VKFFT
+    #include "../src/VPM_Solver/VPM3D_ocl.h"
+#endif
 
 using namespace SailFFish;
 
@@ -40,9 +44,13 @@ void Vortex_Ring_Evolution_Test()
     // Note: Make sure the Saffman centroid is being calculated in the diagnostics calculations
 
     // --- VPM solver
-    // SailFFish::VPM3D_cpu *VPM = new SailFFish::VPM3D_cpu(SailFFish::STAGGERED, SailFFish::HEJ_G8);
-    // SailFFish::VPM3D_cuda *VPM = new SailFFish::VPM3D_cuda(SailFFish::STAGGERED, SailFFish::HEJ_G8);
-    SailFFish::VPM3D_ocl *VPM = new SailFFish::VPM3D_ocl(SailFFish::STAGGERED, SailFFish::HEJ_G8);
+    #ifdef FFTW
+        SailFFish::VPM3D_cpu *VPM = new SailFFish::VPM3D_cpu(SailFFish::STAGGERED, SailFFish::HEJ_G8);
+    #elif CUFFT
+        SailFFish::VPM3D_cuda *VPM = new SailFFish::VPM3D_cuda(SailFFish::STAGGERED, SailFFish::HEJ_G8);
+    #elif VKFFT
+        SailFFish::VPM3D_ocl *VPM = new SailFFish::VPM3D_ocl(SailFFish::STAGGERED, SailFFish::HEJ_G8);
+    #endif
 
     //--- Initialize with VPM_Input
     SailFFish::VPM_Input I;
@@ -78,7 +86,7 @@ void Vortex_Ring_Evolution_Test()
     I.MagFiltFac = 0;                   // Magnitude filtering factor
     I.DivFilt = true;                   // Is divergence filtering being carried out?
     // I.Turb = SailFFish::LAM;            // Turbulence model
-    I.Turb = SailFFish::HYP;            // Turbulence model
+    I.Turb = SailFFish::RVM2;           // Turbulence model
     I.C_smag = 2.5e-2;                  // Smagorisnky parameter
     I.KinVisc = 1.0;                    // Kinematic viscosity of fluid
     I.Rho = 1.0;                        // Density of fluid
@@ -169,7 +177,7 @@ void Vortex_Ring_Evolution_Test()
 
     //--- Execute simulation
     // int NStep = 1000;
-    int NStep = 1;
+    int NStep = 500;
     for (int i=0; i<NStep; i++) VPM->Advance_Particle_Set();
 
     //--- Finalise simulation

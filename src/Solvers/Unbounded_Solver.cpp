@@ -338,7 +338,8 @@ void Unbounded_Solver_3DV::Specify_Greens_Function()
                 if (2*k<NZ)     z = k*Hz;
                 else            z = (NZ-k)*Hz;
                 Real r = sqrt(x*x + y*y + z*z);
-                r_FG[GF_GID3(dim3(i,j,k),dim3(NX,NY,NZ))] = ScaleFac*Gk(r,sigma);                  }
+                r_FG[GF_GID3(dim3(i,j,k),dim3(NX,NY,NZ))] = ScaleFac*Gk(r,sigma);
+            }
         }
     }
 

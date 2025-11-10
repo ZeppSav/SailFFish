@@ -81,6 +81,14 @@ SFStatus VPM3D_ocl::Setup_VPM(VPM_Input *I)
     ConvArch.global[0] = (size_t)NTM;
     ConvArch.local[0] = (size_t)BT;
 
+    // 1D Block architecture for loading external sources
+    ExtArch.Dim = 3;
+    ExtArch.global[1] = (size_t)NNY;
+    ExtArch.global[2] = (size_t)NNZ;
+    ExtArch.local[0] = (size_t)BX;
+    ExtArch.local[1] = (size_t)BY;
+    ExtArch.local[2] = (size_t)BZ;
+
     //--- Carry out sanity check here
     if (Hx!=H_Grid || Hy!=H_Grid || Hy!=H_Grid)
     {
@@ -619,7 +627,7 @@ SFStatus VPM3D_ocl::Initialize_Kernels()
 
         // Compile kernels
         ocl_VPM_convolution  = Generate_Kernel(ocl_curl,"curl",0,0,0);
-        // ocl_VPM_reprojection = new cudaKernel(Source,"vpm_reprojection", type_of(ComplexType));
+        ocl_VPM_reprojection  = Generate_Kernel(VPM3D_ocl_kernels_reprojection,"vpm_reprojection",0,0,0);
         // ocl_monolith_to_block_arch = Generate_Kernel(VPM3D_ocl_kernels_monolith_to_block,"Monolith_to_Block",0,0,0);    // Obsolete
         ocl_block_to_monolith_arch  = Generate_Kernel(VPM3D_ocl_kernels_block_to_monolith,"Block_to_Monolith",0,0,0);   // Used for export to vtk
         // ocl_block_to_monolith_single  = new cudaKernel(Source,"Block_to_Monolith_Single");
@@ -647,24 +655,21 @@ SFStatus VPM3D_ocl::Initialize_Kernels()
         // ocl_MagFilt1 = new cudaKernel(Source,"MagnitudeFiltering_Step1",BT);
         // ocl_MagFilt2 = new cudaKernel(Source,"MagnitudeFiltering_Step2",BT);
         // ocl_MagFilt3 = new cudaKernel(Source,"MagnitudeFiltering_Step3");
-        // ocl_freestream = new cudaKernel(Source, "AddFreestream");
+        ocl_freestream = Generate_Kernel(VPM3D_ocl_kernels_freestream, "AddFreestream",0,0,0);
 
-        // Auxiliary grid operations
-        // Map_Ext = new cudaKernel(Source,"Map_Ext_Bounded");
+        // External source operations
+        Map_Ext = Generate_Kernel(VPM3D_cuda_kernels_MapExt,"Map_Ext_Bounded",0,0,0);
         // Map_Ext_Unbounded = new cudaKernel(Source,"Map_Ext_Unbounded");
 
-        // ocl_ExtractPlaneX = new cudaKernel(Source,"ExtractPlaneX");
-        // ocl_ExtractPlaneY = new cudaKernel(Source,"ExtractPlaneY");
+        ocl_interpM2_block =  Generate_Kernel(VPM3D_ocl_kernels_InterpBlock,"Interp_Block",1,2,(BX+2)*(BY+2)*(BZ+2));
+        ocl_interpM4_block =  Generate_Kernel(VPM3D_ocl_kernels_InterpBlock,"Interp_Block",2,4,(BX+4)*(BY+4)*(BZ+4));
+        ocl_interpM4D_block = Generate_Kernel(VPM3D_ocl_kernels_InterpBlock,"Interp_Block",2,42,(BX+4)*(BY+4)*(BZ+4));
+        ocl_interpM6D_block = Generate_Kernel(VPM3D_ocl_kernels_InterpBlock,"Interp_Block",3,6,(BX+6)*(BY+6)*(BZ+6));
 
-        // ocl_interpM2_block = new cudaKernel(Source,"Interp_Block",1,2,(BX+2)*(BY+2)*(BZ+2));
-        // ocl_interpM4_block = new cudaKernel(Source,"Interp_Block",2,4,(BX+4)*(BY+4)*(BZ+4));
-        // ocl_interpM4D_block = new cudaKernel(Source,"Interp_Block",2,42,(BX+4)*(BY+4)*(BZ+4));
-        // ocl_interpM6D_block = new cudaKernel(Source,"Interp_Block",3,6,(BX+6)*(BY+6)*(BZ+6));
-
-        // ocl_interpM2_block2 = new cudaKernel(Source,"Interp_Block2",1,2,(BX+2)*(BY+2)*(BZ+2));
-        // ocl_interpM4_block2 = new cudaKernel(Source,"Interp_Block2",2,4,(BX+4)*(BY+4)*(BZ+4));
-        // ocl_interpM4D_block2 = new cudaKernel(Source,"Interp_Block2",2,42,(BX+4)*(BY+4)*(BZ+4));
-        // ocl_interpM6D_block2 = new cudaKernel(Source,"Interp_Block2",3,6,(BX+6)*(BY+6)*(BZ+6));
+        ocl_interpM2_ext =  Generate_Kernel(VPM3D_ocl_kernels_ExtSourceInterp,"Interp_Block_Ext",1,2,(BX+2)*(BY+2)*(BZ+2));
+        ocl_interpM4_ext  = Generate_Kernel(VPM3D_ocl_kernels_ExtSourceInterp,"Interp_Block_Ext",2,4,(BX+4)*(BY+4)*(BZ+4));
+        ocl_interpM4D_ext = Generate_Kernel(VPM3D_ocl_kernels_ExtSourceInterp,"Interp_Block_Ext",2,42,(BX+4)*(BY+4)*(BZ+4));
+        ocl_interpM6D_ext = Generate_Kernel(VPM3D_ocl_kernels_ExtSourceInterp,"Interp_Block_Ext",3,6,(BX+6)*(BY+6)*(BZ+6));
 
         // // Turbulence kernels
         // ocl_Laplacian_FD2 = new cudaKernel(Source,"Laplacian_Operator",1,2,(BX+2)*(BY+2)*(BZ+2));
@@ -687,6 +692,10 @@ SFStatus VPM3D_ocl::Initialize_Kernels()
         // ocl_Turb_RVM_DGC_FD4 = new cudaKernel(Source,"RVM_DGC_turbulentstress",2,4,(BX+4)*(BY+4)*(BZ+4));
         // ocl_Turb_RVM_DGC_FD6 = new cudaKernel(Source,"RVM_DGC_turbulentstress",3,6,(BX+6)*(BY+6)*(BZ+6));
         // ocl_Turb_RVM_DGC_FD8 = new cudaKernel(Source,"RVM_DGC_turbulentstress",4,8,(BX+8)*(BY+8)*(BZ+8));
+
+        //--- Superfluous kernels from previous implementations
+        // ocl_ExtractPlaneX = new cudaKernel(Source,"ExtractPlaneX");
+        // ocl_ExtractPlaneY = new cudaKernel(Source,"ExtractPlaneY");
 
         // std::cout << "-----------Shared Memory Analysis-----------" << std::endl;
         // // // // 1) How much dynamic memory is available?
@@ -782,6 +791,7 @@ void VPM3D_ocl::Advance_Particle_Set()
 void VPM3D_ocl::Update_Particle_Field()
 {
     SFStatus Stat = NoError;
+
     if (Integrator == EF)       // Eulerian forward
     {
         Calc_Particle_RateofChange(lg_d, lg_o, lg_dddt, lg_dodt);
@@ -958,10 +968,10 @@ void VPM3D_ocl::Calc_Grid_FDRatesof_Change()
 
     //--- Calculate shear stresses on grid
     Grid_Shear_Stresses();
-    // Grid_Turb_Shear_Stresses();
+    Grid_Turb_Shear_Stresses();
 
     //--- Add freestream velocity
-    // Add_Freestream_Velocity();
+    Add_Freestream_Velocity();
 }
 
 void VPM3D_ocl::Grid_Shear_Stresses()
@@ -1125,26 +1135,32 @@ void VPM3D_ocl::Remesh_Particle_Set()
 //     // std::cout << "Magnitude filtering has been carried out. Number of remaining particles with nonzero vorticity: " << Counted << std::endl;
 // }
 
-// void VPM3D_ocl::Reproject_Particle_Set_Spectral()
-// {
-//     // The particle field is reprojected in the spectral space.
-//     Zero_FloatBuffer(cl_r_Input1,   Real(0.0), NT*sizeof(Real));
-//     Zero_FloatBuffer(cl_r_Input2,   Real(0.0), NT*sizeof(Real));
-//     Zero_FloatBuffer(cl_r_Input3,   Real(0.0), NT*sizeof(Real));
-//     ocl_map_toUnbounded->Execute(lg_o, cl_r_Input1, cl_r_Input2, cl_r_Input3);
-//     Forward_Transform();
-//     ocl_VPM_reprojection->Execute(c_FTInput1, c_FTInput2, c_FTInput3, c_FG, c_FGi, c_FGj, c_FGk, BFac, c_FTOutput1, c_FTOutput2, c_FTOutput3);
-//     Backward_Transform();
-//     ocl_map_fromUnbounded->Execute(cl_r_Output1, cl_r_Output2, cl_r_Output3, lg_o);
-//     std::cout << "Vorticity field reprojection completed with spectral method." << std::endl;
-// }
+void VPM3D_ocl::Reproject_Particle_Set_Spectral()
+{
+    // The particle field is reprojected in the spectral space.
+    Zero_FloatBuffer(cl_r_Input1, NT*sizeof(Real));
+    Zero_FloatBuffer(cl_r_Input2, NT*sizeof(Real));
+    Zero_FloatBuffer(cl_r_Input3, NT*sizeof(Real));
 
-// void VPM3D_ocl::Add_Freestream_Velocity()
-// {
-//     // This adds the local freestream to the grid
-//     if (sqrt(Ux*Ux + Uy*Uy + Uz*Uz)==0.0) return;
-//     ocl_freestream->Execute(eu_dddt, Real(Ux), Real(Uy), Real(Uz));
-// }
+    // Stat = Execute_Kernel(Kernel, Arch, {Inputs})
+
+    SFStatus Stat = NoError;
+    Stat = Execute_Kernel(ocl_map_toUnbounded, BlockArch, {lg_o, cl_r_Input1, cl_r_Input2, cl_r_Input3});
+    Forward_Transform();
+    Stat = Execute_Kernel(ocl_VPM_reprojection, ConvArch, {c_FTInput1, c_FTInput2, c_FTInput3,
+                                                           c_FG, c_FGi, c_FGj, c_FGk,
+                                                           c_FTOutput1, c_FTOutput2, c_FTOutput3});
+    Backward_Transform();
+    Stat = Execute_Kernel(ocl_map_fromUnbounded, BlockArch, {cl_r_Output1, cl_r_Output2, cl_r_Output3, lg_o});
+    std::cout << "Vorticity field reprojection completed with spectral method." << std::endl;
+}
+
+void VPM3D_ocl::Add_Freestream_Velocity()
+{
+    // This adds the local freestream to the grid
+    if (sqrt(Ux*Ux + Uy*Uy + Uz*Uz)==0.0) return;
+    Execute_Kernel(ocl_freestream,ListArch,{eu_dddt},{Real(Ux), Real(Uy), Real(Uz)});
+}
 
 // void VPM3D_ocl::Solve_Velocity()
 // {
@@ -1253,201 +1269,140 @@ void VPM3D_ocl::Calc_Grid_Diagnostics()
 
 }
 
-// void VPM3D_ocl::MatMultTest()
-// {
-//     // void GEMM(const StdVector &A, const StdVector &B, StdVector &C, const int &Ar, const int &Bc, const int &Ac, const Real Alpha = 1.0, const Real Beta = 0.0)
-//     // {
-
-//     // Size of A array is [27*512,512]. Size of B array is [512,3*NBT] Size of c array is [27*512,3*NBT]
-
-//     int Ar = 27*BT;
-//     int Bc = 3*NBT;
-//     int Ac = BT;
-
-//     int Br = BT;
-//     int Cr = Ar;
-//     int Cc = Bc;
-
-//     const int m = Ar;
-//     const int n = Bc;
-//     const int k = Ac;
-//     int lda=m,ldb=k,ldc=m;
-
-//     // Allocate 3 arrays on GPU
-//     Real *d_A, *d_B, *d_C;
-//     cudaMalloc(&d_A, Ar*Ac*sizeof(Real));
-//     cudaMalloc(&d_B, Br*Bc*sizeof(Real));
-//     cudaMalloc(&d_C, Cr*Cc*sizeof(Real));
-
-//     Zero_FloatBuffer((void**)d_A, Real(0.0), Ar*Ac*sizeof(Real));
-//     Zero_FloatBuffer((void**)d_B, Real(0.0), Br*Bc*sizeof(Real));
-//     Zero_FloatBuffer((void**)d_C, Real(0.0), Cr*Cc*sizeof(Real));
-
-//     // Copy_Buffer(d_A,A.data(),A.size() * sizeof(Real),cudaMemcpyHostToDevice);
-//     // Copy_Buffer(d_B,B.data(),B.size() * sizeof(Real),cudaMemcpyHostToDevice);
-
-//     // C = std::vector<Real>(m*n);         // Declare output matrix
-//     cublasHandle_t handle;
-//     cublasCreate(&handle);
-//     std::cout << "Cuda Object created" << std::endl;
-//     Real Alpha = 1.0;
-//     Real Beta = 1.0;
-
-//     float ms;
-//     cudaEvent_t startEvent, stopEvent;
-//     checkCuda( cudaEventCreate(&startEvent) );
-//     checkCuda( cudaEventCreate(&stopEvent) );
-//     checkCuda( cudaEventRecord(startEvent,0) );
-
-//     // cublasSgemm(handle,CUBLAS_OP_N,CUBLAS_OP_N,n,m,k,&Alpha,d_B,n,d_A,k,&Beta,d_C,n); // Row-major multiplication!
-
-//     checkCuda( cudaEventRecord(stopEvent, 0) );
-//     checkCuda( cudaEventSynchronize(stopEvent) );
-//     checkCuda( cudaEventElapsedTime(&ms, startEvent, stopEvent) );
-//     std::cout << ": Time for NF Matrix mult (ms): " << ms << std::endl;
-// }
-
 // //-------------------------------------------
 // //----------- Grid functions ----------------
 // //-------------------------------------------
 
-// void VPM3D_ocl::Extract_Field(const Real *Field, const RVector &Px, const RVector &Py, const RVector &Pz, RVector &Ux, RVector &Uy, RVector &Uz, Mapping M)
-// {
-//     // Values are extracted from the grid using a local interpolation. This is carried out by loading a block into memory and then
-//     // interpolating this in shared memory
-//     int NP = size(Px);
+void VPM3D_ocl::Extract_Field(const cl_mem Field, const RVector &Px, const RVector &Py, const RVector &Pz, RVector &Ux, RVector &Uy, RVector &Uz, Mapping M)
+{
+    // Values are extracted from the grid using a local interpolation. This is carried out by loading a block into memory and then
+    // interpolating this in shared memory
+    int NP = size(Px);
 
-//     // Step 1: Bin interpolation positions
-//     std::vector<std::vector<Vector3>> IDB(NBT);
-//     std::vector<std::vector<int>> IDPart(NBT);
-//     for (int i=0; i<NP; i++){
-//         Real rx = Px[i] - X0;           // Specify relative position of node.
-//         Real ry = Py[i] - Y0;
-//         Real rz = Pz[i] - Z0;
-//         int nbx = int(rx/HLx);
-//         int nby = int(ry/HLy);
-//         int nbz = int(rz/HLz);
-//         int nbt = nbx*NBY*NBZ + nby*NBZ + nbz;
-//         IDB[nbt].push_back(Vector3(rx-HLx*nbx, ry-HLy*nby, rz-HLz*nbz));
-//         IDPart[nbt].push_back(i);
-//     }
+    // Step 1: Bin interpolation positions
+    std::vector<std::vector<Vector3>> IDB(NBT);
+    std::vector<std::vector<int>> IDPart(NBT);
+    for (int i=0; i<NP; i++){
+        Real rx = Px[i] - X0;           // Specify relative position of node.
+        Real ry = Py[i] - Y0;
+        Real rz = Pz[i] - Z0;
+        int nbx = int(rx/HLx);
+        int nby = int(ry/HLy);
+        int nbz = int(rz/HLz);
+        int nbt = nbx*NBY*NBZ + nby*NBZ + nbz;
+        IDB[nbt].push_back(Vector3(rx-HLx*nbx, ry-HLy*nby, rz-HLz*nbz));
+        IDPart[nbt].push_back(i);
+    }
 
-//     // Sort into blocks of size NT <= BT
-//     std::vector<Vector3> NDS;
-//     std::vector<int> map_blx, map_bly, map_blz, idout(NP);
-//     int count = 0;
-//     for (int b=0; b<NBT; b++){
-//         int n = size(IDB[b]);                               // # particles in this box
-//         if (n==0)         continue;                         // No particles in this box
-//         int nbx = int(b/(NBY*NBZ)), nbs = b-nbx*NBY*NBZ;    // Box x index
-//         int nby = int(nbs/NBZ);                             // Box y index
-//         int nbz = nbs - nby*NBZ;                            // Box z index
-//         int nb = int(n/BT);                                 // # blocks filled
-//         if ((n-nb*BT)>0)   nb++;                            // Last box is not full
+    // Sort into blocks of size NT <= BT
+    std::vector<Vector3> NDS;
+    std::vector<int> map_blx, map_bly, map_blz, idout(NP);
+    int count = 0;
+    for (int b=0; b<NBT; b++){
+        int n = size(IDB[b]);                               // # particles in this box
+        if (n==0)         continue;                         // No particles in this box
+        int nbx = int(b/(NBY*NBZ)), nbs = b-nbx*NBY*NBZ;    // Box x index
+        int nby = int(nbs/NBZ);                             // Box y index
+        int nbz = nbs - nby*NBZ;                            // Box z index
+        int nb = int(n/BT);                                 // # blocks filled
+        if ((n-nb*BT)>0)   nb++;                            // Last box is not full
 
-//         // Fill global particle array with particle corresponding to this box
-//         StdAppend(NDS,IDB[b]);
-//         std::vector<Vector3> rem(nb*BT-n,Vector3::Zero());  // Remaining zeros
-//         StdAppend(NDS,rem);                                 // Pad arrays
+        // Fill global particle array with particle corresponding to this box
+        StdAppend(NDS,IDB[b]);
+        std::vector<Vector3> rem(nb*BT-n,Vector3::Zero());  // Remaining zeros
+        StdAppend(NDS,rem);                                 // Pad arrays
 
-//         // Fill block array with corresponding block data
-//         for (int i=0; i<nb; i++){
-//             map_blx.push_back(nbx);
-//             map_bly.push_back(nby);
-//             map_blz.push_back(nbz);
-//         }
+        // Fill block array with corresponding block data
+        for (int i=0; i<nb; i++){
+            map_blx.push_back(nbx);
+            map_bly.push_back(nby);
+            map_blz.push_back(nbz);
+        }
 
-//         // Identify the id in NDS corresponding to node id Input arrays
-//         for (int i=0; i<n; i++) idout[IDPart[b][i]] = count++;
-//         // count += nb*BT-n;
-//         count = int(NDS.size());
-//     }
+        // Identify the id in NDS corresponding to node id Input arrays
+        for (int i=0; i<n; i++) idout[IDPart[b][i]] = count++;
+        // count += nb*BT-n;
+        count = int(NDS.size());
+    }
 
-//     // std::cout << "Checking mapping " << map_blx.size() csp map_bly.size() csp map_blz.size() csp map_blx.size()*BT csp NDS.size() << " NNodes: " << NP << std::endl;
-//     // std::cout << "Testing node numbering: " << std::endl;
-//     // for (int i=0; i<NP; i++)  std::cout << "P Orig: " << Px[i] csp Py[i] csp Pz[i] csp " P Test: "<<  NDS[idout[i]](0) + X0 csp  NDS[idout[i]](1) + Y0 csp NDS[idout[i]](2) + Z0 << std::endl;
+    // std::cout << "Checking mapping " << map_blx.size() csp map_bly.size() csp map_blz.size() csp map_blx.size()*BT csp NDS.size() << " NNodes: " << NP << std::endl;
+    // std::cout << "Testing node numbering: " << std::endl;
+    // for (int i=0; i<NP; i++)  std::cout << "P Orig: " << Px[i] csp Py[i] csp Pz[i] csp " P Test: "<<  NDS[idout[i]](0) + X0 csp  NDS[idout[i]](1) + Y0 csp NDS[idout[i]](2) + Z0 << std::endl;
 
-//     // NDS now contains the padded evaluation positions (in relative CS)
-//     // map_bl_i contains the block id of the boxes to be evaluated
-//     // map_nP is the number of evaluation points for this block
-//     // Sort into SOA
-//     int sND = size(NDS);
-//     RVector map_X(sND), map_Y(sND), map_Z(sND);
-//     Parallel_Kernel(sND) {
-//         map_X[i] = NDS[i](0);
-//         map_Y[i] = NDS[i](1);
-//         map_Z[i] = NDS[i](2);
-//     }
+    // NDS now contains the padded evaluation positions (in relative CS)
+    // map_bl_i contains the block id of the boxes to be evaluated
+    // map_nP is the number of evaluation points for this block
+    // Sort into SOA
+    int sND = size(NDS);
+    RVector map_X(sND), map_Y(sND), map_Z(sND);
+    Parallel_Kernel(sND) {
+        map_X[i] = NDS[i](0);
+        map_Y[i] = NDS[i](1);
+        map_Z[i] = NDS[i](2);
+    }
 
-//     // Transfer data to device
-//     Real *px, *py, *pz, *ux, *uy, *uz;
-//     cudaMalloc((void**)&px,         sND*sizeof(Real));
-//     cudaMalloc((void**)&py,         sND*sizeof(Real));
-//     cudaMalloc((void**)&pz,         sND*sizeof(Real));
-//     cudaMalloc((void**)&ux,         sND*sizeof(Real));
-//     cudaMalloc((void**)&uy,         sND*sizeof(Real));
-//     cudaMalloc((void**)&uz,         sND*sizeof(Real));
-//     Copy_Buffer(px,  map_X.data(),   sND*sizeof(Real), cudaMemcpyHostToDevice);
-//     Copy_Buffer(py,  map_Y.data(),   sND*sizeof(Real), cudaMemcpyHostToDevice);
-//     Copy_Buffer(pz,  map_Z.data(),   sND*sizeof(Real), cudaMemcpyHostToDevice);
+    // Allocate temporary buffers
+    cl_mem px, py, pz, ux, uy, uz;
+    Allocate_Buffer(px, sND*sizeof(cl_real));
+    Allocate_Buffer(py, sND*sizeof(cl_real));
+    Allocate_Buffer(pz, sND*sizeof(cl_real));
+    Allocate_Buffer(ux, sND*sizeof(cl_real));
+    Allocate_Buffer(uy, sND*sizeof(cl_real));
+    Allocate_Buffer(uz, sND*sizeof(cl_real));
 
-//     // int NBlock = map_nP.size();
-//     int NBlock = map_blx.size();
-//     // std::cout << "NBlocks = " << NBlock csp map_blx.size() csp map_bly.size() csp map_blz.size() << std::endl;
-//     int *bidx, *bidy, *bidz;
-//     cudaMalloc((void**)&bidx,           NBlock*sizeof(int));
-//     cudaMalloc((void**)&bidy,           NBlock*sizeof(int));
-//     cudaMalloc((void**)&bidz,           NBlock*sizeof(int));
-//     Copy_Buffer(bidx, map_blx.data(),    NBlock*sizeof(int), cudaMemcpyHostToDevice);
-//     Copy_Buffer(bidy, map_bly.data(),    NBlock*sizeof(int), cudaMemcpyHostToDevice);
-//     Copy_Buffer(bidz, map_blz.data(),    NBlock*sizeof(int), cudaMemcpyHostToDevice);
+    int NBlock = map_blx.size();
+    // std::cout << "NBlocks = " << NBlock csp map_blx.size() csp map_bly.size() csp map_blz.size() << std::endl;
+    cl_mem bidx, bidy, bidz;
+    Allocate_Buffer(bidx, NBlock*sizeof(cl_int));
+    Allocate_Buffer(bidy, NBlock*sizeof(cl_int));
+    Allocate_Buffer(bidz, NBlock*sizeof(cl_int));
 
-//     // Configure kernel
-//     dim3 Grid(NBlock,1,1);
-//     switch (M)
-//     {
-//     case (M2):      {ocl_interpM2_block->Instantiate(Grid,blockarch_block);   break;}
-//     case (M4):      {ocl_interpM4_block->Instantiate(Grid,blockarch_block);   break;}
-//     case (M4D):     {ocl_interpM4D_block->Instantiate(Grid,blockarch_block);  break;}
-//     case (M6D):     {ocl_interpM6D_block->Instantiate(Grid,blockarch_block);  break;}
-//     default:        {std::cout << "VPM3D_ocl::Extract Field: Mapping undefined."; return;}
-//     }
+    // Pass data to device
+    VkFFTResult Stat = VKFFT_SUCCESS;
+    Stat = transferDataFromCPU(vkGPU, map_X.data(),     px,     sND*sizeof(cl_real));
+    Stat = transferDataFromCPU(vkGPU, map_Y.data(),     py,     sND*sizeof(cl_real));
+    Stat = transferDataFromCPU(vkGPU, map_Z.data(),     pz,     sND*sizeof(cl_real));
+    Stat = transferDataFromCPU(vkGPU, map_blx.data(),   bidx,   NBlock*sizeof(cl_int));
+    Stat = transferDataFromCPU(vkGPU, map_bly.data(),   bidy,   NBlock*sizeof(cl_int));
+    Stat = transferDataFromCPU(vkGPU, map_blz.data(),   bidz,   NBlock*sizeof(cl_int));
 
-//     // Execute kernel
-//     switch (M)
-//     {
-//     case (M2):      {ocl_interpM2_block->Execute(Field, px,py,pz,bidx,bidy,bidz,Halo1data,ux,uy,uz);    break;}
-//     case (M4):      {ocl_interpM4_block->Execute(Field, px,py,pz,bidx,bidy,bidz,Halo2data,ux,uy,uz);    break;}
-//     case (M4D):     {ocl_interpM4D_block->Execute(Field,px,py,pz,bidx,bidy,bidz,Halo2data,ux,uy,uz);    break;}
-//     case (M6D):     {ocl_interpM6D_block->Execute(Field,px,py,pz,bidx,bidy,bidz,Halo3data,ux,uy,uz);    break;}
-//     default:        {std::cout << "VPM3D_ocl::Extract Field: Mapping undefined."; return;}
-//     }
+    // Execute kernel
+    ExtArch.global[0] = (size_t)BX*NBlock;
+    SFStatus SFStat = NoError;
+    switch (M)
+    {
+        case (M2):      {SFStat = Execute_Kernel(ocl_interpM2_block , ExtArch, {Field,px,py,pz,bidx,bidy,bidz,Halo1data,ux,uy,uz});    break;}
+        case (M4):      {SFStat = Execute_Kernel(ocl_interpM4_block , ExtArch, {Field,px,py,pz,bidx,bidy,bidz,Halo2data,ux,uy,uz});    break;}
+        case (M4D):     {SFStat = Execute_Kernel(ocl_interpM4D_block, ExtArch, {Field,px,py,pz,bidx,bidy,bidz,Halo2data,ux,uy,uz});    break;}
+        case (M6D):     {SFStat = Execute_Kernel(ocl_interpM6D_block, ExtArch, {Field,px,py,pz,bidx,bidy,bidz,Halo3data,ux,uy,uz});    break;}
+        default:        {std::cout << "VPM3D_ocl::Extract Field: Mapping undefined."; return;}
+    }
 
-//     // Extract out data
-//     RVector rux(sND), ruy(sND), ruz(sND);
-//     Copy_Buffer(rux.data(), ux, sND*sizeof(Real), cudaMemcpyDeviceToHost);
-//     Copy_Buffer(ruy.data(), uy, sND*sizeof(Real), cudaMemcpyDeviceToHost);
-//     Copy_Buffer(ruz.data(), uz, sND*sizeof(Real), cudaMemcpyDeviceToHost);
+    // Extract out data
+    RVector rux(sND), ruy(sND), ruz(sND);
+    Stat = transferDataToCPU(vkGPU, rux.data(), ux, sND*sizeof(cl_real));
+    Stat = transferDataToCPU(vkGPU, ruy.data(), uy, sND*sizeof(cl_real));
+    Stat = transferDataToCPU(vkGPU, ruz.data(), uz, sND*sizeof(cl_real));
 
-//     // Now cycle through and pass back values at correct positions
-//     for (int i=0; i<NP; i++){
-//         // std::cout << rux[idout[i]] csp ruy[idout[i]] csp ruz[idout[i]] << std::endl;
-//         Ux[i] = rux[idout[i]];
-//         Uy[i] = ruy[idout[i]];
-//         Uz[i] = ruz[idout[i]];
-//     }
+    // Now cycle through and pass back values at correct positions
+    for (int i=0; i<NP; i++){
+        // std::cout << rux[idout[i]] csp ruy[idout[i]] csp ruz[idout[i]] << std::endl;
+        Ux[i] = rux[idout[i]];
+        Uy[i] = ruy[idout[i]];
+        Uz[i] = ruz[idout[i]];
+    }
 
-//     // Clear temporary arrays
-//     cudaFree(px);
-//     cudaFree(py);
-//     cudaFree(pz);
-//     cudaFree(ux);
-//     cudaFree(uy);
-//     cudaFree(uz);
-//     cudaFree(bidx);
-//     cudaFree(bidy);
-//     cudaFree(bidz);
-// }
+    // Clear temporary arrays
+    clReleaseMemObject(px);
+    clReleaseMemObject(py);
+    clReleaseMemObject(pz);
+    // clReleaseMemObject(ux);      // This is causing problems... WHY?!
+    // clReleaseMemObject(uy);
+    // clReleaseMemObject(uz);
+    clReleaseMemObject(bidx);
+    clReleaseMemObject(bidy);
+    clReleaseMemObject(bidz);
+}
 
 // //-------------------------------------------
 // //------- Auxiliary grid functions ----------
@@ -1465,171 +1420,137 @@ void VPM3D_ocl::Calc_Grid_Diagnostics()
 //     std::cout << "NAX = " << NAX << ", NAY = " << NAY << ", NAZ = " << NAZ << ", NTAux = " << NTAux << std::endl;
 // }
 
-// void VPM3D_ocl::Interpolate_Ext_Sources(Mapping M)
-// {
-//     // Elements are being permanently mapped from the auxiliary grid to the current Lagrangian grid.
-//     // In order to ensure the strengths are mapped to the current particle positions, an interpolation of the vorticity on
-//     // the auxiliary grid to the lagrangian positions has to take place.
+void VPM3D_ocl::Interpolate_Ext_Sources(Mapping M)
+{
+    // Elements are being permanently mapped from the auxiliary grid to the current Lagrangian grid.
+    // In order to ensure the strengths are mapped to the current particle positions, an interpolation of the vorticity on
+    // the auxiliary grid to the lagrangian positions has to take place.
 
-//     // // Map auxiliary vorticity grid to eu_o
-//     // Zero_FloatBuffer(eu_o, 0, 3*NNT*sizeof(Real));
-//     // ocl_map_from_AuxiliaryVPM->Execute(AuxGrid->Get_Vort_Array(), eu_o);
-//     // switch (M)
-//     // {
-//     // case (M2):      {ocl_interp_auxM2->Execute(eu_o, lg_d,  Halo1data, lg_o);  break;}
-//     // case (M4):      {ocl_interp_auxM4->Execute(eu_o, lg_d,  Halo2data, lg_o);  break;}
-//     // case (M4D):     {ocl_interp_auxM4D->Execute(eu_o, lg_d, Halo2data, lg_o);  break;}
-//     // case (M6D):     {ocl_interp_auxM6D->Execute(eu_o, lg_d, Halo3data, lg_o);  break;}
-//     // default:        {std::cout << "VPM3D_ocl::Interpolate_Ext_Sources. Interpolation undefined."; return;}
-//     // }
+    // We map the new grid to an intermediate (full) grid which has been zeroed.
+    if (NBExt==0) return;
 
-//     // New approach: The sources are already define in blocks in ExtVortX,ExtVortY,ExtVortZ,blX,blY,blZ,
-//     // carry out block-wise interpolation to the given current node positions
+    SFStatus Stat = NoError;
 
-//     // We map the new grid to an intermediate (full) grid which has been zeroed.
-//     if (NBExt==0) return;
+    // Map to full grid with Map_Ext kernel.
+    ExtArch.global[0] = (size_t)BX*NBExt;
+    Zero_FloatBuffer(eu_dddt, 3*NNT*sizeof(Real));      // Dummy grid (currently unused)
+    Stat = Execute_Kernel(Map_Ext, ExtArch, {ExtVortX,ExtVortY,ExtVortZ,blX,blY,blZ,eu_dddt});
 
-//     // Map to full grid with Map_Ext kernel.
-//     dim3 Ext_block_extent = dim3(NBExt,1,1);
-//     Map_Ext->Instantiate(Ext_block_extent, blockarch_block);
-//     Zero_FloatBuffer(eu_dddt, 0, 3*NNT*sizeof(Real));                 // Dummy grid (currently unused)
-//     Map_Ext->Execute(ExtVortX,ExtVortY,ExtVortZ,blX,blY,blZ,eu_dddt);
+    // Now execute interp block onto lg_o grid
+    switch (M)
+    {
+        case (M2):      {Stat = Execute_Kernel(ocl_interpM2_ext,    ExtArch, {eu_dddt,blX,blY,blZ,lg_d,Halo1data,lg_o});    break;}
+        case (M4):      {Stat = Execute_Kernel(ocl_interpM4_ext,    ExtArch, {eu_dddt,blX,blY,blZ,lg_d,Halo2data,lg_o});    break;}
+        case (M4D):     {Stat = Execute_Kernel(ocl_interpM4D_ext,   ExtArch, {eu_dddt,blX,blY,blZ,lg_d,Halo2data,lg_o});    break;}
+        case (M6D):     {Stat = Execute_Kernel(ocl_interpM6D_ext,   ExtArch, {eu_dddt,blX,blY,blZ,lg_d,Halo3data,lg_o});    break;}
+        default:        {std::cout << "VPM3D_ocl::Extract Field: Mapping undefined."; return;}
+    }
 
-//     // Now execute interp block on new grid
+    // reset vorticity grid
+    Zero_FloatBuffer(eu_dddt, 3*NNT*sizeof(Real));                 // Dummy grid (currently unused)
+}
 
-//     // Instantiate size
-//     switch (M)
-//     {
-//     case (M2):      {ocl_interpM2_block2->Instantiate(Ext_block_extent,blockarch_block);   break;}
-//     case (M4):      {ocl_interpM4_block2->Instantiate(Ext_block_extent,blockarch_block);   break;}
-//     case (M4D):     {ocl_interpM4D_block2->Instantiate(Ext_block_extent,blockarch_block);  break;}
-//     case (M6D):     {ocl_interpM6D_block2->Instantiate(Ext_block_extent,blockarch_block);  break;}
-//     default:        {std::cout << "VPM3D_ocl::Extract Field: Mapping undefined."; return;}
-//     }
+//-----------------------------------
+//------- External sources ----------
+//-----------------------------------
 
-//     // Execute kernel
-//     switch (M)
-//     {
-//     case (M2):      {ocl_interpM2_block2->Execute(eu_dddt,blX,blY,blZ,lg_d,Halo1data,lg_o);    break;}
-//     case (M4):      {ocl_interpM4_block2->Execute(eu_dddt,blX,blY,blZ,lg_d,Halo2data,lg_o);    break;}
-//     case (M4D):     {ocl_interpM4D_block2->Execute(eu_dddt,blX,blY,blZ,lg_d,Halo2data,lg_o);    break;}
-//     case (M6D):     {ocl_interpM6D_block2->Execute(eu_dddt,blX,blY,blZ,lg_d,Halo3data,lg_o);    break;}
-//     default:        {std::cout << "VPM3D_ocl::Extract Field: Mapping undefined."; return;}
-//     }
+void VPM3D_ocl::Store_Grid_Node_Sources(const RVector &Px, const RVector &Py, const RVector &Pz, const RVector &Ox, const RVector &Oy, const RVector &Oz, Mapping Map)
+{
+    // This is a modified version of the function within VPM_Solver. Passing data to and from the GPU requires it to be packaged in
+    // a block-style architecture for efficiency. This is done here.
 
-//     // reset vorticity grid
-//     Zero_FloatBuffer(eu_dddt, 0, 3*NNT*sizeof(Real));                 // Dummy grid (currently unused)
+    if (Px.empty() || Py.empty() || Pz.empty()) return;
 
+    Ext_Forcing.clear();
+    Map_Source_Nodes(Px, Py, Pz, Ox, Oy, Oz, Ext_Forcing, Map);
 
-//     // __global__ void Interp_Block2(  const Real* src,                                // Source grid values (permanently mapped particles)
-//     //                                 const int *blX, const int *blY, const int *blZ, // Block indices
-//     //                                 const Real* disp,                               // Particle displacement
-//     //                                 const int* hs,                                  // Halo indices
-//     //                                 Real* dest)                                     // Destination grid (vorticity)
+    // Specify block IDs
+    std::vector<ParticleMap> BlockParts, OrdBlockParts;
+    for (ParticleMap p : Ext_Forcing){
+        dim3 pid =  p.cartid;
+        dim3 bid = dim3(pid.x/BX, pid.y/BY, pid.z/BZ);
+        ParticleMap bp;
+        bp.cartid = pid;
+        bp.blockid = bid;
+        bp.globblid = GID(bid.x,bid.y,bid.z,NBX,NBY,NBZ);
+        bp.interblockid = dim3(pid.x-bid.x*BX, pid.y-bid.y*BY, pid.z-bid.z*BZ);
+        bp.Vort = p.Vort;
+        BlockParts.push_back(bp);
+    }
 
-// }
+    // Sort based on box id
+    // std::vector<ParticleMap*> pBlockParts;
+    // for (ParticleMap p : BlockParts) pBlockParts.push_back(&p);
+    // std::sort(pBlockParts.begin(), pBlockParts.end(), [](const ParticleMap* a, const ParticleMap* b) { return a->globblid < b->globblid; });
+    // for (ParticleMap *p : pBlockParts) OrdBlockParts.push_back(*p);
+    std::sort(BlockParts.begin(), BlockParts.end(), [](const ParticleMap a, const ParticleMap b) { return a.globblid < b.globblid; });
+    // for (ParticleMap p : BlockParts) OrdBlockParts.push_back(p);
 
+    // We now have the block parts ordered correctly. We now group them together.
+    RVector Obx, Oby, Obz;
+    std::vector<int> sIDX, sIDY, sIDZ, sID;     // X,Y,Z indices of active blocks
+    int idb = -1, bgid = 0;
+    for (ParticleMap p : BlockParts){
+        if (p.globblid != idb){                 // New block
 
-// //-----------------------------------
-// //------- External sources ----------
-// //-----------------------------------
+            // Add new block to array.
+            bgid = BT*size(sID);
+            Obx.insert(Obx.end(), BT, Real(0.));    // Append onto x array
+            Oby.insert(Oby.end(), BT, Real(0.));    // Append onto y array
+            Obz.insert(Obz.end(), BT, Real(0.));    // Append onto z array
 
-// void VPM3D_ocl::Store_Grid_Node_Sources(const RVector &Px, const RVector &Py, const RVector &Pz, const RVector &Ox, const RVector &Oy, const RVector &Oz, Mapping Map)
-// {
-//     // This is a modified version of the function within VPM_Solver. Passing data to and from the GPU requires it to be packaged in
-//     // a block-style architecture for efficiency. This is done here.
+            // Set block ids
+            idb = p.globblid;                   // Update current block id
+            sID.push_back(idb);                 // Update current block number
+            sIDX.push_back(p.blockid.x);        // Add cartesian block ids
+            sIDY.push_back(p.blockid.y);        // (necessary for mapping temp elements to vort array)
+            sIDZ.push_back(p.blockid.z);
+        }
 
-//     if (Px.empty() || Py.empty() || Pz.empty()) return;
+        // Now add source to block array
+        int ids = GID(p.interblockid.x, p.interblockid.y, p.interblockid.z, BX, BY, BZ);
+        Obx[bgid+ids] = p.Vort(0);
+        Oby[bgid+ids] = p.Vort(1);
+        Obz[bgid+ids] = p.Vort(2);
+    }
 
-//     Ext_Forcing.clear();
-//     Map_Source_Nodes(Px, Py, Pz, Ox, Oy, Oz, Ext_Forcing, Map);
+    // These should now be passed to the corresponding cuda arrays
 
-//     // Specify block IDs
-//     std::vector<ParticleMap> BlockParts, OrdBlockParts;
-//     for (ParticleMap p : Ext_Forcing){
-//         dim3 pid =  p.cartid;
-//         dim3 bid = dim3(pid.x/BX, pid.y/BY, pid.z/BZ);
-//         ParticleMap bp;
-//         bp.cartid = pid;
-//         bp.blockid = bid;
-//         bp.globblid = GID(bid.x,bid.y,bid.z,NBX,NBY,NBZ);
-//         bp.interblockid = dim3(pid.x-bid.x*BX, pid.y-bid.y*BY, pid.z-bid.z*BZ);
-//         bp.Vort = p.Vort;
-//         BlockParts.push_back(bp);
-//     }
+    // Allocate external arrays if necessary
+    NBExt = size(sID);
+    if (NBufferExt < NBExt){
 
-//     // Sort based on box id
-//     // std::vector<ParticleMap*> pBlockParts;
-//     // for (ParticleMap p : BlockParts) pBlockParts.push_back(&p);
-//     // std::sort(pBlockParts.begin(), pBlockParts.end(), [](const ParticleMap* a, const ParticleMap* b) { return a->globblid < b->globblid; });
-//     // for (ParticleMap *p : pBlockParts) OrdBlockParts.push_back(*p);
-//     std::sort(BlockParts.begin(), BlockParts.end(), [](const ParticleMap a, const ParticleMap b) { return a.globblid < b.globblid; });
-//     // for (ParticleMap p : BlockParts) OrdBlockParts.push_back(p);
+        // Reset size of external array
+        NBufferExt = NBExt;
 
-//     // We now have the block parts ordered correctly. We now group them together.
-//     RVector Obx, Oby, Obz;
-//     std::vector<int> sIDX, sIDY, sIDZ, sID;     // X,Y,Z indices of active blocks
-//     int idb = -1, bgid = 0;
-//     for (ParticleMap p : BlockParts){
-//         if (p.globblid != idb){                   // New block
+        // Clear arrays if necessary
+        if (ExtVortX) clReleaseMemObject(ExtVortX);   ExtVortX = nullptr;
+        if (ExtVortY) clReleaseMemObject(ExtVortY);   ExtVortY = nullptr;
+        if (ExtVortZ) clReleaseMemObject(ExtVortZ);   ExtVortZ = nullptr;
+        if (blX) clReleaseMemObject(blX);             blX = nullptr;
+        if (blY) clReleaseMemObject(blY);             blY = nullptr;
+        if (blZ) clReleaseMemObject(blZ);             blZ = nullptr;
 
-//             // Add new block to array.
-//             bgid = BT*size(sID);
-//             Obx.insert(Obx.end(), BT, Real(0.));    // Append onto x array
-//             Oby.insert(Oby.end(), BT, Real(0.));    // Append onto y array
-//             Obz.insert(Obz.end(), BT, Real(0.));    // Append onto z array
+        // Allocate OpenlCL Buffers
+        Allocate_Buffer(ExtVortX, NBufferExt*BT*sizeof(cl_real));
+        Allocate_Buffer(ExtVortY, NBufferExt*BT*sizeof(cl_real));
+        Allocate_Buffer(ExtVortZ, NBufferExt*BT*sizeof(cl_real));
+        Allocate_Buffer(blX     , NBufferExt*sizeof(cl_int));
+        Allocate_Buffer(blY     , NBufferExt*sizeof(cl_int));
+        Allocate_Buffer(blZ     , NBufferExt*sizeof(cl_int));
+    }
 
-//             // Set block ids
-//             idb = p.globblid;                   // Update current block id
-//             sID.push_back(idb);                 // Update current block number
-//             sIDX.push_back(p.blockid.x);        // Add cartesian block ids
-//             sIDY.push_back(p.blockid.y);        // (necessary for mapping temp elements to vort array)
-//             sIDZ.push_back(p.blockid.z);
-//         }
+    // Transfer data to arrays
+    VkFFTResult Stat = VKFFT_SUCCESS;
+    Stat = transferDataFromCPU(vkGPU, Obx.data(),  ExtVortX, NBExt*BT*sizeof(cl_real));
+    Stat = transferDataFromCPU(vkGPU, Oby.data(),  ExtVortY, NBExt*BT*sizeof(cl_real));
+    Stat = transferDataFromCPU(vkGPU, Obz.data(),  ExtVortZ, NBExt*BT*sizeof(cl_real));
+    Stat = transferDataFromCPU(vkGPU, sIDX.data(), blX,      NBExt*sizeof(cl_int));
+    Stat = transferDataFromCPU(vkGPU, sIDY.data(), blY,      NBExt*sizeof(cl_int));
+    Stat = transferDataFromCPU(vkGPU, sIDZ.data(), blZ,      NBExt*sizeof(cl_int));
 
-//         // Now add source to block array
-//         int ids = GID(p.interblockid.x, p.interblockid.y, p.interblockid.z, BX, BY, BZ);
-//         Obx[bgid+ids] = p.Vort(0);
-//         Oby[bgid+ids] = p.Vort(1);
-//         Obz[bgid+ids] = p.Vort(2);
-//     }
-
-//     // These should now be passed to the corresponding cuda arrays
-
-//     // Allocate external arrays if necessary
-//     NBExt = size(sID);
-//     if (NBufferExt < NBExt){
-
-//         // Reset size of external array
-//         NBufferExt = NBExt;
-
-//         // Clear arrays if necessary
-//         if (ExtVortX) cudaFree(ExtVortX);   ExtVortX = nullptr;
-//         if (ExtVortY) cudaFree(ExtVortY);   ExtVortY = nullptr;
-//         if (ExtVortZ) cudaFree(ExtVortZ);   ExtVortZ = nullptr;
-//         if (blX) cudaFree(blX);             blX = nullptr;
-//         if (blY) cudaFree(blY);             blY = nullptr;
-//         if (blZ) cudaFree(blZ);             blZ = nullptr;
-
-//         // Cuda allocate
-//         cudaMalloc((void**)&ExtVortX, NBufferExt*BT*sizeof(Real));
-//         cudaMalloc((void**)&ExtVortY, NBufferExt*BT*sizeof(Real));
-//         cudaMalloc((void**)&ExtVortZ, NBufferExt*BT*sizeof(Real));
-//         cudaMalloc((void**)&blX, NBufferExt*sizeof(int));
-//         cudaMalloc((void**)&blY, NBufferExt*sizeof(int));
-//         cudaMalloc((void**)&blZ, NBufferExt*sizeof(int));
-//     }
-
-//     // Transfer data to arrays
-//     Copy_Buffer(ExtVortX,    Obx.data(),     NBExt*BT*sizeof(Real),  cudaMemcpyHostToDevice);
-//     Copy_Buffer(ExtVortY,    Oby.data(),     NBExt*BT*sizeof(Real),  cudaMemcpyHostToDevice);
-//     Copy_Buffer(ExtVortZ,    Obz.data(),     NBExt*BT*sizeof(Real),  cudaMemcpyHostToDevice);
-//     Copy_Buffer(blX,         sIDX.data(),    NBExt*sizeof(int),      cudaMemcpyHostToDevice);
-//     Copy_Buffer(blY,         sIDY.data(),    NBExt*sizeof(int),      cudaMemcpyHostToDevice);
-//     Copy_Buffer(blZ,         sIDZ.data(),    NBExt*sizeof(int),      cudaMemcpyHostToDevice);
-
-//     // std::cout << "VPM3D_ocl::Store_Grid_Node_Sources: Successfully stored." << std::endl;
-// }
+    // std::cout << "VPM3D_ocl::Store_Grid_Node_Sources: Successfully stored." << std::endl;
+}
 
 // void VPM3D_ocl::Map_from_Auxiliary_Grid()
 // {
@@ -1743,51 +1664,51 @@ void VPM3D_ocl::Generate_VTK(cl_mem vtkoutput1, cl_mem vtkoutput2)
 //     Copy_Buffer(W.data(), travz, sizeof(Real)*NPlane, cudaMemcpyDeviceToHost);
 // }
 
-// //--- Destructor
+//--- Destructor
 
-// VPM3D_ocl::~VPM3D_cuda()
-// {
-//     // Deallocate data
+VPM3D_ocl::~VPM3D_ocl()
+{
+    // Deallocate data
 
-//     //--- Grid Arrays
-//     cudaFree(lg_d   );
-//     cudaFree(lg_o   );
-//     cudaFree(lg_dddt);
-//     cudaFree(lg_dodt);
-//     // cudaFree(eu_d   );
-//     cudaFree(eu_o   );
-//     cudaFree(eu_dddt);
-//     cudaFree(eu_dodt);
-//     cudaFree(dumbuffer);
+    //--- Grid Arrays
+    clReleaseMemObject(lg_d   );
+    clReleaseMemObject(lg_o   );
+    clReleaseMemObject(lg_dddt);
+    clReleaseMemObject(lg_dodt);
+    // cudaFree(eu_d   );
+    clReleaseMemObject(eu_o   );
+    clReleaseMemObject(eu_dddt);
+    clReleaseMemObject(eu_dodt);
+    // clReleaseMemObject(dumbuffer);
 
-//     cudaFree(diagnostic_reduced);   // Reduced diagnostics arrays
-//     cudaFree(vis_plane);   // Reduced diagnostics arrays
-//     cudaFree(magfilt_count);         // Count of particle which have non-zero strength after magnitude filtering
+    clReleaseMemObject(diagnostic_reduced);   // Reduced diagnostics arrays
+    // clReleaseMemObject(vis_plane);   // Reduced diagnostics arrays
+    clReleaseMemObject(magfilt_count);         // Count of particle which have non-zero strength after magnitude filtering
 
-//     // Indices for halo data
-//     cudaFree(Halo1data);
-//     cudaFree(Halo2data);
-//     cudaFree(Halo3data);
-//     cudaFree(Halo4data);
-//     cudaFree(AuxGridData);
+    // Indices for halo data
+    clReleaseMemObject(Halo1data);
+    clReleaseMemObject(Halo2data);
+    clReleaseMemObject(Halo3data);
+    clReleaseMemObject(Halo4data);
+    // clReleaseMemObject(AuxGridData);
 
-//     //--- Timestepping (temporary) arrays
-//     cudaFree(int_lg_d);
-//     cudaFree(int_lg_o);
-//     cudaFree(k2_d);
-//     cudaFree(k2_o);
-//     cudaFree(k3_d);
-//     cudaFree(k3_o);
-//     cudaFree(k4_d);
-//     cudaFree(k4_o);
-//     cudaFree(tm1_d);
-//     cudaFree(tm1_o);
-//     cudaFree(tm1_dddt);
-//     cudaFree(tm1_dodt);
+    //--- Timestepping (temporary) arrays
+    clReleaseMemObject(int_lg_d);
+    clReleaseMemObject(int_lg_o);
+    clReleaseMemObject(k2_d);
+    clReleaseMemObject(k2_o);
+    clReleaseMemObject(k3_d);
+    clReleaseMemObject(k3_o);
+    clReleaseMemObject(k4_d);
+    clReleaseMemObject(k4_o);
+    clReleaseMemObject(tm1_d);
+    clReleaseMemObject(tm1_o);
+    clReleaseMemObject(tm1_dddt);
+    clReleaseMemObject(tm1_dodt);
 
-//     //--- Turbulence arrays
-//     cudaFree(Laplacian);
-// }
+    //--- Turbulence arrays
+    clReleaseMemObject(Laplacian);
+}
 
 }
 

@@ -38,74 +38,61 @@ inline int gidb(int i,int j, int k){                                            
 
 //--- Convolution kernels
 
-// const std::string VPM3D_ocl_kernels_convolution = R"CLC(
+const std::string VPM3D_ocl_kernels_reprojection = R"CLC(
 
-// __kernel void vpm_convolution(  __global const Complex *OX,
-//                                 __global const Complex *OY,
-//                                 __global const Complex *OZ,
-//                                 __global const Complex *GF,
-//                                 __global const Complex *iX,
-//                                 __global const Complex *iY,
-//                                 __global const Complex *iZ,
-//                                 __global Complex *UX,
-//                                 __global Complex *UY,
-//                                 __global Complex *UZ) {
+__kernel void  vpm_reprojection(__global const Complex *OX,
+                                __global const Complex *OY,
+                                __global const Complex *OZ,
+                                __global const Complex *GF,
+                                __global const Complex *iX,
+                                __global const Complex *iY,
+                                __global const Complex *iZ,
+                                __global Complex *UX,
+                                __global Complex *UY,
+                                __global Complex *UZ) {
 
-// // Specify grid id
-// unsigned int i = get_group_id(0)*get_local_size(0) + get_local_id(0);
+// Specify grid id
+unsigned int i = get_group_id(0)*get_local_size(0) + get_local_id(0);
 
-// // Load values for this node into memory
-// const Complex ox = OX[i];
-// const Complex oy = OY[i];
-// const Complex oz = OZ[i];
-// const Complex gf = GF[i];
-// const Complex ix = iX[i];
-// const Complex iy = iY[i];
-// const Complex iz = iZ[i];
+// Load values for this node into memory
+const Complex ox = OX[i];
+const Complex oy = OY[i];
+const Complex oz = OZ[i];
+const Complex gf = GF[i];
+const Complex ix = iX[i];
+const Complex iy = iY[i];
+const Complex iz = iZ[i];
 
-// barrier(CLK_LOCAL_MEM_FENCE);
+barrier(CLK_LOCAL_MEM_FENCE);
 
-// // Carry out convolution in frequency space.
-// const Complex gfx = {ox.x*gf.x - ox.y*gf.y , ox.x*gf.y + ox.y*gf.x};
-// const Complex gfy = {oy.x*gf.x - oy.y*gf.y , oy.x*gf.y + oy.y*gf.x};
-// const Complex gfz = {oz.x*gf.x - oz.y*gf.y , oz.x*gf.y + oz.y*gf.x};
+// Calculate divergence in spectral space
+const Complex duxdx = {ox.x*ix.x - ox.y*ix.y , ox.x*ix.y + ox.y*ix.x};
+const Complex duydy = {oy.x*iy.x - oy.y*iy.y , oy.x*iy.y + oy.y*iy.x};
+const Complex duzdz = {oz.x*iz.x - oz.y*iz.y , oz.x*iz.y + oz.y*iz.x};
+const Complex divom = {duxdx.x + duydy.x + duzdz.x, duxdx.y + duydy.y + duzdz.y};
 
-// // Extract curl of vector in frequency space
-// const Complex ux1 = {gfz.x*iy.x - gfz.y*iy.y , gfz.x*iy.y + gfz.y*iy.x};
-// const Complex ux2 = {gfy.x*iz.x - gfy.y*iz.y , gfy.x*iz.y + gfy.y*iz.x};
-// const Complex uy1 = {gfx.x*iz.x - gfx.y*iz.y , gfx.x*iz.y + gfx.y*iz.x};
-// const Complex uy2 = {gfz.x*ix.x - gfz.y*ix.y , gfz.x*ix.y + gfz.y*ix.x};
-// const Complex uz1 = {gfy.x*ix.x - gfy.y*ix.y , gfy.x*ix.y + gfy.y*ix.x};
-// const Complex uz2 = {gfx.x*iy.x - gfx.y*iy.y , gfx.x*iy.y + gfx.y*iy.x};
+// Solve for Nabla^2 (F) = divOm
+const Complex F = {divom.x*gf.x - divom.y*gf.y , divom.x*gf.y + divom.y*gf.x};
 
-// const Complex UX = {ux2.x - ux1.x, ux2.y - ux1.y};
-// const Complex UY = {uy2.x - uy1.x, uy2.y - uy1.y};
-// const Complex UZ = {uz2.x - uz1.x, uz2.y - uz1.y};
+// Calculate gradient of F
+const Complex dFdx = {F.x*ix.x - F.y*ix.y , F.x*ix.y + F.y*ix.x};
+const Complex dFdy = {F.x*iy.x - F.y*iy.y , F.x*iy.y + F.y*iy.x};
+const Complex dFdz = {F.x*iz.x - F.y*iz.y , F.x*iz.y + F.y*iz.x};
 
-// barrier(CLK_LOCAL_MEM_FENCE);
+// Reprojected output calculated by scaling input field and subtracting gradients of F term
+const Real BFac = (Real)1.0/(Real)(NT*8);    // NT const is actually 'NNT'-> Grid dimension for the unextended domain
+const Complex rOx = {ox.x*BFac - dFdx.x , ox.y*BFac - dFdx.y};
+const Complex rOy = {oy.x*BFac - dFdy.x , oy.y*BFac - dFdy.y};
+const Complex rOz = {oz.x*BFac - dFdz.x , oz.y*BFac - dFdz.y};
 
-// // Write outputs
-// Ux[i] = UX;
-// Uy[i] = UY;
-// Uz[i] = UZ;
-// }
-// )CLC";
+barrier(CLK_LOCAL_MEM_FENCE);
 
-// const std::string VPM3D_ocl_kernels_monolith_to_block = R"CLC(       // OBSOLETE
-// __kernel void  Monolith_to_Block(   __global  Real* src,
-//                                     __global Real* dst)
-// {
-//     const int gx = get_local_id(0) + get_group_id(0)*BX;
-//     const int gy = get_local_id(1) + get_group_id(1)*BY;
-//     const int gz = get_local_id(2) + get_group_id(2)*BZ;
-//     const int mid = gid(gx,gy,gz,NX,NY,NZ);           // Global id (Monolithic)
-//     const int bid = gidb(gx,gy,gz);                   // Global id (Block)
-
-//     dst[bid     ] += src[mid     ];
-//     dst[bid+NT  ] += src[mid+NT  ];
-//     dst[bid+2*NT] += src[mid+2*NT];
-// }
-// )CLC";
+// Write outputs
+UX[i] = rOx;
+UY[i] = rOy;
+UZ[i] = rOz;
+}
+)CLC";
 
 const std::string VPM3D_ocl_kernels_block_to_monolith = R"CLC(
 __kernel void  Block_to_Monolith(   __global Real* src,
@@ -159,7 +146,7 @@ __kernel void  Map_fromUnbounded(   __global Real* src1,
 }
 )CLC";
 
-//------------- Mapping kernels
+//--- Mapping kernels
 
 const std::string VPM3D_ocl_kernels_mapping_functions = R"CLC(
 inline void mapM2(Real x, Real *u){
@@ -338,7 +325,7 @@ interpf[bid+2*NT] = mz;
 }
 )CLC";
 
-//-- Interpolation kernels
+//--- Interpolation kernels
 
 const std::string VPM3D_ocl_kernels_interp = R"CLC(
 __kernel void InterpKernel( __global const Real* f1,
@@ -529,6 +516,190 @@ interpf2[bid     ] = m2x;
 interpf2[bid+1*NT] = m2y;
 interpf2[bid+2*NT] = m2z;
 }
+)CLC";
+
+const std::string VPM3D_ocl_kernels_InterpBlock = R"CLC(
+
+__kernel void Interp_Block( __global const Real* fd,         // Source grid
+                            __global const Real* dsx,        // Positions of particles to be mapped (in local block coordinate system)
+                            __global const Real* dsy,
+                            __global const Real* dsz,
+                            __global const int *blX,         // Block indices
+                            __global const int *blY,
+                            __global const int *blZ,
+                            __global const int* hs,          // Halo indices
+                            __global Real* ux,               // Interpolated values from grid
+                            __global Real* uy,
+                            __global Real* uz)
+{
+// Declare shared memory vars (velocity field in shared memory)
+__local Real sx[NHT];
+__local Real sy[NHT];
+__local Real sz[NHT];
+
+// We are still executing the blocks with blockdim [BX, BY, BZ], however are are using the Griddims in a 1d sense.
+// So we need to modify the x-dim based on the number of active blocks.
+
+// Prepare relevant indices
+const int BlockID = get_group_id(0);
+const int gx0 = blX[BlockID]*BX;
+const int gy0 = blY[BlockID]*BY;
+const int gz0 = blZ[BlockID]*BZ;
+const int tx = get_local_id(0);
+const int ty = get_local_id(1);
+const int tz = get_local_id(2);
+const int gx = tx + gx0;
+const int gy = ty + gy0;
+const int gz = tz + gz0;
+const int txh = tx + Halo;                              // Local x id within padded grid
+const int tyh = ty + Halo;                              // Local y id within padded grid
+const int tzh = tz + Halo;                              // Local z id within padded grid
+
+// Monolith structure
+// if (Data==Monolith) Kernel.append(const int bid = gid(gx,gy,gz,NX,NY,NZ););
+// if (Data==Block)    Kernel.append(const int bid = gidb(gx,gy,gz););
+const int bid = gidb(gx,gy,gz);
+const int lid = gid(tx,ty,tz,BX,BY,BZ);                 // Local id within block
+const int pid = gid(txh,tyh,tzh,NFDX,NFDY,NFDZ);        // Local id within padded block
+
+
+//-------------------------------------------------------
+// Step 1) Copy global memory to shared & local memory
+//-------------------------------------------------------
+
+// Specify source particle vorticity, position
+const int llid = lid + BlockID*BT;
+const Real pX = dsx[llid];
+const Real pY = dsy[llid];
+const Real pZ = dsz[llid];
+
+// Specify centre volume arrays
+sx[pid] = fd[bid       ];
+sy[pid] = fd[bid + 1*NT];
+sz[pid] = fd[bid + 2*NT];
+
+barrier(CLK_LOCAL_MEM_FENCE);
+
+// Fill Halo (with coalesced index read)
+for (int i=0; i<NHIT; i++){
+   const int hid = BT*i + lid;
+   const int hsx = hs[hid];                    		// global x-shift relative to position
+   const int hsy = hs[hid+BT*NHIT];               	// global y-shift relative to position
+   const int hsz = hs[hid+2*BT*NHIT];             	// global z-shift relative to position
+   if (hsx<NFDX){                                 	// Catch: is id within padded indices?
+        const int ghx = gx0-Halo+hsx;             	// Global x-value of retrieved node
+        const int ghy = gy0-Halo+hsy;             	// Global y-value of retrieved node
+        const int ghz = gz0-Halo+hsz;             	// Global z-value of retrieved node
+        const int lhid = gid(hsx,hsy,hsz,NFDX,NFDY,NFDZ);
+
+        // if (Data==Monolith) Kernel.append(const int bhid = gid(ghx,ghy,ghz,NX,NY,NZ););
+        // if (Data==Block)    Kernel.append(const int bhid = gidb(ghx,ghy,ghz););
+        const int bhid = gidb(ghx,ghy,ghz);
+
+        const bool exx = (ghx<0 || ghx>=NX);      	// Is x coordinate outside of the domain?
+        const bool exy = (ghy<0 || ghy>=NY);      	// Is y coordinate outside of the domain?
+        const bool exz = (ghz<0 || ghz>=NZ);      	// Is z coordinate outside of the domain?
+        if (exx || exy || exz){                    	// Catch: is id outside of domain?
+            sx[lhid] = (Real)0.0;
+            sy[lhid] = (Real)0.0;
+            sz[lhid] = (Real)0.0;
+        }
+        else {
+            sx[lhid] = fd[bhid       ];
+            sy[lhid] = fd[bhid + 1*NT];
+            sz[lhid] = fd[bhid + 2*NT];
+        }
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+}
+
+//------------------------------------------------------------------------------
+// Step 2) Interpolate values from grid
+//------------------------------------------------------------------------------
+
+Real m1x = (Real)0.0, m1y = (Real)0.0, m1z = (Real)0.0;     // Interpolated values
+
+// Calculate relative indices and displacement factors
+Real pmx, pmy, pmz;
+#if (Map==2)
+    pmx = (Real)0.5*hx + pX;
+    pmy = (Real)0.5*hy + pY;
+    pmz = (Real)0.5*hz + pZ;
+#elif (Map==4)
+    pmx = (Real)1.5*hx + pX;
+    pmy = (Real)1.5*hy + pY;
+    pmz = (Real)1.5*hz + pZ;
+#elif (Map==42)
+    pmx = (Real)1.5*hx + pX;
+    pmy = (Real)1.5*hy + pY;
+    pmz = (Real)1.5*hz + pZ;
+#elif (Map==62)
+    pmx = (Real)2.5*hx + pX;
+    pmy = (Real)2.5*hy + pY;
+    pmz = (Real)2.5*hz + pZ;
+#endif
+
+const int iix = (int)pmx/hx;
+const int iiy = (int)pmy/hy;
+const int iiz = (int)pmz/hz;
+const Real dxh = (pmx-hx*iix)/hx;
+const Real dyh = (pmy-hy*iiy)/hy;
+const Real dzh = (pmz-hz*iiz)/hz;
+
+// Calculate interpolation weights
+const int H2 = Halo*2;
+Real cx[H2], cy[H2], cz[H2];			// Interpolation weights
+int NS;								// Shift for node id
+
+#if (Map==2)
+    NS = 0;
+    mapM2(dxh,&cx[0]);               mapM2((Real)1.0-dxh,&cx[1]);
+    mapM2(dyh,&cy[0]);               mapM2((Real)1.0-dyh,&cy[1]);
+    mapM2(dzh,&cz[0]);               mapM2((Real)1.0-dzh,&cz[1]);
+#elif (Map==4)
+    NS = -1;
+    mapM4((Real)1.0+dxh,&cx[0]);     mapM4(dxh,&cx[1]);               mapM4((Real)1.0-dxh,&cx[2]);  	mapM4((Real)2.0-dxh,&cx[3]);
+    mapM4((Real)1.0+dyh,&cy[0]);     mapM4(dyh,&cy[1]);               mapM4((Real)1.0-dyh,&cy[2]);  	mapM4((Real)2.0-dyh,&cy[3]);
+    mapM4((Real)1.0+dzh,&cz[0]);     mapM4(dzh,&cz[1]);               mapM4((Real)1.0-dzh,&cz[2]);  	mapM4((Real)2.0-dzh,&cz[3]);
+#elif (Map==42)
+    NS = -1;
+    mapM4D((Real)1.0+dxh,&cx[0]);    mapM4D(dxh,&cx[1]);              mapM4D((Real)1.0-dxh,&cx[2]);  	mapM4D((Real)2.0-dxh,&cx[3]);
+    mapM4D((Real)1.0+dyh,&cy[0]);    mapM4D(dyh,&cy[1]);              mapM4D((Real)1.0-dyh,&cy[2]);  	mapM4D((Real)2.0-dyh,&cy[3]);
+    mapM4D((Real)1.0+dzh,&cz[0]);    mapM4D(dzh,&cz[1]);              mapM4D((Real)1.0-dzh,&cz[2]);  	mapM4D((Real)2.0-dzh,&cz[3]);
+#elif (Map==6)
+    NS = -2;
+    mapM6D((Real)2.0+dxh,&cx[0]);    mapM6D((Real)1.0+dxh,&cx[1]);    mapM6D(dxh,&cx[2]);              mapM6D((Real)1.0-dxh,&cx[3]); 	mapM6D((Real)2.0-dxh,&cx[4]);  	mapM6D((Real)3.0-dxh,&cx[5]);
+    mapM6D((Real)2.0+dyh,&cy[0]);    mapM6D((Real)1.0+dyh,&cy[1]);    mapM6D(dyh,&cy[2]);              mapM6D((Real)1.0-dyh,&cy[3]); 	mapM6D((Real)2.0-dyh,&cy[4]);  	mapM6D((Real)3.0-dyh,&cy[5]);
+    mapM6D((Real)2.0+dzh,&cz[0]);    mapM6D((Real)1.0+dzh,&cz[1]);    mapM6D(dzh,&cz[2]);              mapM6D((Real)1.0-dzh,&cz[3]); 	mapM6D((Real)2.0-dzh,&cz[4]);  	mapM6D((Real)3.0-dzh,&cz[5]);
+#endif
+
+// Carry out interpolation
+for (int i=0; i<H2; i++){
+    for (int j=0; j<H2; j++){
+        for (int k=0; k<H2; k++){
+            const int idsx =  iix + NS + i;
+            const int idsy =  iiy + NS + j;
+            const int idsz =  iiz + NS + k;
+            const int ids =  gid(idsx,idsy,idsz,NFDX,NFDY,NFDZ);
+            const Real fac =  cx[i]*cy[j]*cz[k];
+            m1x +=  fac*sx[ids];
+            m1y +=  fac*sy[ids];
+            m1z +=  fac*sz[ids];
+       }
+    }
+}
+
+barrier(CLK_LOCAL_MEM_FENCE);
+
+//------------------------------------------------------------------------------
+// Step 3) Transfer interpolated values back to array
+//------------------------------------------------------------------------------
+
+ux[llid] = m1x;
+uy[llid] = m1y;
+uz[llid] = m1z;
+}
+
 )CLC";
 
 //--- Timestepping kernels
@@ -830,7 +1001,7 @@ const Real Omz = Om[bid+2*NT];
 
 barrier(CLK_LOCAL_MEM_FENCE);
 
-//--- Fill Halo (with coalesced index read)
+// Fill Halo (with coalesced index read)
 for (int i=0; i<NHIT; i++){
     const int hid = BT*i + lid;
     const int hsx = hs[hid];                           // global x-shift relative to position
@@ -863,7 +1034,7 @@ for (int i=0; i<NHIT; i++){
     barrier(CLK_LOCAL_MEM_FENCE);
 }
 
-//------- Calculate discrete filter
+// Calculate discrete filter
 
 Real fx = (Real)0.0, fy = (Real)0.0, fz = (Real)0.0;                                                                                                         // Laplacian of Omega
 const bool mxx = (gx>(Halo-1) && gx<(NX-Halo));
@@ -905,7 +1076,7 @@ filtO[bid+2*NT] = fz;
 
 const std::string VPM3D_ocl_kernels_RVM = R"CLC(
 
-//--- Central FD Constants
+// Central FD Constants
 __constant Real D1C2[2] =  {-0.5, 0.5};
 __constant Real D1C4[4] =  {1.0/12.0,-2.0/3.0, 2.0/3.0, -1.0/12.0};
 __constant Real D1C6[6] =  {-1.0/60.0, 3.0/20.0, -3.0/4.0, 3.0/4.0, -3.0/20.0, 1.0/60.0};
@@ -916,7 +1087,7 @@ __constant Real D2C4[5] = {-1.0/12.0, 4.0/3.0, -5.0/2.0, 4.0/3.0, -1.0/12.0};
 __constant Real D2C6[7] = {1.0/90.0, -3.0/20.0, 3.0/2.0, -49.0/18.0, 3.0/2.0, -3.0/20.0, 1.0/90.0};
 __constant Real D2C8[9] = {-1.0/560.0, 8.0/315.0, -1.0/5.0, 8.0/5.0, -205.0/72.0, 8.0/5.0, -1.0/5.0, 8.0/315.0, -1.0/560.0};
 
-//--- Isotropic Laplacians
+// Isotropic Laplacians
 // __constant Real L1 = 2.0/30.0, L2 = 1.0/30.0, L3 = 18.0/30.0, L4 = -136.0/30.0;    // Cocle 2008
 // __constant Real L1 =0.0, L2 = 1.0/6.0, L3 = 1.0/3.0, L4 = -4.0;                   // Patra 2006 - variant 2 (compact)
 // __constant Real L1 = 1.0/30.0, L2 = 3.0/30.0, L3 = 14.0/30.0, L4 = -128.0/30.0;    // Patra 2006 - variant 5
@@ -969,7 +1140,7 @@ sg[pid] = smag*sgs[bid];
 
 barrier(CLK_LOCAL_MEM_FENCE);
 
-//--- Fill Halo (with coalesced index read)
+// Fill Halo (with coalesced index read)
 for (int i=0; i<NHIT; i++){
    const int hid = BT*i + lid;
    const int hsx = hs[hid];                           // global x-shift relative to position
@@ -1004,7 +1175,7 @@ for (int i=0; i<NHIT; i++){
    barrier(CLK_LOCAL_MEM_FENCE);
 }
 
-//------- Calculate turbulent shear stress
+// Calculate turbulent shear stress
 
 Real lx = (Real)0.0, ly = (Real)0.0, lz = (Real)0.0;           	// Laplacian of Omega
 const bool mxx = (gx>(Halo-1) && gx<(NX-Halo));
@@ -1326,7 +1497,7 @@ __kernel void DiagnosticsKernel(__global const Real *omega,
 
 const std::string VPM3D_ocl_kernels_ShearStress = R"CLC(
 
-//--- Central FD Constants
+// Central FD Constants
 __constant Real D1C2[2] =  {-0.5, 0.5};
 __constant Real D1C4[4] =  {1.0/12.0,-2.0/3.0, 2.0/3.0, -1.0/12.0};
 __constant Real D1C6[6] =  {-1.0/60.0, 3.0/20.0, -3.0/4.0, 3.0/4.0, -3.0/20.0, 1.0/60.0};
@@ -1337,7 +1508,7 @@ __constant Real D2C4[5] = {-1.0/12.0, 4.0/3.0, -5.0/2.0, 4.0/3.0, -1.0/12.0};
 __constant Real D2C6[7] = {1.0/90.0, -3.0/20.0, 3.0/2.0, -49.0/18.0, 3.0/2.0, -3.0/20.0, 1.0/90.0};
 __constant Real D2C8[9] = {-1.0/560.0, 8.0/315.0, -1.0/5.0, 8.0/5.0, -205.0/72.0, 8.0/5.0, -1.0/5.0, 8.0/315.0, -1.0/560.0};
 
-//--- Isotropic Laplacians
+// Isotropic Laplacians
 // __constant Real L1 = 2.0/30.0, L2 = 1.0/30.0, L3 = 18.0/30.0, L4 = -136.0/30.0;    // Cocle 2008
 // __constant Real L1 =0.0, L2 = 1.0/6.0, L3 = 1.0/3.0, L4 = -4.0;                   // Patra 2006 - variant 2 (compact)
 // __constant Real L1 = 1.0/30.0, L2 = 3.0/30.0, L3 = 14.0/30.0, L4 = -128.0/30.0;    // Patra 2006 - variant 5
@@ -1395,7 +1566,7 @@ uz[pid] = u[bid+2*NT];
 
 barrier(CLK_LOCAL_MEM_FENCE);
 
-//--- Fill Halo (with coalesced index read)
+// Fill Halo (with coalesced index read)
 for (int i=0; i<NHIT; i++){
    const int hid = BT*i + lid;
    const int hsx = hs[hid];                           // global x-shift relative to position
@@ -1434,7 +1605,7 @@ for (int i=0; i<NHIT; i++){
    barrier(CLK_LOCAL_MEM_FENCE);
 }
 
-//------- Calculate finite differences
+// Calculate finite differences
 
 Real duxdx = (Real)0.0;
 Real duxdy = (Real)0.0;
@@ -1551,7 +1722,7 @@ if (mxx && mxy && mxz){
     sgs = hx*hx*sqrt((Real)2.0*s_ij2);
     qc = (Real)0.5*(q_ij2-s_ij2);
 
-    //--- Calculate Laplacian
+    // Calculate Laplacian
     #if (Map==2)
         ids = gid(txh-1,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C2[0]*wx[ids];  ly += D2C2[0]*wy[ids];  lz += D2C2[0]*wz[ids];
         ids = gid(txh  ,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C2[1]*wx[ids];  ly += D2C2[1]*wy[ids];  lz += D2C2[1]*wz[ids];
@@ -1654,6 +1825,240 @@ qcrit[bid]   = qc;
 
 )CLC";
 
+//--- Freestream kernels
 
+const std::string VPM3D_ocl_kernels_freestream = R"CLC(
+__kernel void AddFreestream(__global Real *u,
+                            const Real Ux,
+                            const Real Uy,
+                            const Real Uz) {
+
+    unsigned int i = get_group_id(0)*get_local_size(0) + get_local_id(0);
+
+    u[i		] += Ux;
+    u[i+1*NT] += Uy;
+    u[i+2*NT] += Uz;
+}
+)CLC";
+
+//--- External sources
+
+// const std::string VPM3D_cuda_kernels_XXX = R"CLC(
+
+// )CLC";
+
+const std::string VPM3D_cuda_kernels_MapExt = R"CLC(
+
+__kernel void Map_Ext_Bounded(  __global const Real* sx,
+                                __global const Real* sy,
+                                __global const Real* sz,    // Source grid
+                                __global const int *blX,
+                                __global const int *blY,
+                                __global const int *blZ,    // Block indices
+                                __global Real* u)           // Destination grid
+{
+    // Prepare relevant indices
+    const int BlockID = get_group_id(0);
+    const int gx0 = blX[BlockID]*BX;
+    const int gy0 = blY[BlockID]*BY;
+    const int gz0 = blZ[BlockID]*BZ;
+    const int tx = get_local_id(0);
+    const int ty = get_local_id(1);
+    const int tz = get_local_id(2);
+    const int gx = tx + gx0;
+    const int gy = ty + gy0;
+    const int gz = tz + gz0;
+
+    const int lid = gid(tx,ty,tz,BX,BY,BZ);     // Local id within block
+    const int sid = lid + BlockID*BT;           // Positions within array of source
+    const int did = gidb(gx,gy,gz);             // Destination grid index
+
+    u[did       ] += sx[sid];
+    u[did + 1*NT] += sy[sid];
+    u[did + 2*NT] += sz[sid];
+}
+)CLC";
+
+const std::string VPM3D_ocl_kernels_ExtSourceInterp = R"CLC(
+
+__kernel void Interp_Block_Ext( __global const Real* src,            // Source grid values (permanently mapped particles)
+                                __global const int *blX,             // Block indices
+                                __global const int *blY,
+                                __global const int *blZ,
+                                __global const Real* disp,           // Particle displacement
+                                __global const int* hs,              // Halo indices
+                                __global Real* dest)                 // Destination grid (vorticity)
+{
+// Declare shared memory vars (mapped vorticity field)
+__local Real sx[NHT];
+__local Real sy[NHT];
+__local Real sz[NHT];
+
+// We are still executing the blocks with blockdim [BX, BY, BZ], however are are using the Griddims in a 1d sense.
+// So we need to modify the x-dim based on the number of active blocks.
+
+// Prepare relevant indices
+const int BlockID = get_group_id(0);
+const int gx0 = blX[BlockID]*BX;
+const int gy0 = blY[BlockID]*BY;
+const int gz0 = blZ[BlockID]*BZ;
+const int tx = get_local_id(0);
+const int ty = get_local_id(1);
+const int tz = get_local_id(2);
+const int gx = tx + gx0;
+const int gy = ty + gy0;
+const int gz = tz + gz0;
+const int txh = tx + Halo;                          // Local x id within padded grid
+const int tyh = ty + Halo;                          // Local y id within padded grid
+const int tzh = tz + Halo;                          // Local z id within padded grid												// How many source points shalll be loaded for this block?
+
+// Monolith structure
+// if (Data==Monolith) Kernel.append(const int bid = gid(gx,gy,gz,NX,NY,NZ););
+// if (Data==Block)    Kernel.append(const int bid = gidb(gx,gy,gz););
+const int bid = gidb(gx,gy,gz);
+const int lid = gid(tx,ty,tz,BX,BY,BZ);             // Local id within block
+const int pid = gid(txh,tyh,tzh,NFDX,NFDY,NFDZ);    // Local id within padded block
+
+
+// Step 1) Copy global memory to shared & local memory
+
+// Specify node displacement
+const Real pX = disp[bid       ];
+const Real pY = disp[bid + 1*NT];
+const Real pZ = disp[bid + 2*NT];
+
+// Specify centre volume arrays
+sx[pid] = src[bid       ];
+sy[pid] = src[bid + 1*NT];
+sz[pid] = src[bid + 2*NT];
+
+barrier(CLK_LOCAL_MEM_FENCE);
+
+// Fill Halo (with coalesced index read)
+for (int i=0; i<NHIT; i++){
+    const int hid = BT*i + lid;
+    const int hsx = hs[hid];                    		// global x-shift relative to position
+    const int hsy = hs[hid+BT*NHIT];               	// global y-shift relative to position
+    const int hsz = hs[hid+2*BT*NHIT];             	// global z-shift relative to position
+    if (hsx<NFDX){                                 	// Catch: is id within padded indices?
+        const int ghx = gx0-Halo+hsx;             	// Global x-value of retrieved node
+        const int ghy = gy0-Halo+hsy;             	// Global y-value of retrieved node
+        const int ghz = gz0-Halo+hsz;             	// Global z-value of retrieved node
+        const int lhid = gid(hsx,hsy,hsz,NFDX,NFDY,NFDZ);
+
+        // if (Data==Monolith) Kernel.append(const int bhid = gid(ghx,ghy,ghz,NX,NY,NZ););
+        // if (Data==Block)    Kernel.append(const int bhid = gidb(ghx,ghy,ghz););
+        const int bhid = gidb(ghx,ghy,ghz);
+
+        const bool exx = (ghx<0 || ghx>=NX);      	// Is x coordinate outside of the domain?
+        const bool exy = (ghy<0 || ghy>=NY);      	// Is y coordinate outside of the domain?
+        const bool exz = (ghz<0 || ghz>=NZ);      	// Is z coordinate outside of the domain?
+        if (exx || exy || exz){                    	// Catch: is id outside of domain?
+            sx[lhid] = (Real)0.0;
+            sy[lhid] = (Real)0.0;
+            sz[lhid] = (Real)0.0;
+        }
+        else {
+            sx[lhid] = src[bhid       ];
+            sy[lhid] = src[bhid + 1*NT];
+            sz[lhid] = src[bhid + 2*NT];
+        }
+    }
+    barrier(CLK_LOCAL_MEM_FENCE);
+}
+
+//------------------------------------------------------------------------------
+// Step 2) Interpolate values from grid
+//------------------------------------------------------------------------------
+
+Real m1x = (Real)0.0, m1y = (Real)0.0, m1z = (Real)0.0;     // Interpolated values
+
+int iix, iiy, iiz;                                // Interpolation id
+const Real dxh = pX/hx, dyh = pY/hy, dzh = pZ/hz;    // Normalized distances
+
+// Calculate interpolation weights
+const int H2 = Halo*2;
+Real cx[H2], cy[H2], cz[H2];			// Interpolation weights
+int NS;									// Shift for node id
+
+#if (Map==2)    // M2 interpolation
+
+        NS = 0;
+        if (dxh>=(Real)0.0){iix = txh;      mapM2(dxh,&cx[0]);              mapM2((Real)1.0-dxh,&cx[1]);    }
+        else {              iix = txh-1;    mapM2((Real)1.0+dxh,&cx[0]);    mapM2(-dxh,&cx[1]);             }
+
+        if (dyh>=(Real)0.0){iiy = tyh;      mapM2(dyh,&cy[0]);              mapM2((Real)1.0-dyh,&cy[1]);    }
+        else {             	iiy = tyh-1;    mapM2((Real)1.0+dyh,&cy[0]);    mapM2(-dyh,&cy[1]);             }
+
+        if (dzh>=(Real)0.0){iiz = tzh;      mapM2(dzh,&cz[0]);              mapM2((Real)1.0-dzh,&cz[1]); 	}
+        else {             	iiz = tzh-1;    mapM2((Real)1.0+dzh,&cz[0]);    mapM2(-dzh,&cz[1]);             }
+
+#elif (Map==4)  // M4 interpolation
+
+        NS = -1;
+        if (dxh>=(Real)0.0){iix = txh;      mapM4((Real)1.0+dxh,&cx[0]);  mapM4(dxh,&cx[1]);    		mapM4((Real)1.0-dxh,&cx[2]);    mapM4((Real)2.0-dxh,&cx[3]);}
+        else {             	iix = txh-1;    mapM4((Real)2.0+dxh,&cx[0]);  mapM4((Real)1.0+dxh,&cx[1]);  mapM4(-dxh,&cx[2]);             mapM4((Real)1.0-dxh,&cx[3]);}
+
+        if (dyh>=(Real)0.0){iiy = tyh;    	mapM4((Real)1.0+dyh,&cy[0]);  mapM4(dyh,&cy[1]);            mapM4((Real)1.0-dyh,&cy[2]);	mapM4((Real)2.0-dyh,&cy[3]);}
+        else {             	iiy = tyh-1;    mapM4((Real)2.0+dyh,&cy[0]);  mapM4((Real)1.0+dyh,&cy[1]);	mapM4(-dyh,&cy[2]);             mapM4((Real)1.0-dyh,&cy[3]);}
+
+        if (dzh>=(Real)0.0){iiz = tzh;		mapM4((Real)1.0+dzh,&cz[0]);  mapM4(dzh,&cz[1]);            mapM4((Real)1.0-dzh,&cz[2]);	mapM4((Real)2.0-dzh,&cz[3]);}
+        else {             	iiz = tzh-1;	mapM4((Real)2.0+dzh,&cz[0]);  mapM4((Real)1.0+dzh,&cz[1]);	mapM4(-dzh,&cz[2]);             mapM4((Real)1.0-dzh,&cz[3]);}
+
+#elif (Map==42) // M4' interpolation
+
+        NS = -1;
+        if (dxh>=(Real)0.0){iix = txh;      mapM4D((Real)1.0+dxh,&cx[0]);  mapM4D(dxh,&cx[1]);    			mapM4D((Real)1.0-dxh,&cx[2]);   mapM4D((Real)2.0-dxh,&cx[3]);}
+        else {             	iix = txh-1;    mapM4D((Real)2.0+dxh,&cx[0]);  mapM4D((Real)1.0+dxh,&cx[1]);   	mapM4D(-dxh,&cx[2]);            mapM4D((Real)1.0-dxh,&cx[3]);}
+
+        if (dyh>=(Real)0.0){iiy = tyh;      mapM4D((Real)1.0+dyh,&cy[0]);  mapM4D(dyh,&cy[1]);   			mapM4D((Real)1.0-dyh,&cy[2]);	mapM4D((Real)2.0-dyh,&cy[3]);}
+        else {             	iiy = tyh-1;    mapM4D((Real)2.0+dyh,&cy[0]);  mapM4D((Real)1.0+dyh,&cy[1]);   	mapM4D(-dyh,&cy[2]);            mapM4D((Real)1.0-dyh,&cy[3]);}
+
+        if (dzh>=(Real)0.0){iiz = tzh;      mapM4D((Real)1.0+dzh,&cz[0]);  mapM4D(dzh,&cz[1]);   			mapM4D((Real)1.0-dzh,&cz[2]);	mapM4D((Real)2.0-dzh,&cz[3]);}
+        else {             	iiz = tzh-1;    mapM4D((Real)2.0+dzh,&cz[0]);  mapM4D((Real)1.0+dzh,&cz[1]);   	mapM4D(-dzh,&cz[2]);            mapM4D((Real)1.0-dzh,&cz[3]);}
+
+#elif (Map==6) // M6' interpolation
+
+        NS = -2;
+        if (dxh>=(Real)0.0){iix = txh;      mapM6D((Real)2.0+dxh,&cx[0]);  mapM6D((Real)1.0+dxh,&cx[1]);  mapM6D(      dxh,&cx[2]);         mapM6D((Real)1.0-dxh,&cx[3]); 	mapM6D((Real)2.0-dxh,&cx[4]);  	mapM6D((Real)3.0-dxh,&cx[5]);}
+        else {             	iix = txh-1;    mapM6D((Real)3.0+dxh,&cx[0]);  mapM6D((Real)2.0+dxh,&cx[1]);  mapM6D((Real)1.0+dxh,&cx[2]);  	mapM6D(     -dxh,&cx[3]); 		mapM6D((Real)1.0-dxh,&cx[4]);  	mapM6D((Real)2.0-dxh,&cx[5]);}
+
+        if (dyh>=(Real)0.0){iiy = tyh;      mapM6D((Real)2.0+dyh,&cy[0]);  mapM6D((Real)1.0+dyh,&cy[1]);  mapM6D(      dyh,&cy[2]);         mapM6D((Real)1.0-dyh,&cy[3]); 	mapM6D((Real)2.0-dyh,&cy[4]);  	mapM6D((Real)3.0-dyh,&cy[5]);}
+        else {             	iiy = tyh-1;    mapM6D((Real)3.0+dyh,&cy[0]);  mapM6D((Real)2.0+dyh,&cy[1]);  mapM6D((Real)1.0+dyh,&cy[2]);  	mapM6D(     -dyh,&cy[3]); 		mapM6D((Real)1.0-dyh,&cy[4]);  	mapM6D((Real)2.0-dyh,&cy[5]);}
+
+        if (dzh>=(Real)0.0){iiz = tzh;      mapM6D((Real)2.0+dzh,&cz[0]);  mapM6D((Real)1.0+dzh,&cz[1]);  mapM6D(      dzh,&cz[2]);         mapM6D((Real)1.0-dzh,&cz[3]); 	mapM6D((Real)2.0-dzh,&cz[4]);  	mapM6D((Real)3.0-dzh,&cz[5]);}
+        else {             	iiz = tzh-1;    mapM6D((Real)3.0+dzh,&cz[0]);  mapM6D((Real)2.0+dzh,&cz[1]);  mapM6D((Real)1.0+dzh,&cz[2]);  	mapM6D(     -dzh,&cz[3]); 		mapM6D((Real)1.0-dzh,&cz[4]);  	mapM6D((Real)2.0-dzh,&cz[5]);}
+
+#endif
+
+    // Carry out interpolation
+    for (int i=0; i<H2; i++){
+        for (int j=0; j<H2; j++){
+            for (int k=0; k<H2; k++){
+                const int idsx =  iix + NS + i;
+                const int idsy =  iiy + NS + j;
+                const int idsz =  iiz + NS + k;
+                const int ids =  gid(idsx,idsy,idsz,NFDX,NFDY,NFDZ);
+                const Real fac = cx[i]*cy[j]*cz[k];
+                m1x += fac*sx[ids];
+                m1y += fac*sy[ids];
+                m1z += fac*sz[ids];
+            }
+        }
+    }
+
+barrier(CLK_LOCAL_MEM_FENCE);
+
+//------------------------------------------------------------------------------
+// Step 3) Transfer interpolated values back to array
+//------------------------------------------------------------------------------
+
+dest[bid       ] += m1x;
+dest[bid + 1*NT] += m1y;
+dest[bid + 2*NT] += m1z;
+
+}
+
+)CLC";
 
 }

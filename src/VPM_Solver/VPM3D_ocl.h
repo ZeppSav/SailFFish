@@ -82,6 +82,7 @@ class VPM3D_ocl : public VPM_3D_Solver
     OpenCLWorkSize BlockArch;   // Work group for block-style operations
     OpenCLWorkSize ListArch;    // Work group for linear operations
     OpenCLWorkSize ConvArch;    // Work group for linear convolutions
+    OpenCLWorkSize ExtArch;    // Work group for linear convolutions
 
     //--- OpenCL Kernels
     cl_kernel ocl_VPM_convolution;
@@ -111,23 +112,22 @@ class VPM3D_ocl : public VPM_3D_Solver
     cl_kernel ocl_stretch_FD8;
     cl_kernel ocl_Diagnostics;
     cl_kernel ocl_freestream;
-    cl_kernel ocl_MagFilt1;
-    cl_kernel ocl_MagFilt2;
-    cl_kernel ocl_MagFilt3;
-    // cudaKernel *ocl_ExtractPlaneX, *ocl_ExtractPlaneY;
+    // cl_kernel ocl_MagFilt1;
+    // cl_kernel ocl_MagFilt2;
+    // cl_kernel ocl_MagFilt3;
 
     cl_kernel Map_Ext;
     cl_kernel Map_Ext_Unbounded;
 
-    // cl_kernel ocl_interpM2_block;
-    // cl_kernel ocl_interpM4_block;
-    // cl_kernel ocl_interpM4D_block;
-    // cudaKernel *ocl_interpM6D_block;
+    cl_kernel ocl_interpM2_block;
+    cl_kernel ocl_interpM4_block;
+    cl_kernel ocl_interpM4D_block;
+    cl_kernel ocl_interpM6D_block;
 
-    // cudaKernel *ocl_interpM2_block2;
-    // cudaKernel *ocl_interpM4_block2;
-    // cudaKernel *ocl_interpM4D_block2;
-    // cudaKernel *ocl_interpM6D_block2;
+    cl_kernel ocl_interpM2_ext;
+    cl_kernel ocl_interpM4_ext;
+    cl_kernel ocl_interpM4D_ext;
+    cl_kernel ocl_interpM6D_ext;
 
     // Turbulence Kernels
     // cl_kernel ocl_Laplacian_FD2;
@@ -191,10 +191,10 @@ public:
     void Retrieve_Grid_Positions(RVector &xc, RVector &yc, RVector &zc);
     void Set_Input_Arrays(RVector &x0, RVector &y0, RVector &z0);
 
-//     //--- Auxiliary grid operations
+    //--- External source operations
 //     Real *Get_Vorticity_Array() {return eu_o;}
 //     void Set_External_Grid(VPM_3D_Solver *G) override;
-//     void Interpolate_Ext_Sources(Mapping M) override;
+    void Interpolate_Ext_Sources(Mapping M) override;
 //     Real* Get_Vort_Array() override {return eu_o;}
 //     Real* Get_Vel_Array() override {return eu_dddt;}
 
@@ -203,17 +203,14 @@ public:
 //     void Clear_Solution_Grid()  override    {cudaMemset(eu_dddt, Real(0.0), 3*NNT*sizeof(Real));}
 //     void Transfer_Source_Grid()             {cudaMemcpy(lg_o, eu_o, 3*NNT*sizeof(Real), cudaMemcpyDeviceToDevice);}
 
-//     //--- Grid operations
-//     void Extract_Field(const Real *Field, const RVector &Px, const RVector &Py, const RVector &Pz, RVector &Ux, RVector &Uy, RVector &Uz, Mapping M);
+    //--- Grid operations
+    void Extract_Field(const cl_mem Field, const RVector &Px, const RVector &Py, const RVector &Pz, RVector &Ux, RVector &Uy, RVector &Uz, Mapping M);
 
-//     void Extract_Sol_Values(const RVector &Px, const RVector &Py, const RVector &Pz, RVector &Ugx, RVector &Ugy, RVector &Ugz, Mapping Map) override {
-//         Extract_Field(eu_dddt, Px, Py, Pz, Ugx, Ugy, Ugz, Map);}
+    void Extract_Sol_Values(const RVector &Px, const RVector &Py, const RVector &Pz, RVector &Ugx, RVector &Ugy, RVector &Ugz, Mapping Map) override {
+        Extract_Field(eu_dddt, Px, Py, Pz, Ugx, Ugy, Ugz, Map);}
 
-//     void Extract_Source_Values(const RVector &Px, const RVector &Py, const RVector &Pz, RVector &Ugx, RVector &Ugy, RVector &Ugz, Mapping Map) override {
-//         Extract_Field(eu_o, Px, Py, Pz, Ugx, Ugy, Ugz, Map);}
-
-//     void Store_Grid_Node_Sources(   const RVector &Px, const RVector &Py, const RVector &Pz,
-//                                  const RVector &Ox, const RVector &Oy, const RVector &Oz, Mapping Map) override;
+    void Store_Grid_Node_Sources(const RVector &Px, const RVector &Py, const RVector &Pz,
+                                 const RVector &Ox, const RVector &Oy, const RVector &Oz, Mapping Map) override;
 
 
     //--- Timestepping
@@ -223,7 +220,7 @@ public:
     void Calc_Grid_FDRatesof_Change() override;
     void Grid_Shear_Stresses() override;
     void Grid_Turb_Shear_Stresses() override;
-//     void Add_Freestream_Velocity() override;
+    void Add_Freestream_Velocity() override;
 //     void Solve_Velocity() override;
 
 //     // Debugging
@@ -232,7 +229,7 @@ public:
 
     //--- Grid utilities
     void Remesh_Particle_Set() override;
-//     void Reproject_Particle_Set_Spectral() override;
+    void Reproject_Particle_Set_Spectral() override;
 //     void Magnitude_Filtering() override;
 
     //--- Grid statistics
@@ -248,7 +245,8 @@ public:
 //     ///--- Testing function
 //     void MatMultTest();
 
-//     ~VPM3D_cuda() override;
+    // Destructor
+    ~VPM3D_ocl();
 // };
 
 };

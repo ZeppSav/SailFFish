@@ -152,7 +152,7 @@ class VPM3D_cuda : public VPM_3D_Solver //, public cuda_Grid_Data
     dim3 blockarch_grid, blockarch_block;
 
     //--- Auxiliary source data
-    void Map_from_Auxiliary_Grid() override ;
+    void Map_External_Sources() override ;
 
     Real *dumbuffer;            // A buffer allocated for arbitrary tasks and data migration
 
@@ -260,7 +260,6 @@ public:
 
     //--- Auxiliary grid operations
     Real *Get_Vorticity_Array() {return eu_o;}
-    // void Set_External_Grid(VPM_3D_Solver *G) override;
     // void Map_to_Auxiliary_Grid() override;
     void Interpolate_Ext_Sources(Mapping M) override;
     Real* Get_Vort_Array() override {return eu_o;}
@@ -311,7 +310,7 @@ public:
     //--- Output grid
     void Generate_VTK() override;
     void Generate_VTK_Scalar()  override;
-    void Generate_VTK(const Real *vtkoutput1, const Real *vtkoutput2);
+    void Generate_VTK(const Real *vtkoutput1, const Real *vtkoutput2, const std::string &Name = "");
     void Generate_Plane(RVector &U) override;
     void Generate_Traverse(int XP, RVector &U, RVector &V, RVector &W) override;
 

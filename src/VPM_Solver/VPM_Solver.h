@@ -485,8 +485,6 @@ public:
                        const RVector &Ox, const RVector &Oy, const RVector &Oz,
                        std::vector<CellMap> &IDs, Mapping Map);
 
-    void Store_Grid_Sources(const RVector &Px, const RVector &Py, const RVector &Pz, const RVector &Ox, const RVector &Oy, const RVector &Oz, Mapping Map);
-
     virtual void Map_from_Grid( const RVector &Px, const RVector &Py, const RVector &Pz,
                                const RVector &Gx, const RVector &Gy, const RVector &Gz,
                                RVector &uX, RVector &uY, RVector &uZ, Mapping Map);
@@ -518,9 +516,9 @@ public:
     //--- Grid statistics
     virtual void Calc_Grid_Diagnostics()            {}
 
-    //--- Auxiliary grid
-    virtual void Map_from_Auxiliary_Grid()          {}
-    virtual void Map_to_Auxiliary_Grid()            {}
+    //--- External sources
+    void Store_Grid_Sources(const RVector &Px, const RVector &Py, const RVector &Pz, const RVector &Ox, const RVector &Oy, const RVector &Oz, Mapping Map);
+    virtual void Map_External_Sources()             {}
 
     //--- Visualisation
     virtual void Generate_Plane(RVector &U)        {}

@@ -74,9 +74,6 @@ class VPM3D_ocl : public VPM_3D_Solver
     cl_mem Halo3data = nullptr;
     cl_mem Halo4data = nullptr;
 
-    //--- Auxiliary source data
-    void Map_from_Auxiliary_Grid() override {};
-
     //--- cuda Block & Grid size
     // dim3 blockarch_grid, blockarch_block;
     OpenCLWorkSize BlockArch;   // Work group for block-style operations
@@ -191,24 +188,15 @@ public:
     void Retrieve_Grid_Positions(RVector &xc, RVector &yc, RVector &zc);
     void Set_Input_Arrays(RVector &x0, RVector &y0, RVector &z0);
 
-    //--- External source operations
-//     Real *Get_Vorticity_Array() {return eu_o;}
-//     void Set_External_Grid(VPM_3D_Solver *G) override;
-    void Interpolate_Ext_Sources(Mapping M) override;
-//     Real* Get_Vort_Array() override {return eu_o;}
-//     Real* Get_Vel_Array() override {return eu_dddt;}
-
-//     //--- Grid routines
-//     void Clear_Source_Grid()    override    {cudaMemset(eu_o, Real(0.0), 3*NNT*sizeof(Real));}
-//     void Clear_Solution_Grid()  override    {cudaMemset(eu_dddt, Real(0.0), 3*NNT*sizeof(Real));}
-//     void Transfer_Source_Grid()             {cudaMemcpy(lg_o, eu_o, 3*NNT*sizeof(Real), cudaMemcpyDeviceToDevice);}
-
     //--- Grid operations
     void Extract_Field(const cl_mem Field, const RVector &Px, const RVector &Py, const RVector &Pz, RVector &Ux, RVector &Uy, RVector &Uz, Mapping M);
-
     void Extract_Sol_Values(const RVector &Px, const RVector &Py, const RVector &Pz, RVector &Ugx, RVector &Ugy, RVector &Ugz, Mapping Map) override {
         Extract_Field(eu_dddt, Px, Py, Pz, Ugx, Ugy, Ugz, Map);}
 
+    //--- External source operations
+
+    void Map_External_Sources() override;
+    void Interpolate_Ext_Sources(Mapping M) override;
     void Store_Grid_Node_Sources(const RVector &Px, const RVector &Py, const RVector &Pz,
                                  const RVector &Ox, const RVector &Oy, const RVector &Oz, Mapping Map) override;
 
@@ -238,7 +226,7 @@ public:
     //--- Output grid
     void Generate_VTK() override;
 //     void Generate_VTK_Scalar()  override;
-    void Generate_VTK(cl_mem vtkoutput1, cl_mem vtkoutput2);
+    void Generate_VTK(cl_mem vtkoutput1, cl_mem vtkoutput2, const std::string &Name = "");
 //     void Generate_Plane(RVector &U) override;
 //     void Generate_Traverse(int XP, RVector &U, RVector &V, RVector &W) override;
 

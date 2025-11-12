@@ -83,8 +83,8 @@ SFStatus VPM3D_ocl::Setup_VPM(VPM_Input *I)
 
     // 1D Block architecture for loading external sources
     ExtArch.Dim = 3;
-    ExtArch.global[1] = (size_t)NNY;
-    ExtArch.global[2] = (size_t)NNZ;
+    ExtArch.global[1] = (size_t)BY;
+    ExtArch.global[2] = (size_t)BZ;
     ExtArch.local[0] = (size_t)BX;
     ExtArch.local[1] = (size_t)BY;
     ExtArch.local[2] = (size_t)BZ;
@@ -479,8 +479,6 @@ void VPM3D_ocl::Initialize_Halo_Data()
     StdAppend(hs,zhs);
     for (int i=NHA; i<NHIT*BT; i++) hs.push_back(0);
     NHA = NHIT*BT;
-    // cudaMalloc((void**)&Halo3data, 3*NHA*sizeof(int));
-    // Copy_Buffer(Halo3data, hs.data(), 3*NHA*sizeof(int), cudaMemcpyHostToDevice);
     Allocate_Buffer(Halo3data, 3*NHA*sizeof(int));
     res = clEnqueueWriteBuffer(vkGPU->commandQueue, Halo3data, CL_TRUE, 0, 3*NHA*sizeof(int), hs.data(), 0, NULL, NULL);
     std::cout << "Halo 3 array padded to: " << int(xhs.size()) csp int(yhs.size()) csp int(zhs.size()) csp "Total Halo buffer size: " << hs.size()
@@ -518,8 +516,6 @@ void VPM3D_ocl::Initialize_Halo_Data()
     StdAppend(hs,zhs);
     for (int i=NHA; i<NHIT*BT; i++) hs.push_back(0);
     NHA = NHIT*BT;
-    // cudaMalloc((void**)&Halo4data, 3*NHA*sizeof(int));
-    // Copy_Buffer(Halo4data, hs.data(), 3*NHA*sizeof(int), cudaMemcpyHostToDevice);
     Allocate_Buffer(Halo4data, 3*NHA*sizeof(int));
     res = clEnqueueWriteBuffer(vkGPU->commandQueue, Halo4data, CL_TRUE, 0, 3*NHA*sizeof(int), hs.data(), 0, NULL, NULL);
     std::cout << "Halo 4 array padded to: " << int(xhs.size()) csp int(yhs.size()) csp int(zhs.size()) csp "Total Halo buffer size: " << hs.size()
@@ -657,10 +653,6 @@ SFStatus VPM3D_ocl::Initialize_Kernels()
         // ocl_MagFilt3 = new cudaKernel(Source,"MagnitudeFiltering_Step3");
         ocl_freestream = Generate_Kernel(VPM3D_ocl_kernels_freestream, "AddFreestream",0,0,0);
 
-        // External source operations
-        Map_Ext = Generate_Kernel(VPM3D_cuda_kernels_MapExt,"Map_Ext_Bounded",0,0,0);
-        // Map_Ext_Unbounded = new cudaKernel(Source,"Map_Ext_Unbounded");
-
         ocl_interpM2_block =  Generate_Kernel(VPM3D_ocl_kernels_InterpBlock,"Interp_Block",1,2,(BX+2)*(BY+2)*(BZ+2));
         ocl_interpM4_block =  Generate_Kernel(VPM3D_ocl_kernels_InterpBlock,"Interp_Block",2,4,(BX+4)*(BY+4)*(BZ+4));
         ocl_interpM4D_block = Generate_Kernel(VPM3D_ocl_kernels_InterpBlock,"Interp_Block",2,42,(BX+4)*(BY+4)*(BZ+4));
@@ -670,6 +662,10 @@ SFStatus VPM3D_ocl::Initialize_Kernels()
         ocl_interpM4_ext  = Generate_Kernel(VPM3D_ocl_kernels_ExtSourceInterp,"Interp_Block_Ext",2,4,(BX+4)*(BY+4)*(BZ+4));
         ocl_interpM4D_ext = Generate_Kernel(VPM3D_ocl_kernels_ExtSourceInterp,"Interp_Block_Ext",2,42,(BX+4)*(BY+4)*(BZ+4));
         ocl_interpM6D_ext = Generate_Kernel(VPM3D_ocl_kernels_ExtSourceInterp,"Interp_Block_Ext",3,6,(BX+6)*(BY+6)*(BZ+6));
+
+        // External source operations
+        Map_Ext = Generate_Kernel(VPM3D_ocl_kernels_MapExt,"Map_Ext_Bounded",0,0,0);
+        Map_Ext_Unbounded = Generate_Kernel(VPM3D_ocl_kernels_MapExtUnb,"Map_Ext_Unbounded",0,0,0);
 
         // // Turbulence kernels
         // ocl_Laplacian_FD2 = new cudaKernel(Source,"Laplacian_Operator",1,2,(BX+2)*(BY+2)*(BZ+2));
@@ -777,15 +773,9 @@ void VPM3D_ocl::Advance_Particle_Set()
     if (Remeshing)                    Remesh_Particle_Set();                                // Remesh
     if (Remeshing && MagFiltFac>0)    Magnitude_Filtering();                                // Filter magnitude
     if (DivFilt && Remeshing && NStep%NReproject==0)   Reproject_Particle_Set_Spectral();   // Reproject vorticity field
-    Update_Particle_Field();                                            // Update vorticity field
+    Update_Particle_Field();                                                                // Update vorticity field
     if (NExp>0 && NStep%NExp==0 && NStep>0 && NStep>=ExpTB) Generate_VTK();                 // Export grid if desired
     Increment_Time();
-
-    // RVector dgdtcheck(NNT);     // Something is wrong!
-    // Copy_Buffer(dgdtcheck.data(), eu_dddt, NTAux*sizeof(Real), cudaMemcpyDeviceToHost);
-    // std::cout << "Coming out: Max eu_dddt 0 " << *std::max_element(dgdtcheck.begin(),          dgdtcheck.begin()+NTAux) csp std::endl;
-    // std::cout << "Coming out: Max eu_dddt 1 " << *std::max_element(dgdtcheck.begin()+NTAux,    dgdtcheck.begin()+2*NTAux) csp std::endl;
-    // std::cout << "Coming out: Max eu_dddt 2 " << *std::max_element(dgdtcheck.begin()+2*NTAux,  dgdtcheck.begin()+3*NTAux) csp std::endl;
 }
 
 void VPM3D_ocl::Update_Particle_Field()
@@ -960,7 +950,7 @@ void VPM3D_ocl::Calc_Grid_FDRatesof_Change()
     // Specify input arrays for FFT solver
     SFStatus Stat = NoError;
     Stat = Execute_Kernel(ocl_map_toUnbounded, BlockArch, {eu_o, cl_r_Input1, cl_r_Input2, cl_r_Input3});
-    Map_from_Auxiliary_Grid();
+    Map_External_Sources();
     Forward_Transform();
     Stat = Execute_Kernel(ocl_VPM_convolution, ConvArch, {c_FTInput1, c_FTInput2, c_FTInput3, c_FG, c_FGi, c_FGj, c_FGk, c_FTOutput1, c_FTOutput2, c_FTOutput3});
     Backward_Transform();
@@ -1162,21 +1152,6 @@ void VPM3D_ocl::Add_Freestream_Velocity()
     Execute_Kernel(ocl_freestream,ListArch,{eu_dddt},{Real(Ux), Real(Uy), Real(Uz)});
 }
 
-// void VPM3D_ocl::Solve_Velocity()
-// {
-//     // If we are executing a hybrid grid solve, we directly solve the velcotiy on the grid here.
-//     // This function is called only if we are not doing other grid manipulations (e.g. vorticity field update)
-
-//     Zero_FloatBuffer(cl_r_Input1,   Real(0.0), NT*sizeof(Real));
-//     Zero_FloatBuffer(cl_r_Input2,   Real(0.0), NT*sizeof(Real));
-//     Zero_FloatBuffer(cl_r_Input3,   Real(0.0), NT*sizeof(Real));
-//     ocl_map_toUnbounded->Execute(eu_o, cl_r_Input1, cl_r_Input2, cl_r_Input3);
-//     Forward_Transform();
-//     ocl_VPM_convolution->Execute(c_FTInput1, c_FTInput2, c_FTInput3, c_FG, c_FGi, c_FGj, c_FGk, c_FTOutput1, c_FTOutput2, c_FTOutput3);
-//     Backward_Transform();
-//     ocl_map_fromUnbounded->Execute(cl_r_Output1, cl_r_Output2, cl_r_Output3, eu_dddt);
-// }
-
 void VPM3D_ocl::Calc_Grid_Diagnostics()
 {
     // Diagnostics are calculated in blocks of size BS This is transferred back to the CPU and summed there for simplicity
@@ -1257,7 +1232,6 @@ void VPM3D_ocl::Calc_Grid_Diagnostics()
     // std::cout << E      << std::endl;
     // std::cout << H      << std::endl;
     // std::cout << OmMax  << std::endl;
-
 
     // Winckelmans: |S|*dt <= 0.2   , |omega|*dt <= 0.4
 
@@ -1359,12 +1333,12 @@ void VPM3D_ocl::Extract_Field(const cl_mem Field, const RVector &Px, const RVect
 
     // Pass data to device
     VkFFTResult Stat = VKFFT_SUCCESS;
-    Stat = transferDataFromCPU(vkGPU, map_X.data(),     px,     sND*sizeof(cl_real));
-    Stat = transferDataFromCPU(vkGPU, map_Y.data(),     py,     sND*sizeof(cl_real));
-    Stat = transferDataFromCPU(vkGPU, map_Z.data(),     pz,     sND*sizeof(cl_real));
-    Stat = transferDataFromCPU(vkGPU, map_blx.data(),   bidx,   NBlock*sizeof(cl_int));
-    Stat = transferDataFromCPU(vkGPU, map_bly.data(),   bidy,   NBlock*sizeof(cl_int));
-    Stat = transferDataFromCPU(vkGPU, map_blz.data(),   bidz,   NBlock*sizeof(cl_int));
+    Stat = transferDataFromCPU(vkGPU, map_X.data(),     &px,     sND*sizeof(cl_real));
+    Stat = transferDataFromCPU(vkGPU, map_Y.data(),     &py,     sND*sizeof(cl_real));
+    Stat = transferDataFromCPU(vkGPU, map_Z.data(),     &pz,     sND*sizeof(cl_real));
+    Stat = transferDataFromCPU(vkGPU, map_blx.data(),   &bidx,   NBlock*sizeof(cl_int));
+    Stat = transferDataFromCPU(vkGPU, map_bly.data(),   &bidy,   NBlock*sizeof(cl_int));
+    Stat = transferDataFromCPU(vkGPU, map_blz.data(),   &bidz,   NBlock*sizeof(cl_int));
 
     // Execute kernel
     ExtArch.global[0] = (size_t)BX*NBlock;
@@ -1380,9 +1354,9 @@ void VPM3D_ocl::Extract_Field(const cl_mem Field, const RVector &Px, const RVect
 
     // Extract out data
     RVector rux(sND), ruy(sND), ruz(sND);
-    Stat = transferDataToCPU(vkGPU, rux.data(), ux, sND*sizeof(cl_real));
-    Stat = transferDataToCPU(vkGPU, ruy.data(), uy, sND*sizeof(cl_real));
-    Stat = transferDataToCPU(vkGPU, ruz.data(), uz, sND*sizeof(cl_real));
+    Stat = transferDataToCPU(vkGPU, rux.data(), &ux, sND*sizeof(cl_real));
+    Stat = transferDataToCPU(vkGPU, ruy.data(), &uy, sND*sizeof(cl_real));
+    Stat = transferDataToCPU(vkGPU, ruz.data(), &uz, sND*sizeof(cl_real));
 
     // Now cycle through and pass back values at correct positions
     for (int i=0; i<NP; i++){
@@ -1396,29 +1370,21 @@ void VPM3D_ocl::Extract_Field(const cl_mem Field, const RVector &Px, const RVect
     clReleaseMemObject(px);
     clReleaseMemObject(py);
     clReleaseMemObject(pz);
-    // clReleaseMemObject(ux);      // This is causing problems... WHY?!
-    // clReleaseMemObject(uy);
-    // clReleaseMemObject(uz);
+    clReleaseMemObject(ux);
+    clReleaseMemObject(uy);
+    clReleaseMemObject(uz);
     clReleaseMemObject(bidx);
     clReleaseMemObject(bidy);
     clReleaseMemObject(bidz);
 }
 
-// //-------------------------------------------
-// //------- Auxiliary grid functions ----------
-// //-------------------------------------------
+//-------------------------------------------
+//------- Auxiliary grid functions ----------
+//-------------------------------------------
 
-// void VPM3D_ocl::Set_External_Grid(VPM_3D_Solver *G)
-// {
-//     // We specify here the external grid. In the case of the block grid execution, we need to specify also the
-//     // grid parameters of the mapping kernels.
-
-//     AuxGrid = G;        // Set auxiliary grid
-//     cudaMalloc((void**)&AuxGridData, 3*NTAux*sizeof(Real));
-//     std::cout << "VPM3D_ocl::Set_External_Grid: External grid specification is suitable. " << std::endl;
-//     std::cout << "SAX = " << SAX << ", SAY = " << SAY << ", SAZ = " << SAZ  << std::endl;
-//     std::cout << "NAX = " << NAX << ", NAY = " << NAY << ", NAZ = " << NAZ << ", NTAux = " << NTAux << std::endl;
-// }
+//-----------------------------------
+//------- External sources ----------
+//-----------------------------------
 
 void VPM3D_ocl::Interpolate_Ext_Sources(Mapping M)
 {
@@ -1449,10 +1415,6 @@ void VPM3D_ocl::Interpolate_Ext_Sources(Mapping M)
     // reset vorticity grid
     Zero_FloatBuffer(eu_dddt, 3*NNT*sizeof(Real));                 // Dummy grid (currently unused)
 }
-
-//-----------------------------------
-//------- External sources ----------
-//-----------------------------------
 
 void VPM3D_ocl::Store_Grid_Node_Sources(const RVector &Px, const RVector &Py, const RVector &Pz, const RVector &Ox, const RVector &Oy, const RVector &Oz, Mapping Map)
 {
@@ -1514,7 +1476,7 @@ void VPM3D_ocl::Store_Grid_Node_Sources(const RVector &Px, const RVector &Py, co
         Obz[bgid+ids] = p.Vort(2);
     }
 
-    // These should now be passed to the corresponding cuda arrays
+    // These should now be passed to the corresponding OpenCl buffers
 
     // Allocate external arrays if necessary
     NBExt = size(sID);
@@ -1532,35 +1494,39 @@ void VPM3D_ocl::Store_Grid_Node_Sources(const RVector &Px, const RVector &Py, co
         if (blZ) clReleaseMemObject(blZ);             blZ = nullptr;
 
         // Allocate OpenlCL Buffers
-        Allocate_Buffer(ExtVortX, NBufferExt*BT*sizeof(cl_real));
-        Allocate_Buffer(ExtVortY, NBufferExt*BT*sizeof(cl_real));
-        Allocate_Buffer(ExtVortZ, NBufferExt*BT*sizeof(cl_real));
-        Allocate_Buffer(blX     , NBufferExt*sizeof(cl_int));
-        Allocate_Buffer(blY     , NBufferExt*sizeof(cl_int));
-        Allocate_Buffer(blZ     , NBufferExt*sizeof(cl_int));
+        SFStatus AllStat = NoError;
+        AllStat = Allocate_Buffer(ExtVortX, NBufferExt*BT*sizeof(cl_real));
+        AllStat = Allocate_Buffer(ExtVortY, NBufferExt*BT*sizeof(cl_real));
+        AllStat = Allocate_Buffer(ExtVortZ, NBufferExt*BT*sizeof(cl_real));
+        AllStat = Allocate_Buffer(blX     , NBufferExt*sizeof(cl_int));
+        AllStat = Allocate_Buffer(blY     , NBufferExt*sizeof(cl_int));
+        AllStat = Allocate_Buffer(blZ     , NBufferExt*sizeof(cl_int));
     }
 
     // Transfer data to arrays
     VkFFTResult Stat = VKFFT_SUCCESS;
-    Stat = transferDataFromCPU(vkGPU, Obx.data(),  ExtVortX, NBExt*BT*sizeof(cl_real));
-    Stat = transferDataFromCPU(vkGPU, Oby.data(),  ExtVortY, NBExt*BT*sizeof(cl_real));
-    Stat = transferDataFromCPU(vkGPU, Obz.data(),  ExtVortZ, NBExt*BT*sizeof(cl_real));
-    Stat = transferDataFromCPU(vkGPU, sIDX.data(), blX,      NBExt*sizeof(cl_int));
-    Stat = transferDataFromCPU(vkGPU, sIDY.data(), blY,      NBExt*sizeof(cl_int));
-    Stat = transferDataFromCPU(vkGPU, sIDZ.data(), blZ,      NBExt*sizeof(cl_int));
+    Stat = transferDataFromCPU(vkGPU, Obx.data(),  &ExtVortX, NBExt*BT*sizeof(cl_real));
+    Stat = transferDataFromCPU(vkGPU, Oby.data(),  &ExtVortY, NBExt*BT*sizeof(cl_real));
+    Stat = transferDataFromCPU(vkGPU, Obz.data(),  &ExtVortZ, NBExt*BT*sizeof(cl_real));
+    Stat = transferDataFromCPU(vkGPU, sIDX.data(), &blX,      NBExt*sizeof(cl_int));
+    Stat = transferDataFromCPU(vkGPU, sIDY.data(), &blY,      NBExt*sizeof(cl_int));
+    Stat = transferDataFromCPU(vkGPU, sIDZ.data(), &blZ,      NBExt*sizeof(cl_int));
 
-    // std::cout << "VPM3D_ocl::Store_Grid_Node_Sources: Successfully stored." << std::endl;
+    ConvertVkFFTError(Stat);
+    // std::cout << Obx.size() csp Oby.size() csp Obz.size() csp sIDX.size() csp sIDY.size() csp sIDZ.size() csp NBExt csp BT << std::endl;
+    // std::cout << "VPM3D_ocl::Store_Grid_Node_Sources: Successfully stored. Size of external forcing array: " << Ext_Forcing.size() << std::endl;
 }
 
-// void VPM3D_ocl::Map_from_Auxiliary_Grid()
-// {
-//     // In the case that the external sources should be included in the vorticity (e.g. from a lifting line),
-//     // rather than adding these to the full vorticity field,they are only added to the unbounded array
-//     if (NBExt==0) return;
-//     dim3 Ext_block_extent = dim3(NBExt,1,1);
-//     Map_Ext_Unbounded->Instantiate(Ext_block_extent, blockarch_block);
-//     Map_Ext_Unbounded->Execute(ExtVortX,ExtVortY,ExtVortZ,blX,blY,blZ,cl_r_Input1,cl_r_Input2,cl_r_Input3);
-// }
+void VPM3D_ocl::Map_External_Sources()
+{
+    // In the case that the external sources should be included in the vorticity (e.g. from a lifting line),
+    // rather than adding these to the full vorticity field,they are only added to the unbounded array
+    if (NBExt==0) return;
+    ExtArch.global[0] = (size_t)BX*NBExt;
+    SFStatus Stat = Execute_Kernel(Map_Ext_Unbounded, ExtArch, {ExtVortX,ExtVortY,ExtVortZ,blX,blY,blZ,cl_r_Input1,cl_r_Input2,cl_r_Input3});
+    // Map_Ext_Unbounded->Instantiate(Ext_block_extent, blockarch_block);
+    // Map_Ext_Unbounded->Execute(ExtVortX,ExtVortY,ExtVortZ,blX,blY,blZ,cl_r_Input1,cl_r_Input2,cl_r_Input3);
+}
 
 // //-------------------------------------------
 // //----- Generate Output grid for vis --------
@@ -1573,7 +1539,7 @@ void VPM3D_ocl::Generate_VTK()
     // Generate_VTK(lg_o, lg_dddt);
 }
 
-void VPM3D_ocl::Generate_VTK(cl_mem vtkoutput1, cl_mem vtkoutput2)
+void VPM3D_ocl::Generate_VTK(cl_mem vtkoutput1, cl_mem vtkoutput2, const std::string& Name)
 {
     // Specifies a specific output and then produces a vtk file for this
     // The arrays int_lg_d & int_p_o are stored as dummy arrays
@@ -1627,7 +1593,7 @@ void VPM3D_ocl::Generate_VTK(cl_mem vtkoutput1, cl_mem vtkoutput2)
     }
 
     // Specify current filename.
-    vtk_Name = vtk_Prefix + std::to_string(NStep) + ".vtk";
+    vtk_Name = vtk_Prefix + std::to_string(NStep) + Name + ".vtk";
 
     Create_vtk();
 

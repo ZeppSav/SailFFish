@@ -388,18 +388,21 @@ if (mxx && mxy && mxz){
 					mapM4D(fab(Real(k)+dz[ids]/hz), fz);    
 				}   
 				if (Map==6){
-					mapM6D(fab(Real(i)+dx[ids]/hx), fx);                       
-					mapM6D(fab(Real(j)+dy[ids]/hy), fy);                       
-					mapM6D(fab(Real(k)+dz[ids]/hz), fz);  
+                    mapM6D(fab(Real(i)+dx[ids]/hx), fx);
+                    mapM6D(fab(Real(j)+dy[ids]/hy), fy);
+                    mapM6D(fab(Real(k)+dz[ids]/hz), fz);
+                    Real in_x = fab(Real(i)+dx[ids]/hx);
+                    Real in_y = fab(Real(j)+dy[ids]/hy);
+                    Real in_z = fab(Real(k)+dz[ids]/hz);
 				} 
 				
 				const Real Fac = fx*fy*fz;              
 				mx = fastma(Fac,sx[ids],mx);                             
 				my = fastma(Fac,sy[ids],my);                             
-				mz = fastma(Fac,sz[ids],mz);                             
+                mz = fastma(Fac,sz[ids],mz);
 			}
 		}
-	}
+    }
 }
 __syncthreads();
 

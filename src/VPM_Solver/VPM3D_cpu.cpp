@@ -512,7 +512,7 @@ void VPM3D_cpu::Calc_Grid_FDRatesof_Change()
     //--- Add sources to grid if required
     SFStatus Stat;
     Stat = Set_Input_Unbounded_3D(eu_o[0],eu_o[1],eu_o[2]);
-    Map_from_Auxiliary_Grid();
+    Map_External_Sources();
     // Stat = Transfer_Data_Device();
 
     //--- Calculate and extract velocity
@@ -973,7 +973,7 @@ void VPM3D_cpu::Reproject_Particle_Set_Spectral()
 //----- Auxiliary grid operations  ----------
 //-------------------------------------------
 
-void VPM3D_cpu::Map_from_Auxiliary_Grid()
+void VPM3D_cpu::Map_External_Sources()
 {
     // The vorticity grid of the auxiliary grid is mapped to the input array for the Fast Poisson solver.
     // This ensure that the vorticity field of the main domain is decoupled from the lifting body.

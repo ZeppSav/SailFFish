@@ -1015,8 +1015,8 @@ void VPM3D_cuda::Calc_Particle_RateofChange(const Real *pd, const Real *po, Real
     default:        {std::cout << "VPM3D_cuda::Calc_Particle_RateofChange. Mapping undefined."; return;}
     }
 
-    // Calc_Grid_SpectralRatesof_Change();         // The rates of change are calculated on the fixed grid
-    Calc_Grid_FDRatesof_Change();                 // The rates of change are calculated on the fixed grid
+    // Calc_Grid_SpectralRatesof_Change();      // The rates of change are calculated on the fixed grid
+    Calc_Grid_FDRatesof_Change();               // The rates of change are calculated on the fixed grid
 
     // Map grid values to particles
     switch (SolverMap)
@@ -1046,7 +1046,7 @@ void VPM3D_cuda::Calc_Grid_FDRatesof_Change()
     // Specify input arrays for FFT solver
     cuda_map_toUnbounded->Execute(eu_o, cuda_r_Input1, cuda_r_Input2, cuda_r_Input3);
     // if (AuxGrid) cuda_map_aux_toUnboundedVPM->Execute(AuxGrid->Get_Vort_Array(), cuda_r_Input1, cuda_r_Input2, cuda_r_Input3);
-    Map_from_Auxiliary_Grid();
+    Map_External_Sources();
     Forward_Transform();
     cuda_VPM_convolution->Execute(c_FTInput1, c_FTInput2, c_FTInput3, c_FG, c_FGi, c_FGj, c_FGk, c_FTOutput1, c_FTOutput2, c_FTOutput3);
     Backward_Transform();
@@ -1365,7 +1365,6 @@ void VPM3D_cuda::Calc_Grid_Diagnostics()
     // std::cout << H      << std::endl;
     // std::cout << OmMax  << std::endl;
 
-
     // Winckelmans: |S|*dt <= 0.2   , |omega|*dt <= 0.4
 
     // Saffman Centroid
@@ -1624,6 +1623,12 @@ void VPM3D_cuda::Interpolate_Ext_Sources(Mapping M)
     default:        {std::cout << "VPM3D_cuda::Extract Field: Mapping undefined."; return;}
     }
 
+    // // Debug out maximum particle displacement
+    // RVector Disp(NNT);
+    // cudaMemcpy(Disp.data(), lg_d, sizeof(Real)*NNT, cudaMemcpyDeviceToHost);
+    // std::cout << "Maximum Displacement " << *std::max_element(Disp.begin(), Disp.end()) << std::endl;
+
+
     // reset vorticity grid
     cudaMemset(eu_dddt, 0, 3*NNT*sizeof(Real));                 // Dummy grid (currently unused)
 }
@@ -1729,7 +1734,7 @@ void VPM3D_cuda::Store_Grid_Node_Sources(const RVector &Px, const RVector &Py, c
     // std::cout << "VPM3D_cuda::Store_Grid_Node_Sources: Successfully stored." << std::endl;
 }
 
-void VPM3D_cuda::Map_from_Auxiliary_Grid()
+void VPM3D_cuda::Map_External_Sources()
 {
     // In the case that the external sources should be included in the vorticity (e.g. from a lifting line),
     // rather than adding these to the full vorticity field,they are only added to the unbounded array
@@ -1750,7 +1755,7 @@ void VPM3D_cuda::Generate_VTK()
     // Generate_VTK(lg_o, lg_dddt);
 }
 
-void VPM3D_cuda::Generate_VTK(const Real *vtkoutput1, const Real *vtkoutput2)
+void VPM3D_cuda::Generate_VTK(const Real *vtkoutput1, const Real *vtkoutput2, const std::string& Name)
 {
     // Specifies a specific output and then produces a vtk file for this
     // The arrays int_lg_d & int_p_o are stored as dummy arrays
@@ -1794,7 +1799,7 @@ void VPM3D_cuda::Generate_VTK(const Real *vtkoutput1, const Real *vtkoutput2)
     }
 
     // Specify current filename.
-    vtk_Name = vtk_Prefix + std::to_string(NStep) + ".vtk";
+    vtk_Name = vtk_Prefix + std::to_string(NStep) + Name + ".vtk";
 
     Create_vtk();
 
@@ -1854,7 +1859,6 @@ void VPM3D_cuda::Generate_VTK_Scalar()
     cudaMemset(int_lg_o,      Real(0.0), 3*NNT*sizeof(Real));
     free(hostout1);
 }
-
 
 void VPM3D_cuda::Generate_Plane(RVector &U)
 {

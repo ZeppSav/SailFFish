@@ -170,7 +170,8 @@ inline void mapM6D(Real x, Real *u){
     const Real x2 = x*x;
     if (x<(Real)1.0)        *u = (Real)(-1.0/88.0) *(x-(Real)1.0)*((Real)60.0*x2*x2-(Real)87.0*x*x2-(Real)87.0*x2+(Real)88.0*x+(Real)88.0);
     else if (x<(Real)2.0)   *u = (Real)( 1.0/176.0)*(x-(Real)1.0)*(x-(Real)2.0)*((Real)60.0*x*x2-(Real)261.0*x2+(Real)257.0*x+(Real)68.0);
-    else if (x<(Real)3.0)   *u = (Real)(-3.0/176.0)*(x-(Real)2.0)*((Real)4.0*x2-(Real)17.0*x+(Real)12.0*(x-(Real)3.0)*(x-(Real)3.0));
+    // else if (x<(Real)3.0)   *u = (Real)(-3.0/176.0)*(x-(Real)2.0)*((Real)4.0*x2-(Real)17.0*x+(Real)12.0*(x-(Real)3.0)*(x-(Real)3.0));
+    else if (x<(Real)3.0)   *u = (Real)(-3.0/176.0)*(x-(Real)2.0)*((Real)4.0*x2-(Real)17.0*x+(Real)12.0)*(x-(Real)3.0)*(x-(Real)3.0);
     else                    *u = (Real)0.0;
 }
 )CLC";
@@ -278,8 +279,6 @@ if (mxx && mxy && mxz){
         {BL = -2; BU = 2;}		// M4D mapping
     #elif (Map==6)
         {BL = -3; BU = 3;}		// M6D mapping
-    #else
-        {BL = 0; BU = 0;}		// Mapping not recognised
     #endif
 
     // Carry out interpolation
@@ -304,8 +303,6 @@ if (mxx && mxy && mxz){
                     mapM6D(fab((Real)i+dx[ids]/hx), &fx);
                     mapM6D(fab((Real)j+dy[ids]/hy), &fy);
                     mapM6D(fab((Real)k+dz[ids]/hz), &fz);
-                #else
-                    // Do nothing- undefined
                 #endif
 
                 const Real Fac = fx*fy*fz;
@@ -729,6 +726,8 @@ __kernel void update(__global Real* d,
     Real do2 = d_o[i + NT   ];
     Real do3 = d_o[i + 2*NT ];
 
+    // printf("dT %f\n", p1);
+
     // Write updated values
     d[i     ] = p1 + dt * dp1;
     d[i+1*NT] = p2 + dt * dp2;
@@ -771,8 +770,8 @@ __kernel void updateRK( __global const Real* d,
 
     // Set outputs
     kd[i     ] = p1 + dt*dp1;
+    kd[i     ] = p1 + dt*dp1;
     kd[i+1*NT] = p2 + dt*dp2;
-    kd[i+2*NT] = p3 + dt*dp3;
     ko[i     ] = o1 + dt*do1;
     ko[i+1*NT] = o2 + dt*do2;
     ko[i+2*NT] = o3 + dt*do3;
@@ -959,8 +958,7 @@ const std::string VPM3D_ocl_kernels_subgrid_discfilter = R"CLC(
 __kernel void SubGrid_DiscFilter(   __global const Real* Om,
                                     __global const int* hs,
                                     __global const Real *O,
-                                    __global Real *filtO,
-                                    const int option) {
+                                    __global Real *filtO) {
 
 // Declare shared memory arrays
 __local Real ox[NHT];
@@ -994,10 +992,12 @@ ox[pid] = O[bid		];
 oy[pid] = O[bid+1*NT];
 oz[pid] = O[bid+2*NT];
 
-// Extract vorticity here
-const Real Omx = Om[bid     ];
-const Real Omy = Om[bid+1*NT];
-const Real Omz = Om[bid+2*NT];
+// Extract vorticity here (only required for small scale calculation)
+#if (Map==3)
+    const Real Omx = Om[bid     ];
+    const Real Omy = Om[bid+1*NT];
+    const Real Omz = Om[bid+2*NT];
+#endif
 
 barrier(CLK_LOCAL_MEM_FENCE);
 
@@ -1094,14 +1094,14 @@ __constant Real D2C8[9] = {-1.0/560.0, 8.0/315.0, -1.0/5.0, 8.0/5.0, -205.0/72.0
 // __constant Real LAP_ISO_3D[27] = {   L1,L2,L1,L2,L3,L2,L1,L2,L1,
 //                                      L2,L3,L2,L3,L4,L3,L2,L3,L2,
 //                                      L1,L2,L1,L2,L3,L2,L1,L2,L1};
-__constant Real LAP_ISO_3D[27] = {   1.0/30.0,3.0/30.0,1.0/30.0,3.0/30.0,14.0/30.0,3.0/30.0,1.0/30.0,3.0/30.0,1.0/30.0,
-                                     3.0/30.0,14.0/30.0,3.0/30.0,14.0/30.0,-128.0/30.0,14.0/30.0,3.0/30.0,14.0/30.0,3.0/30.0,
-                                     1.0/30.0,3.0/30.0,1.0/30.0,3.0/30.0,14.0/30.0,3.0/30.0,1.0/30.0,3.0/30.0,1.0/30.0};
+// __constant Real LAP_ISO_3D[27] = {   1.0/30.0,3.0/30.0,1.0/30.0,3.0/30.0,14.0/30.0,3.0/30.0,1.0/30.0,3.0/30.0,1.0/30.0,
+//                                      3.0/30.0,14.0/30.0,3.0/30.0,14.0/30.0,-128.0/30.0,14.0/30.0,3.0/30.0,14.0/30.0,3.0/30.0,
+//                                      1.0/30.0,3.0/30.0,1.0/30.0,3.0/30.0,14.0/30.0,3.0/30.0,1.0/30.0,3.0/30.0,1.0/30.0};
 
 __kernel void RVM_turbulentstress(  __global const Real* fO,
                                     __global const Real* sgs,
                                     __global const int* hs,
-                                    __global Real *dOmdt,
+                                    __global Real* dOmdt,
                                     const Real smag) {
 
 // Declare shared memory arrays
@@ -1143,7 +1143,7 @@ barrier(CLK_LOCAL_MEM_FENCE);
 // Fill Halo (with coalesced index read)
 for (int i=0; i<NHIT; i++){
    const int hid = BT*i + lid;
-   const int hsx = hs[hid];                           // global x-shift relative to position
+   const int hsx = hs[hid];                         // global x-shift relative to position
    const int hsy = hs[hid+BT*NHIT];                 // global y-shift relative to position
    const int hsz = hs[hid+2*BT*NHIT];               // global z-shift relative to position
    if (hsx<NFDX){                                 // Catch: is id within padded indices?
@@ -1843,31 +1843,58 @@ __kernel void AddFreestream(__global Real *u,
 
 //--- External sources
 
-// const std::string VPM3D_cuda_kernels_XXX = R"CLC(
+// const std::string VPM3D_ocl_kernels_XXX = R"CLC(
 
 // )CLC";
 
-const std::string VPM3D_cuda_kernels_MapExt = R"CLC(
-
-__kernel void Map_Ext_Bounded(  __global const Real* sx,
+const std::string VPM3D_ocl_kernels_MapExtUnb = R"CLC(
+__kernel void Map_Ext_Unbounded(__global const Real* sx,     // Source grid
                                 __global const Real* sy,
-                                __global const Real* sz,    // Source grid
-                                __global const int *blX,
+                                __global const Real* sz,
+                                __global const int *blX,     // Block indices
                                 __global const int *blY,
-                                __global const int *blZ,    // Block indices
+                                __global const int *blZ,
+                                __global Real* ux,           // Destination grid
+                                __global Real* uy,
+                                __global Real* uz)
+{
+// Prepare relevant indices
+const int BlockID = get_group_id(0);
+const int tx = get_local_id(0);
+const int ty = get_local_id(1);
+const int tz = get_local_id(2);
+const int gx = tx + blX[BlockID]*BX;
+const int gy = ty + blY[BlockID]*BY;
+const int gz = tz + blZ[BlockID]*BZ;
+
+const int lid = gid(tx,ty,tz,BX,BY,BZ);         // Local id within block
+const int sid = lid + BlockID*BT;               // Positions within array of source
+const int did = gidf(gx,gy,gz,2*NX,2*NY,2*NZ);  // Local id within padded block
+
+ux[did] += sx[sid];
+uy[did] += sy[sid];
+uz[did] += sz[sid];
+}
+)CLC";
+
+const std::string VPM3D_ocl_kernels_MapExt = R"CLC(
+
+__kernel void Map_Ext_Bounded(  __global const Real* sx,    // Source grid
+                                __global const Real* sy,
+                                __global const Real* sz,
+                                __global const int *blX,    // Block indices
+                                __global const int *blY,
+                                __global const int *blZ,
                                 __global Real* u)           // Destination grid
 {
     // Prepare relevant indices
     const int BlockID = get_group_id(0);
-    const int gx0 = blX[BlockID]*BX;
-    const int gy0 = blY[BlockID]*BY;
-    const int gz0 = blZ[BlockID]*BZ;
     const int tx = get_local_id(0);
     const int ty = get_local_id(1);
     const int tz = get_local_id(2);
-    const int gx = tx + gx0;
-    const int gy = ty + gy0;
-    const int gz = tz + gz0;
+    const int gx = tx + blX[BlockID]*BX;
+    const int gy = ty + blY[BlockID]*BY;
+    const int gz = tz + blZ[BlockID]*BZ;
 
     const int lid = gid(tx,ty,tz,BX,BY,BZ);     // Local id within block
     const int sid = lid + BlockID*BT;           // Positions within array of source
@@ -1910,7 +1937,7 @@ const int gy = ty + gy0;
 const int gz = tz + gz0;
 const int txh = tx + Halo;                          // Local x id within padded grid
 const int tyh = ty + Halo;                          // Local y id within padded grid
-const int tzh = tz + Halo;                          // Local z id within padded grid												// How many source points shalll be loaded for this block?
+const int tzh = tz + Halo;                          // Local z id within padded grid
 
 // Monolith structure
 // if (Data==Monolith) Kernel.append(const int bid = gid(gx,gy,gz,NX,NY,NZ););
@@ -1973,8 +2000,8 @@ for (int i=0; i<NHIT; i++){
 
 Real m1x = (Real)0.0, m1y = (Real)0.0, m1z = (Real)0.0;     // Interpolated values
 
-int iix, iiy, iiz;                                // Interpolation id
-const Real dxh = pX/hx, dyh = pY/hy, dzh = pZ/hz;    // Normalized distances
+int iix, iiy, iiz;                                  // Interpolation id
+const Real dxh = pX/hx, dyh = pY/hy, dzh = pZ/hz;   // Normalized distances
 
 // Calculate interpolation weights
 const int H2 = Halo*2;

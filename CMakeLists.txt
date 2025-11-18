@@ -36,11 +36,6 @@ endif()
 #--- Add library directory
 add_subdirectory(src) # Add the main SailFFish library source directory
 
-#--- Add source if compiling VPM solver
-if (BUILD_VPM)
-    add_subdirectory(src/VPM_Solver) # Add the VPM directory
-endif()
-
 add_executable(SailFFish main.cpp)
 
 target_link_libraries(SailFFish PRIVATE SailFFish_lib)

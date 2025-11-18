@@ -27,6 +27,7 @@
 //---- Add eigen library
 // #include <../../eigen/Eigen/Eigen>
 #include <Eigen/Eigen>               // Dont know... but this isn't working with CMake
+
 #ifdef SinglePrec
     //--------Single Precision----------
     typedef Eigen::MatrixXf             Matrix;

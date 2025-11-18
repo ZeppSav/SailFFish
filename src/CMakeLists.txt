@@ -31,7 +31,20 @@ elseif(BUILD_CUFFT) # Link CUFFT headers and libraries
     target_compile_definitions(SailFFish_lib PUBLIC CUFFT)
 
 elseif(BUILD_VKFFT)
-    # target_compile_definitions(SailFFish_lib PRIVATE VKFFT)
+    if(WIN32)
+        target_include_directories(SailFFish_lib PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../CL")                # Path for Cl headers
+        target_include_directories(SailFFish_lib PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../../vkFFT")          # Path for VkFFT headers
+        target_include_directories(SailFFish_lib PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../../vkFFT/vkFFT")    # Path for VkFFT headers
+        target_link_libraries(SailFFish_lib PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../libswin64/OpenCL.dll")  # Link OpenCL library
+    else()
+        # Linux!
+    endif()
+    target_compile_definitions(SailFFish_lib PUBLIC VKFFT VKFFT_BACKEND=3)
+endif()
+
+#--- Add source if compiling VPM solver
+if (BUILD_VPM)
+    add_subdirectory(VPM_Solver) # Add the VPM directory
 endif()
 
 # Sources
@@ -45,8 +58,8 @@ target_sources(SailFFish_lib PRIVATE
     Solvers/Export_Grid.cpp 
     Solvers/Neumann_Solver.cpp 
     Solvers/Periodic_Solver.cpp 
-    Solvers/Solver_Base.cpp 
     Solvers/Unbounded_Solver.cpp
+    Solvers/Solver_Base.cpp
 )
 
 # Headers
@@ -64,8 +77,8 @@ target_sources(SailFFish_lib PUBLIC
     Solvers/Greens_Functions.h 
     Solvers/Neumann_Solver.h 
     Solvers/Periodic_Solver.h 
-    Solvers/Solver_Base.h
     Solvers/Unbounded_Solver.h
+    Solvers/Solver_Base.h
 )
 
 target_link_libraries(SailFFish_lib PRIVATE OpenMP::OpenMP_CXX)

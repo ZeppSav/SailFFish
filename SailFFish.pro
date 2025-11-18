@@ -7,11 +7,11 @@ CONFIG -= qt
 # Specify backend
 #----------------------------------------------
 
-# CONFIG += FFTWBackend
+CONFIG += FFTWBackend
 # CONFIG += CUDABackend
-CONFIG += VKFFTBackend
+# CONFIG += VKFFTBackend
 
-CONFIG += VPMSolver
+# CONFIG += VPMSolver
 
 #----------------------------------------------
 # Specify floating point precision
@@ -119,10 +119,10 @@ CONFIG(VKFFTBackend) {
     #----------------------------------------------
     # include path to OpenCL headers & VkFFT
     #----------------------------------------------
-    INCLUDEPATH += $$PWD/..                 # Add path for CL headers
-    INCLUDEPATH += $$PWD/../VkFFT           # Add path for vkFFT library
-    INCLUDEPATH += $$PWD/../VkFFT/VkFFT     # Add path for vkFFT library
-    # INCLUDEPATH += $$PWD/../VkFFT/half_lib  # Add path for half precision library
+    INCLUDEPATH += $$PWD/..                     # Add path for CL headers
+    INCLUDEPATH += $$PWD/../vkFFT               # Add path for vkFFT library
+    INCLUDEPATH += $$PWD/../vkFFT/vkFFT         # Add path for vkFFT library
+    # INCLUDEPATH += $$PWD/../VkFFT/half_lib    # Add path for half precision library
     # INCLUDEPATH += $$PWD/../VkFFT/benchmark_scripts/vkFFT_scripts/src      # Add path for tests and utilities sources
 
     #--- Include OpenCL lib

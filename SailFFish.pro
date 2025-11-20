@@ -7,8 +7,8 @@ CONFIG -= qt
 # Specify backend
 #----------------------------------------------
 
-CONFIG += FFTWBackend
-# CONFIG += CUDABackend
+# CONFIG += FFTWBackend
+CONFIG += CUDABackend
 # CONFIG += VKFFTBackend
 
 # CONFIG += VPMSolver

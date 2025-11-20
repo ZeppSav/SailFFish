@@ -1,5 +1,6 @@
 # Dependencies
 find_package(OpenMP REQUIRED)
+find_package(Eigen3 REQUIRED)
 
 add_library(SailFFish_lib)  # Create a library for SailFFish
 set_target_properties(SailFFish_lib PROPERTIES OUTPUT_NAME SailFFish)
@@ -42,11 +43,6 @@ elseif(BUILD_VKFFT)
     target_compile_definitions(SailFFish_lib PUBLIC VKFFT VKFFT_BACKEND=3)
 endif()
 
-#--- Add source if compiling VPM solver
-if (BUILD_VPM)
-    add_subdirectory(VPM_Solver) # Add the VPM directory
-endif()
-
 # Sources
 target_sources(SailFFish_lib PRIVATE
     DataTypes/DataType_Base.cpp 
@@ -81,7 +77,29 @@ target_sources(SailFFish_lib PUBLIC
     Solvers/Solver_Base.h
 )
 
-target_link_libraries(SailFFish_lib PRIVATE OpenMP::OpenMP_CXX)
+#--- Add source if compiling VPM solver
+if (BUILD_VPM)
+
+    # add_subdirectory(VPM_Solver) # Add the VPM directory  // Add as addition Cmakelists...
+    target_sources(SailFFish_lib PRIVATE VPM_Solver/VPM_Solver.cpp )
+    target_sources(SailFFish_lib PUBLIC FILE_SET HEADERS FILES VPM_Solver/VPM_Solver.h VPM_Solver/VPM3D_kernels_cpu.h )
+
+    if (BUILD_FFTW)
+        target_sources(SailFFish_lib PRIVATE VPM_Solver/VPM3D_cpu.cpp )
+        target_sources(SailFFish_lib PUBLIC FILE_SET HEADERS FILES VPM_Solver/VPM3D_cpu.h )
+    elseif(BUILD_CUFFT ) # Link CUFFT headers and libraries
+        target_include_directories(SailFFish_lib PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/../../jitify") # Path for jitify header
+        target_link_libraries(SailFFish_lib PRIVATE nvrtc)                                          # Link to nvrtc lib for compiling cuda kernels
+        target_sources(SailFFish_lib PRIVATE VPM_Solver/VPM3D_cuda.cpp )
+        target_sources(SailFFish_lib PUBLIC FILE_SET HEADERS FILES VPM_Solver/VPM3D_cuda.h )
+    elseif(BUILD_VKFFT)
+        target_sources(SailFFish_lib PRIVATE VPM_Solver/VPM3D_ocl.cpp )
+        target_sources(SailFFish_lib PUBLIC FILE_SET HEADERS FILES VPM_Solver/VPM3D_ocl.h )
+    endif()
+
+endif()
+
+target_link_libraries(SailFFish_lib PUBLIC Eigen3::Eigen OpenMP::OpenMP_CXX)
 
 include(GNUInstallDirs)
 install(TARGETS SailFFish_lib FILE_SET HEADERS DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/SailFFish)

@@ -18,7 +18,7 @@ void convertToBigEndian(T& value) {
 }
 
 // static int const vtkPrecision = 8;     // High Precision, high memory
-// static int const vtkWidth = 17;         // Width for parsing high precision number
+// static int const vtkWidth = 17;          // Width for parsing high precision number
 
 static int const vtkPrecision = 3;     // Low Precision, low of memory
 static int const vtkWidth = 11;        // Width for parsing low precision number

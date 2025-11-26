@@ -552,6 +552,11 @@ const int txh = tx + Halo;                              // Local x id within pad
 const int tyh = ty + Halo;                              // Local y id within padded grid
 const int tzh = tz + Halo;                              // Local z id within padded grid
 
+// printf("local = (%d,%d,%d)   localsize = (%d,%d,%d)   globalsize = (%d,%d,%d)\n",
+//         get_local_id(0), get_local_id(1), get_local_id(2),
+//         get_local_size(0), get_local_size(1), get_local_size(2),
+//         get_global_size(0), get_global_size(1), get_global_size(2));
+
 // Monolith structure
 // if (Data==Monolith) Kernel.append(const int bid = gid(gx,gy,gz,NX,NY,NZ););
 // if (Data==Block)    Kernel.append(const int bid = gidb(gx,gy,gz););
@@ -648,6 +653,14 @@ const int H2 = Halo*2;
 Real cx[H2], cy[H2], cz[H2];			// Interpolation weights
 int NS;								// Shift for node id
 
+// printf("Halo %d H2 %d Map %d BlockID %d BlockIDx %d BlockIDy %d BlockIDz %d\n", Halo, H2, Map, BlockID, blX[BlockID], blY[BlockID], blZ[BlockID]);
+// printf("tx %d ty %d tz %d gx %d gy %d gz %d\n", tx, ty, tz, gx, gy, gz);
+// printf("bx %d by %d bz %d Bx %d By %d Bz %d gx %d gy %d gz %d \n", get_local_size(0), get_local_size(1), get_local_size(2), BX, BY, BZ, get_global_size(0), get_global_size(1), get_global_size(2));
+
+// printf("local = (%d,%d,%d)   global = (%d,%d,%d)\n",
+//        get_local_size(0), get_local_size(1), get_local_size(2),
+//        get_global_size(0), get_global_size(1), get_global_size(2));
+
 #if (Map==2)
     NS = 0;
     mapM2(dxh,&cx[0]);               mapM2((Real)1.0-dxh,&cx[1]);
@@ -682,6 +695,9 @@ for (int i=0; i<H2; i++){
             m1x +=  fac*sx[ids];
             m1y +=  fac*sy[ids];
             m1z +=  fac*sz[ids];
+            // m1x += 1.0;
+            // m1y += 1.0;
+            // m1z += 1.0;
        }
     }
 }

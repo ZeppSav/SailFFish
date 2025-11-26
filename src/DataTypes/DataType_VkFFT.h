@@ -236,7 +236,7 @@ const Complex ix = iX[i];
 const Complex iy = iY[i];
 const Complex iz = iZ[i];
 
-__syncthreads();
+barrier(CLK_LOCAL_MEM_FENCE);
 
 // Carry out convolution in frequency space.
 const Complex gfx = {ox.x*gf.x - ox.y*gf.y , ox.x*gf.y + ox.y*gf.x};

@@ -36,8 +36,8 @@
 
 namespace SailFFish {
 
-#define OpenMPfor _Pragma("omp parallel for")
-#define csp <<" "<<
+// #define OpenMPfor _Pragma("omp parallel for")
+// #define csp <<" "<<
 
 #define Parallel_Kernel(X) OpenMPfor for (int i=0; i<(X); i++)
 #define Serial_Kernel(X) for (int i=0; i<(X); i++)

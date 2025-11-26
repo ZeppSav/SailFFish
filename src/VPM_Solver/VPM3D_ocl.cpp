@@ -1266,6 +1266,8 @@ void VPM3D_ocl::Extract_Field(const cl_mem Field, const RVector &Px, const RVect
         int nbt = nbx*NBY*NBZ + nby*NBZ + nbz;
         IDB[nbt].push_back(Vector3(rx-HLx*nbx, ry-HLy*nby, rz-HLz*nbz));
         IDPart[nbt].push_back(i);
+
+        // std::cout << rx csp ry csp rz csp nbx csp nby csp nbz csp nbt << " GLOB Boxes " << NBX csp NBY csp NBZ << std::endl;
     }
 
     // Sort into blocks of size NT <= BT
@@ -1299,10 +1301,6 @@ void VPM3D_ocl::Extract_Field(const cl_mem Field, const RVector &Px, const RVect
         count = int(NDS.size());
     }
 
-    // std::cout << "Checking mapping " << map_blx.size() csp map_bly.size() csp map_blz.size() csp map_blx.size()*BT csp NDS.size() << " NNodes: " << NP << std::endl;
-    // std::cout << "Testing node numbering: " << std::endl;
-    // for (int i=0; i<NP; i++)  std::cout << "P Orig: " << Px[i] csp Py[i] csp Pz[i] csp " P Test: "<<  NDS[idout[i]](0) + X0 csp  NDS[idout[i]](1) + Y0 csp NDS[idout[i]](2) + Z0 << std::endl;
-
     // NDS now contains the padded evaluation positions (in relative CS)
     // map_bl_i contains the block id of the boxes to be evaluated
     // map_nP is the number of evaluation points for this block
@@ -1310,6 +1308,7 @@ void VPM3D_ocl::Extract_Field(const cl_mem Field, const RVector &Px, const RVect
     int sND = size(NDS);
     RVector map_X(sND), map_Y(sND), map_Z(sND);
     Parallel_Kernel(sND) {
+     // Serial_Kernel(sND) {
         map_X[i] = NDS[i](0);
         map_Y[i] = NDS[i](1);
         map_Z[i] = NDS[i](2);
@@ -1325,11 +1324,12 @@ void VPM3D_ocl::Extract_Field(const cl_mem Field, const RVector &Px, const RVect
     Allocate_Buffer(uz, sND*sizeof(cl_real));
 
     int NBlock = map_blx.size();
-    // std::cout << "NBlocks = " << NBlock csp map_blx.size() csp map_bly.size() csp map_blz.size() << std::endl;
     cl_mem bidx, bidy, bidz;
     Allocate_Buffer(bidx, NBlock*sizeof(cl_int));
     Allocate_Buffer(bidy, NBlock*sizeof(cl_int));
     Allocate_Buffer(bidz, NBlock*sizeof(cl_int));
+
+    // for (int i=0; i<NBlock; i++) std::cout << map_blx[i] csp map_bly[i] csp map_blz[i] << std::endl;
 
     // Pass data to device
     VkFFTResult Stat = VKFFT_SUCCESS;
@@ -1339,6 +1339,13 @@ void VPM3D_ocl::Extract_Field(const cl_mem Field, const RVector &Px, const RVect
     Stat = transferDataFromCPU(vkGPU, map_blx.data(),   &bidx,   NBlock*sizeof(cl_int));
     Stat = transferDataFromCPU(vkGPU, map_bly.data(),   &bidy,   NBlock*sizeof(cl_int));
     Stat = transferDataFromCPU(vkGPU, map_blz.data(),   &bidz,   NBlock*sizeof(cl_int));
+
+    // Note: JOE
+    // When simulating with the UBerT Turbine, the following call crashes.
+    // SFStat = Execute_Kernel(ocl_interpM4_block , ExtArch, {Field,px,py,pz,bidx,bidy,bidz,Halo2data,ux,uy,uz});
+    // wiht the error: CL_INVALID_COMMAND_QUEUE if Map >= M4 (works for M2?!?!?).
+    // I have looked at the kernel and the work sizes appear to be specified correctly--- the only conceptual difference
+    // is that UBeRT has a prescribed circulation distribution..
 
     // Execute kernel
     ExtArch.global[0] = (size_t)BX*NBlock;

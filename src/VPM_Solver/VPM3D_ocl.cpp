@@ -108,7 +108,8 @@ SFStatus VPM3D_ocl::Setup_VPM(VPM_Input *I)
     Set_Grid_Positions();                       // Specify positions of grid (for diagnostics and/or initialisation)
 
     //--- Prepare outputs
-    create_directory(std::filesystem::path("Output"));  // Generate output folder if not existing
+//    create_directory(std::filesystem::path("Output"));  // Generate output folder if not existing
+    Create_Directory("Output");
     Generate_Summary("Summary.dat");
     Sim_begin = std::chrono::steady_clock::now();    // Begin clock
 
@@ -1194,7 +1195,8 @@ void VPM3D_ocl::Calc_Grid_Diagnostics()
 
         if (NStep==NInit)
         {
-            create_directory(std::filesystem::path(OutputDirectory));   // Generate directory
+//            create_directory(std::filesystem::path(OutputDirectory));   // Generate directory
+            Create_Directory(OutputDirectory);
             std::ofstream file;
             file.open(FilePath, std::ofstream::out | std::ofstream::trunc); // Clear!
             file.close();
@@ -1251,7 +1253,7 @@ void VPM3D_ocl::Extract_Field(const cl_mem Field, const RVector &Px, const RVect
 {
     // Values are extracted from the grid using a local interpolation. This is carried out by loading a block into memory and then
     // interpolating this in shared memory
-    int NP = size(Px);
+    int NP = Px.size();
 
     // Step 1: Bin interpolation positions
     std::vector<std::vector<Vector3>> IDB(NBT);
@@ -1275,7 +1277,7 @@ void VPM3D_ocl::Extract_Field(const cl_mem Field, const RVector &Px, const RVect
     std::vector<int> map_blx, map_bly, map_blz, idout(NP);
     int count = 0;
     for (int b=0; b<NBT; b++){
-        int n = size(IDB[b]);                               // # particles in this box
+        int n = IDB[b].size();                               // # particles in this box
         if (n==0)         continue;                         // No particles in this box
         int nbx = int(b/(NBY*NBZ)), nbs = b-nbx*NBY*NBZ;    // Box x index
         int nby = int(nbs/NBZ);                             // Box y index
@@ -1305,7 +1307,7 @@ void VPM3D_ocl::Extract_Field(const cl_mem Field, const RVector &Px, const RVect
     // map_bl_i contains the block id of the boxes to be evaluated
     // map_nP is the number of evaluation points for this block
     // Sort into SOA
-    int sND = size(NDS);
+    int sND = NDS.size();
     RVector map_X(sND), map_Y(sND), map_Z(sND);
     Parallel_Kernel(sND) {
      // Serial_Kernel(sND) {
@@ -1463,7 +1465,7 @@ void VPM3D_ocl::Store_Grid_Node_Sources(const RVector &Px, const RVector &Py, co
         if (p.globblid != idb){                 // New block
 
             // Add new block to array.
-            bgid = BT*size(sID);
+            bgid = BT*sID.size();
             Obx.insert(Obx.end(), BT, Real(0.));    // Append onto x array
             Oby.insert(Oby.end(), BT, Real(0.));    // Append onto y array
             Obz.insert(Obz.end(), BT, Real(0.));    // Append onto z array
@@ -1486,7 +1488,7 @@ void VPM3D_ocl::Store_Grid_Node_Sources(const RVector &Px, const RVector &Py, co
     // These should now be passed to the corresponding OpenCl buffers
 
     // Allocate external arrays if necessary
-    NBExt = size(sID);
+    NBExt = sID.size();
     if (NBufferExt < NBExt){
 
         // Reset size of external array

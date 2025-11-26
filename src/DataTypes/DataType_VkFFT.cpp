@@ -558,7 +558,7 @@ VkFFTResult DataType_VkFFT::ConvertArray_R2C(RVector &I, void* input_buffer, siz
 SFStatus DataType_VkFFT::Set_Input(RVector &I)
 {
     // Transfers input array to opencl buffer
-    if (size(I)!=size_t(NT)){
+    if (I.size()!=size_t(NT)){
         std::cout << "DataType_VkFFT::Set_Input(RVector &I): Input array has incorrect dimension." << std::endl;
         return DimError;
     }
@@ -581,9 +581,9 @@ SFStatus DataType_VkFFT::Set_Input(RVector &I)
 SFStatus DataType_VkFFT::Set_Input(RVector &I1, RVector &I2, RVector &I3)
 {
     // Transfers input array to opencl buffer
-    if ((size(I1)!=(size_t)NT) ||
-        (size(I2)!=(size_t)NT) ||
-        (size(I3)!=(size_t)NT)){
+    if ((I1.size()!=(size_t)NT) ||
+        (I2.size()!=(size_t)NT) ||
+        (I3.size()!=(size_t)NT)){
         std::cout << "DataType_VkFFT::Set_Input: Input array has incorrect dimension." << std::endl;
         return DimError;
     }
@@ -605,7 +605,7 @@ SFStatus DataType_VkFFT::Set_Input(RVector &I1, RVector &I2, RVector &I3)
 SFStatus DataType_VkFFT::Set_Input_Unbounded(RVector &I)
 {
     // Transfers input array to opencl buffer
-    if (size(I)!=size_t(NTH)){
+    if (I.size()!=size_t(NTH)){
         std::cout << "DataType_VkFFT::Set_Input(RVector &I): Input array has incorrect dimension." << std::endl;
         return DimError;
     }

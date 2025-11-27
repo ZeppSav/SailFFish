@@ -1267,9 +1267,6 @@ void VPM3D_ocl::Extract_Field(const cl_mem Field, const RVector &Px, const RVect
         int nbx = int(rx/HLx);
         int nby = int(ry/HLy);
         int nbz = int(rz/HLz);
-//        int nbt = nbx*NBY*NBZ + nby*NBZ + nbz;
-//        IDB[nbt].push_back(Vector3(rx-HLx*nbx, ry-HLy*nby, rz-HLz*nbz));
-//        IDPart[nbt].push_back(i);
         bool xbuf = (nbx < 0 || nbx >= NBX-1);
         bool ybuf = (nby < 0 || nby >= NBY-1);
         bool zbuf = (nbz < 0 || nbz >= NBZ-1);
@@ -1281,6 +1278,13 @@ void VPM3D_ocl::Extract_Field(const cl_mem Field, const RVector &Px, const RVect
             countin++;
         }
     }
+
+    if (NP!=countin){
+        std::cout << "VPM3D_ocl::Extract_Field NProbe points: Probe points have been excluded as they lay outside of bounds:" << std::endl;
+        std::cout << "NProbes requested: " << NP << ", NProbes analysed: " << countin <<  std::endl;
+    }
+
+    // std::cout << "VPM3D_ocl::Extract_Field NProbe points: " << NP << " NValid " << countin << std::endl;
 
     // Sort into blocks of size NT <= BT
     std::vector<Vector3> NDS;
@@ -1309,7 +1313,6 @@ void VPM3D_ocl::Extract_Field(const cl_mem Field, const RVector &Px, const RVect
 
         // Identify the id in NDS corresponding to node id Input arrays
         for (int i=0; i<n; i++) idout[IDPart[b][i]] = count++;
-        // count += nb*BT-n;
         count = int(NDS.size());
     }
 
@@ -1352,13 +1355,6 @@ void VPM3D_ocl::Extract_Field(const cl_mem Field, const RVector &Px, const RVect
     Stat = transferDataFromCPU(vkGPU, map_bly.data(),   &bidy,   NBlock*sizeof(cl_int));
     Stat = transferDataFromCPU(vkGPU, map_blz.data(),   &bidz,   NBlock*sizeof(cl_int));
 
-    // Note: JOE
-    // When simulating with the UBerT Turbine, the following call crashes.
-    // SFStat = Execute_Kernel(ocl_interpM4_block , ExtArch, {Field,px,py,pz,bidx,bidy,bidz,Halo2data,ux,uy,uz});
-    // wiht the error: CL_INVALID_COMMAND_QUEUE if Map >= M4 (works for M2?!?!?).
-    // I have looked at the kernel and the work sizes appear to be specified correctly--- the only conceptual difference
-    // is that UBeRT has a prescribed circulation distribution..
-
     // Execute kernel
     ExtArch.global[0] = (size_t)BX*NBlock;
     SFStatus SFStat = NoError;
@@ -1377,13 +1373,6 @@ void VPM3D_ocl::Extract_Field(const cl_mem Field, const RVector &Px, const RVect
     Stat = transferDataToCPU(vkGPU, ruy.data(), &uy, sND*sizeof(cl_real));
     Stat = transferDataToCPU(vkGPU, ruz.data(), &uz, sND*sizeof(cl_real));
 
-//    // Now cycle through and pass back values at correct positions
-//    for (int i=0; i<NP; i++){
-//        // std::cout << rux[idout[i]] csp ruy[idout[i]] csp ruz[idout[i]] << std::endl;
-//        Ux[i] = rux[idout[i]];
-//        Uy[i] = ruy[idout[i]];
-//        Uz[i] = ruz[idout[i]];
-//    }
     // Now cycle through and pass back values at correct positions
     for (int i=0; i<NP; i++){
         // std::cout << rux[idout[i]] csp ruy[idout[i]] csp ruz[idout[i]] << std::endl;

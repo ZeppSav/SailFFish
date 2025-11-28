@@ -19,6 +19,8 @@ void DataType_VkFFT::Datatype_Setup()
     vkGPU = new VkGPU{};
     res = OpenCLSetup(vkGPU);
 
+    Print_Device_Info(vkGPU->device);
+
     // Enable fused kernel convolution
     // FusedKernel = true;
 

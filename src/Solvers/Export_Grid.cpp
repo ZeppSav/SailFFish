@@ -285,7 +285,9 @@ void Solver_3D_Vector::Create_vtk()
     // Prepare binary buffer
     std::vector<Real> binaryBuffer(numPoints*3); // Flattened array for binary data
     std::vector<Real> binaryBuffer2(numPoints*3); // Flattened array for binary data
-    OpenMPfor
+    // std::string Buffer = " "; // Flattened array for binary data        // ASCII FORMAT
+    // std::string Buffer2; // Flattened array for binary data
+    OpenMPfor           // DEACTIVATE FOR ASCII FORMAT
     for(int k=0; k<nz; k++){
         for(int j=0; j<ny; j++){
             for(int i=0; i<nx; i++){
@@ -306,6 +308,16 @@ void Solver_3D_Vector::Create_vtk()
                 convertToBigEndian(binaryBuffer2[idb * 3 + 0]);
                 convertToBigEndian(binaryBuffer2[idb * 3 + 1]);
                 convertToBigEndian(binaryBuffer2[idb * 3 + 2]);
+
+                // // ASCII FORMAT
+                // std::ostringstream is1, is2, is3;
+                // is1 << std::scientific << std::setw(17) << r_Input2[id]; Buffer += is1.str();
+                // is2 << std::scientific << std::setw(17) << r_Input2[id]; Buffer += is2.str();
+                // is3 << std::scientific << std::setw(17) << r_Input3[id]; Buffer += is3.str();
+                // std::ostringstream os1, os2, os3;
+                // os1 << std::scientific << std::setw(17) << r_Output1[id];  Buffer2 += os1.str();
+                // os2 << std::scientific << std::setw(17) << r_Output2[id];  Buffer2 += os2.str();
+                // os3 << std::scientific << std::setw(17) << r_Output3[id];  Buffer2 += os3.str();
             }
         }
     }
@@ -324,6 +336,8 @@ void Solver_3D_Vector::Create_vtk()
     file << "# vtk DataFile Version 2.0\n";
     file << "Binary VTK file with vector data\n";
     file << "BINARY\n";
+    // file << "ASCII VTK file with vector data\n";        // ASCII FORMAT
+    // file << "ASCII\n";
     file << "DATASET STRUCTURED_POINTS\n";
     file << "DIMENSIONS " << nx << " " << ny << " " << nz << "\n";
     file << "ORIGIN " << origin[0] << " " << origin[1] << " " << origin[2] << "\n";
@@ -334,11 +348,13 @@ void Solver_3D_Vector::Create_vtk()
     if (std::is_same<Real,float>::value)    file << "VECTORS Omega float\n"; // Specify vector data
     if (std::is_same<Real,double>::value)   file << "VECTORS Omega double\n"; // Specify vector data
     file.write(reinterpret_cast<const char*>(binaryBuffer.data()), binaryBuffer.size() * sizeof(Real));
+    // file << Buffer;             // ASCII FORMAT
 
     file << " " << "\n";
     if (std::is_same<Real,float>::value)    file << "VECTORS Velocity float\n"; // Specify vector data
     if (std::is_same<Real,double>::value)   file << "VECTORS Velocity double\n"; // Specify vector data
     file.write(reinterpret_cast<const char*>(binaryBuffer2.data()), binaryBuffer2.size() * sizeof(Real));
+    // file << Buffer2;            // ASCII FORMAT
 
     // Close file
     file.close();

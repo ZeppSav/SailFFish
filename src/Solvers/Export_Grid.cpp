@@ -11,10 +11,19 @@
 
 namespace SailFFish
 {
+
 template <typename T>
 void convertToBigEndian(T& value) {
     char* ptr = reinterpret_cast<char*>(&value);
     std::reverse(ptr, ptr + sizeof(T));
+}
+
+inline void ConvertToLittleEndian(Real &f)
+{
+    // Reorders data
+    uint8_t* b = reinterpret_cast<uint8_t*>(&f);
+    std::swap(b[0], b[3]);
+    std::swap(b[1], b[2]);
 }
 
 // static int const vtkPrecision = 8;     // High Precision, high memory
@@ -360,6 +369,61 @@ void Solver_3D_Vector::Create_vtk()
     file.close();
     std::cout << "Grid data has been exportet in binary .vtk format to: " << filename << std::endl;
     return;
+}
+
+void Solver_3D_Vector::Import_vtk(std::string &Inputfile)
+{
+    // In this function the external field will be imported and the desired grid will be specified within the r_Input1 arrays
+
+    std::string OutputDirectory = "Output/" + OutputFolder;
+    std::string filename = OutputDirectory + "/" + vtk_Name;
+
+    std::ifstream in(filename, std::ios::binary);
+    if (!in) {
+        throw std::runtime_error("Could not open file " + filename);
+    }
+
+    // Read header lines until the "VECTORS" line
+    std::string line;
+    while (std::getline(in, line)) {
+        if (line.rfind("VECTORS", 0) == 0) {  // starts with "VECTORS"
+            break;
+        }
+    }
+
+    // std::vector<float> data;
+    // Grid sizes
+    int nx = gNX;
+    int ny = gNY;
+    int nz = gNZ;
+    if (gNX>NX) nx = NX;
+    if (gNY>NY) ny = NY;
+    if (gNZ>NZ) nz = NZ;
+    const int numPoints = nx * ny * nz;
+
+    // Read in array in binary format
+    std::vector<Real> binaryBuffer(numPoints*3); // Flattened array for binary data
+    in.read(reinterpret_cast<char*>(binaryBuffer.data()), binaryBuffer.size() * sizeof(Real));
+
+    // Now read these points out to the grid.
+    OpenMPfor
+    for(int k=0; k<nz; k++){
+        for(int j=0; j<ny; j++){
+            for(int i=0; i<nx; i++){
+                int id = GF_GID3(i,j,k,NX,NY,NZ);       // F_Style Global id of unbounded box (VkFFT)
+                int idb = GID(k,j,i,nz,ny,nx);          // Row-major ordering of paraview input
+                convertToBigEndian(binaryBuffer[idb * 3 + 0]);
+                convertToBigEndian(binaryBuffer[idb * 3 + 1]);
+                convertToBigEndian(binaryBuffer[idb * 3 + 2]);
+                r_Input1[id] = binaryBuffer[idb * 3 + 0];       // x-component
+                r_Input2[id] = binaryBuffer[idb * 3 + 1];       // y-component
+                r_Input3[id] = binaryBuffer[idb * 3 + 2];       // z-component
+            }
+        }
+    }
+
+    std::cout << "Input array " << Inputfile << " has been imported." << std::endl;
+
 }
 
 }

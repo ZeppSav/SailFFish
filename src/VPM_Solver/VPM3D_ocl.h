@@ -223,6 +223,9 @@ public:
     //--- Grid statistics
     void Calc_Grid_Diagnostics() override;
 
+    //--- Import grid
+    void Import_Field();
+
     //--- Output grid
     void Generate_VTK() override;
 //     void Generate_VTK_Scalar()  override;

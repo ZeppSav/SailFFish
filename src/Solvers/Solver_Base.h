@@ -84,7 +84,10 @@ public:
     virtual void Specify_Greens_Function()      {}
 
     //--- Grid visualisation
-    virtual void Create_vtk()                   {}
+    virtual void Create_vtk()                       {}
+
+    //--- Import external fields
+    virtual void Import_vtk(std::string &Inputfile) {}
 
     //--- Extract grid positions
     void Get_XGrid(RVector &X)      {for (int i=0; i<gNX; i++) X.push_back(gX[i]);}
@@ -174,7 +177,10 @@ public:
     virtual SFStatus Setup(Real X[2], Real Y[2], Real Z[2], int iNX, int iNY, int iNZ);
 
     //--- Grid visualisation
-    virtual void Create_vtk();
+    virtual void Create_vtk() override;
+
+    //--- import grid
+    void Import_vtk(std::string &Inputfile) override;
 };
 
 }

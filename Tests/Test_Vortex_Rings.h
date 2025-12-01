@@ -162,7 +162,7 @@ void Vortex_Ring_Evolution_Test()
     SFStatus Status = VPM->Setup_VPM(&I);
     if (Status!=NoError) {std::cout << "Error during setup" << std::endl;   return;}
 
-    //--- Initialize vorticity field
+    //--- Initialize vorticity field (using Analytical function)
     int NNT;
     VPM->Retrieve_Grid_Size(NNT);
     RVector Px(NNT), Py(NNT), Pz(NNT), Ox(NNT), Oy(NNT), Oz(NNT);
@@ -170,8 +170,8 @@ void Vortex_Ring_Evolution_Test()
     Parallel_Kernel(NNT) {KER_Perturbed_Vortex_Ring(Px[i],Py[i],Pz[i],Ox[i],Oy[i],Oz[i],PhaseShift,R,Coresize,Rey,I.KinVisc,Eps);}
     VPM->Set_Input_Arrays(Ox,Oy,Oz);
 
-    //--- Generate initial volume grid
-    VPM->Generate_VTK();
+    // //--- Initialize vorticity field (using Imported data) (The file Mesh_3DV.vtk must exist)
+    // VPM->Import_Field();
 
     // return;
 

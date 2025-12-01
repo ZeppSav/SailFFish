@@ -1561,6 +1561,29 @@ void VPM3D_ocl::Generate_VTK()
     // Generate_VTK(lg_o, lg_dddt);
 }
 
+void VPM3D_ocl::Import_Field()
+{
+    // Clean input arrays
+    memset(r_Input1, 0., NT*sizeof(Real));
+    memset(r_Input2, 0., NT*sizeof(Real));
+    memset(r_Input3, 0., NT*sizeof(Real));
+
+    // Transfer data to r_Inputi arrays
+    std::string Dummy = "Dummy" ;
+    Import_vtk(Dummy);
+
+    // Now transfer data to OpenCL buffers
+    VkFFTResult res = VKFFT_SUCCESS;
+    if (r_in1)  res = transferDataFromCPU(vkGPU, r_Input1, &cl_r_Input1, bufferSizeNT);
+    if (r_in2)  res = transferDataFromCPU(vkGPU, r_Input2, &cl_r_Input2, bufferSizeNT);
+    if (r_in3)  res = transferDataFromCPU(vkGPU, r_Input3, &cl_r_Input3, bufferSizeNT);
+
+    // Transfer to bounded buffer
+    if (Architecture==BLOCK){
+        SFStatus stat = Execute_Kernel(ocl_map_fromUnbounded, BlockArch, {cl_r_Input1, cl_r_Input2, cl_r_Input3, lg_o});
+    }
+}
+
 void VPM3D_ocl::Generate_VTK(cl_mem vtkoutput1, cl_mem vtkoutput2, const std::string& Name)
 {
     // Specifies a specific output and then produces a vtk file for this

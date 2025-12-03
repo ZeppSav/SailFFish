@@ -1563,14 +1563,20 @@ void VPM3D_ocl::Generate_VTK()
 
 void VPM3D_ocl::Import_Field()
 {
+    // Note: This function assumes that the imported file has the same format as the exported files.
+    // The pfad should be to the exported file folder and the -vtk with the correct timestamp should be findable in that folder.
+
     // Clean input arrays
     memset(r_Input1, 0., NT*sizeof(Real));
     memset(r_Input2, 0., NT*sizeof(Real));
     memset(r_Input3, 0., NT*sizeof(Real));
 
+    // Specify correct filename:
+    std::string OutputDirectory = "Output/" + OutputFolder;
+    std::string filename = OutputDirectory + "/" + vtk_Prefix + std::to_string(NStep) + ".vtk";
+
     // Transfer data to r_Inputi arrays
-    std::string Dummy = "Dummy" ;
-    Import_vtk(Dummy);
+    Import_vtk(filename);
 
     // Now transfer data to OpenCL buffers
     VkFFTResult res = VKFFT_SUCCESS;

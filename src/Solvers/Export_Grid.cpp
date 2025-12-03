@@ -29,7 +29,7 @@ inline void ConvertToLittleEndian(Real &f)
 // static int const vtkPrecision = 8;     // High Precision, high memory
 // static int const vtkWidth = 17;          // Width for parsing high precision number
 
-static int const vtkPrecision = 3;     // Low Precision, low of memory
+static int const vtkPrecision = 3;     // Low Precision, low memory
 static int const vtkWidth = 11;        // Width for parsing low precision number
 
 //---------------------------
@@ -375,8 +375,9 @@ void Solver_3D_Vector::Import_vtk(std::string &Inputfile)
 {
     // In this function the external field will be imported and the desired grid will be specified within the r_Input1 arrays
 
-    std::string OutputDirectory = "Output/" + OutputFolder;
-    std::string filename = OutputDirectory + "/" + vtk_Name;
+    // std::string OutputDirectory = "Output/" + OutputFolder;
+    // std::string filename = OutputDirectory + "/" + vtk_Name;
+    std::string filename = Inputfile;
 
     std::ifstream in(filename, std::ios::binary);
     if (!in) {

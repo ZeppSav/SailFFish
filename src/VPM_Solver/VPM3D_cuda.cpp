@@ -1750,9 +1750,40 @@ void VPM3D_cuda::Map_External_Sources()
 
 void VPM3D_cuda::Generate_VTK()
 {
-    Generate_VTK(eu_o, eu_dddt);
+    // Generate_VTK(eu_o, eu_dddt);
     // Generate_VTK(eu_dodt, eu_dddt);
-    // Generate_VTK(lg_o, lg_dddt);
+    Generate_VTK(lg_o, lg_dddt);
+}
+
+
+void VPM3D_cuda::Import_Field()
+{
+    // Note: This function assumes that the imported file has the same format as the exported files.
+    // The pfad should be to the exported file folder and the -vtk with the correct timestamp should be findable in that folder.
+
+    // Clean input arrays
+    cudaMemset(r_Input1, Real(0.0), NT*sizeof(Real));
+    cudaMemset(r_Input2, Real(0.0), NT*sizeof(Real));
+    cudaMemset(r_Input3, Real(0.0), NT*sizeof(Real));
+
+    // Specify correct filename:
+    std::string OutputDirectory = "Output/" + OutputFolder;
+    std::string filename = OutputDirectory + "/" + vtk_Prefix + std::to_string(NStep) + ".vtk";
+
+    std::cout << "Importing flow field " << filename << std::endl;
+
+    // Transfer data to r_Inputi arrays
+    Import_vtk(filename);
+
+    // Now transfer data to cuda buffers
+    if (r_in1)  cudaMemcpy(cuda_r_Input1, r_Input1, NT*sizeof(Real), cudaMemcpyDeviceToHost);
+    if (r_in2)  cudaMemcpy(cuda_r_Input2, r_Input2, NT*sizeof(Real), cudaMemcpyDeviceToHost);
+    if (r_in3)  cudaMemcpy(cuda_r_Input3, r_Input3, NT*sizeof(Real), cudaMemcpyDeviceToHost);
+
+    // Transfer to bounded buffer
+    if (Architecture==BLOCK){
+        cuda_map_fromUnbounded->Execute(cuda_r_Input1, cuda_r_Input2, cuda_r_Input3, lg_o);
+    }
 }
 
 void VPM3D_cuda::Generate_VTK(const Real *vtkoutput1, const Real *vtkoutput2, const std::string& Name)

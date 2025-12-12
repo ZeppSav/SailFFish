@@ -1085,6 +1085,15 @@ void VPM3D_ocl::Remesh_Particle_Set()
     Zero_FloatBuffer(lg_d, 3*NNT*sizeof(cl_real));             // Reset Lagrangian grid displacement
 
     std::cout << "Particle Set Remeshed" << std::endl;
+
+    RVector outo(3*NNT), outl(3*NNT);
+    VkFFTResult res1 = transferDataToCPU(vkGPU, outo.data(), &eu_o, (uint64_t)3*NNT*sizeof(Real));
+    VkFFTResult res2 = transferDataToCPU(vkGPU, outl.data(), &lg_o, (uint64_t)3*NNT*sizeof(Real));
+    Real OmMin = *std::min_element(outo.begin(), outo.begin()+3*NNT);
+    Real LaMin = *std::min_element(outl.begin(), outl.begin()+3*NNT);
+    Real OmMax = *std::max_element(outo.begin(), outo.begin()+3*NNT);
+    Real LaMax = *std::max_element(outl.begin(), outl.begin()+3*NNT);
+    std::cout << "Particle Set Remeshed maxvals out = " << OmMin csp OmMax csp LaMin csp LaMax << std::endl;
 }
 
 // void VPM3D_ocl::Magnitude_Filtering()
@@ -1556,9 +1565,9 @@ void VPM3D_ocl::Map_External_Sources()
 
 void VPM3D_ocl::Generate_VTK()
 {
-    Generate_VTK(eu_o, eu_dddt);
+    // Generate_VTK(eu_o, eu_dddt);
     // Generate_VTK(eu_dodt, eu_dddt);
-    // Generate_VTK(lg_o, lg_dddt);
+    Generate_VTK(lg_o, lg_dddt);
 }
 
 void VPM3D_ocl::Import_Field()
@@ -1574,6 +1583,8 @@ void VPM3D_ocl::Import_Field()
     // Specify correct filename:
     std::string OutputDirectory = "Output/" + OutputFolder;
     std::string filename = OutputDirectory + "/" + vtk_Prefix + std::to_string(NStep) + ".vtk";
+
+    std::cout << "Importing flow field " << filename << std::endl;
 
     // Transfer data to r_Inputi arrays
     Import_vtk(filename);

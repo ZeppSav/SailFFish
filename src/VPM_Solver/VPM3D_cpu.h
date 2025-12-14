@@ -119,6 +119,9 @@ public:
     void Generate_VTK(const RVector &A1, const RVector &A2, const RVector &A3, const RVector &B1, const RVector &B2, const RVector &B3);
     void Generate_Plane(RVector &Uvoid) override;
 
+    //--- Import grid
+    void Import_Field()         {}   // Dummy function for now
+
     //--- Destructor
     ~VPM3D_cpu() override;
 };

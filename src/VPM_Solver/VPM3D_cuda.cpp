@@ -1755,7 +1755,6 @@ void VPM3D_cuda::Generate_VTK()
     Generate_VTK(lg_o, lg_dddt);
 }
 
-
 void VPM3D_cuda::Import_Field()
 {
     // Note: This function assumes that the imported file has the same format as the exported files.
@@ -1770,19 +1769,26 @@ void VPM3D_cuda::Import_Field()
     std::string OutputDirectory = "Output/" + OutputFolder;
     std::string filename = OutputDirectory + "/" + vtk_Prefix + std::to_string(NStep) + ".vtk";
 
-    std::cout << "Importing flow field " << filename << std::endl;
-
     // Transfer data to r_Inputi arrays
     Import_vtk(filename);
 
     // Now transfer data to cuda buffers
-    if (r_in1)  cudaMemcpy(cuda_r_Input1, r_Input1, NT*sizeof(Real), cudaMemcpyDeviceToHost);
-    if (r_in2)  cudaMemcpy(cuda_r_Input2, r_Input2, NT*sizeof(Real), cudaMemcpyDeviceToHost);
-    if (r_in3)  cudaMemcpy(cuda_r_Input3, r_Input3, NT*sizeof(Real), cudaMemcpyDeviceToHost);
+    if (r_in1)      cudaMemcpy(cuda_r_Input1, r_Input1, NT*sizeof(Real), cudaMemcpyDeviceToHost);
+    if (r_in2)      cudaMemcpy(cuda_r_Input2, r_Input2, NT*sizeof(Real), cudaMemcpyDeviceToHost);
+    if (r_in3)      cudaMemcpy(cuda_r_Input3, r_Input3, NT*sizeof(Real), cudaMemcpyDeviceToHost);
 
     // Transfer to bounded buffer
     if (Architecture==BLOCK){
         cuda_map_fromUnbounded->Execute(cuda_r_Input1, cuda_r_Input2, cuda_r_Input3, lg_o);
+    }
+
+    if (r_out_1)    cudaMemcpy(cuda_r_Input1, r_Output1, NT*sizeof(Real), cudaMemcpyDeviceToHost);
+    if (r_out_2)    cudaMemcpy(cuda_r_Input2, r_Output2, NT*sizeof(Real), cudaMemcpyDeviceToHost);
+    if (r_out_3)    cudaMemcpy(cuda_r_Input3, r_Output3, NT*sizeof(Real), cudaMemcpyDeviceToHost);
+
+    // Transfer to bounded buffer
+    if (Architecture==BLOCK){
+        cuda_map_fromUnbounded->Execute(cuda_r_Input1, cuda_r_Input2, cuda_r_Input3, eu_dddt);
     }
 }
 

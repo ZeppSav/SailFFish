@@ -1563,7 +1563,7 @@ void VPM3D_ocl::Map_External_Sources()
 // //----- Generate Output grid for vis --------
 // //-------------------------------------------
 
-void VPM3D_ocl::Generate_VTK()
+void VPM3D_ocl::Generate_VTK()      // HERE JOE!
 {
     // Generate_VTK(eu_o, eu_dddt);
     // Generate_VTK(eu_dodt, eu_dddt);
@@ -1583,6 +1583,7 @@ void VPM3D_ocl::Import_Field()
     // Specify correct filename:
     std::string OutputDirectory = "Output/" + OutputFolder;
     std::string filename = OutputDirectory + "/" + vtk_Prefix + std::to_string(NStep) + ".vtk";
+    // std::string filename = OutputDirectory + "/Mesh_3DV.vtk";       // HACK
 
     std::cout << "Importing flow field " << filename << std::endl;
 

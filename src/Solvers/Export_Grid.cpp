@@ -18,6 +18,15 @@ void convertToBigEndian(T& value) {
     std::reverse(ptr, ptr + sizeof(T));
 }
 
+// template <typename T>
+// void convertBigToLittleEndian(T& value) {
+//     // Cast the value to a pointer to byte (char) for byte-wise manipulation
+//     char* ptr = reinterpret_cast<char*>(&value);
+
+//     // Reverse the bytes to switch the endianness
+//     std::reverse(ptr, ptr + sizeof(T));
+// }
+
 inline void ConvertToLittleEndian(Real &f)
 {
     // Reorders data
@@ -384,15 +393,6 @@ void Solver_3D_Vector::Import_vtk(std::string &Inputfile)
         throw std::runtime_error("Could not open file " + filename);
     }
 
-    // Read header lines until the "VECTORS" line
-    std::string line;
-    while (std::getline(in, line)) {
-        if (line.rfind("VECTORS", 0) == 0) {  // starts with "VECTORS"
-            break;
-        }
-    }
-
-    // std::vector<float> data;
     // Grid sizes
     int nx = gNX;
     int ny = gNY;
@@ -402,9 +402,20 @@ void Solver_3D_Vector::Import_vtk(std::string &Inputfile)
     if (gNZ>NZ) nz = NZ;
     const int numPoints = nx * ny * nz;
 
-    // Read in array in binary format
-    std::vector<Real> binaryBuffer(numPoints*3); // Flattened array for binary data
-    in.read(reinterpret_cast<char*>(binaryBuffer.data()), binaryBuffer.size() * sizeof(Real));
+    // Read header lines until the "VECTORS" line
+    std::string line;
+    while (std::getline(in, line)) {if (line.rfind("VECTORS Omega", 0) == 0) break;}
+
+    // Read in omega array in binary format
+    std::vector<Real> binaryBuffer1(numPoints*3); // Flattened array for binary data
+    in.read(reinterpret_cast<char*>(binaryBuffer1.data()), binaryBuffer1.size() * sizeof(Real));
+
+    // Read header lines until the "VECTORS" line
+    while (std::getline(in, line)) {if (line.rfind("VECTORS Velocity", 0) == 0) break;}
+
+    // Read in omega array in binary format
+    std::vector<Real> binaryBuffer2(numPoints*3); // Flattened array for binary data
+    in.read(reinterpret_cast<char*>(binaryBuffer2.data()), binaryBuffer2.size() * sizeof(Real));
 
     // Now read these points out to the grid.
     OpenMPfor
@@ -413,15 +424,26 @@ void Solver_3D_Vector::Import_vtk(std::string &Inputfile)
             for(int i=0; i<nx; i++){
                 int id = GF_GID3(i,j,k,NX,NY,NZ);       // F_Style Global id of unbounded box (VkFFT)
                 int idb = GID(k,j,i,nz,ny,nx);          // Row-major ordering of paraview input
-                convertToBigEndian(binaryBuffer[idb * 3 + 0]);
-                convertToBigEndian(binaryBuffer[idb * 3 + 1]);
-                convertToBigEndian(binaryBuffer[idb * 3 + 2]);
-                r_Input1[id] = binaryBuffer[idb * 3 + 0];       // x-component
-                r_Input2[id] = binaryBuffer[idb * 3 + 1];       // y-component
-                r_Input3[id] = binaryBuffer[idb * 3 + 2];       // z-component
+                convertToBigEndian(binaryBuffer1[idb * 3 + 0]);
+                convertToBigEndian(binaryBuffer1[idb * 3 + 1]);
+                convertToBigEndian(binaryBuffer1[idb * 3 + 2]);
+                r_Input1[id] = binaryBuffer1[idb * 3 + 0];       // x-component
+                r_Input2[id] = binaryBuffer1[idb * 3 + 1];       // y-component
+                r_Input3[id] = binaryBuffer1[idb * 3 + 2];       // z-component
+                convertToBigEndian(binaryBuffer2[idb * 3 + 0]);
+                convertToBigEndian(binaryBuffer2[idb * 3 + 1]);
+                convertToBigEndian(binaryBuffer2[idb * 3 + 2]);
+                r_Output1[id] = binaryBuffer2[idb * 3 + 0];       // x-component
+                r_Output2[id] = binaryBuffer2[idb * 3 + 1];       // y-component
+                r_Output3[id] = binaryBuffer2[idb * 3 + 2];       // z-component
             }
         }
     }
+
+    // std::cout << "Min component AR1 " << *std::min_element(binaryBuffer1.begin(), binaryBuffer1.end()) << std::endl;
+    // std::cout << "Max component AR1 " << *std::max_element(binaryBuffer1.begin(), binaryBuffer1.end()) << std::endl;
+    // std::cout << "Min component AR2 " << *std::min_element(binaryBuffer2.begin(), binaryBuffer2.end()) << std::endl;
+    // std::cout << "Max component AR2 " << *std::max_element(binaryBuffer2.begin(), binaryBuffer2.end()) << std::endl;
 
     std::cout << "Input array " << Inputfile << " has been imported." << std::endl;
 

@@ -162,18 +162,23 @@ void Vortex_Ring_Evolution_Test()
     SFStatus Status = VPM->Setup_VPM(&I);
     if (Status!=NoError) {std::cout << "Error during setup" << std::endl;   return;}
 
-    //--- Initialize vorticity field (using Analytical function)
-    int NNT;
-    VPM->Retrieve_Grid_Size(NNT);
-    RVector Px(NNT), Py(NNT), Pz(NNT), Ox(NNT), Oy(NNT), Oz(NNT);
-    VPM->Retrieve_Grid_Positions(Px,Py,Pz);
-    Parallel_Kernel(NNT) {KER_Perturbed_Vortex_Ring(Px[i],Py[i],Pz[i],Ox[i],Oy[i],Oz[i],PhaseShift,R,Coresize,Rey,I.KinVisc,Eps);}
-    VPM->Set_Input_Arrays(Ox,Oy,Oz);
+    // //--- Initialize vorticity field (using Analytical function)
+    // int NNT;
+    // VPM->Retrieve_Grid_Size(NNT);
+    // RVector Px(NNT), Py(NNT), Pz(NNT), Ox(NNT), Oy(NNT), Oz(NNT);
+    // VPM->Retrieve_Grid_Positions(Px,Py,Pz);
+    // Parallel_Kernel(NNT) {KER_Perturbed_Vortex_Ring(Px[i],Py[i],Pz[i],Ox[i],Oy[i],Oz[i],PhaseShift,R,Coresize,Rey,I.KinVisc,Eps);}
+    // VPM->Set_Input_Arrays(Ox,Oy,Oz);
 
-    // //--- Initialize vorticity field (using Imported data) (The file Mesh_3DV.vtk must exist)
-    // VPM->Import_Field();
+    // std::cout << "Min component Ox " << *std::min_element(Ox.begin(), Ox.end()) << std::endl;
+    // std::cout << "Max component Ox " << *std::max_element(Ox.begin(), Ox.end()) << std::endl;
+    // std::cout << "Min component Oy " << *std::min_element(Oy.begin(), Oy.end()) << std::endl;
+    // std::cout << "Max component Oy " << *std::max_element(Oy.begin(), Oy.end()) << std::endl;
+    // std::cout << "Min component Oz " << *std::min_element(Oz.begin(), Oz.end()) << std::endl;
+    // std::cout << "Max component Oz " << *std::max_element(Oz.begin(), Oz.end()) << std::endl;
 
-    // return;
+    //--- Initialize vorticity field (using Imported data) (The file Mesh_3DV.vtk must exist)
+    VPM->Import_Field();
 
     //--- Execute simulation
     // int NStep = 1000;

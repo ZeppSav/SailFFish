@@ -25,8 +25,7 @@
 #include "../Solvers/Solver_Base.h"
 
 //---- Add eigen library
-// #include <../../eigen/Eigen/Eigen>
-#include <Eigen/Eigen>               // Dont know... but this isn't working with CMake
+#include <Eigen/Eigen>
 
 #ifdef SinglePrec
     //--------Single Precision----------

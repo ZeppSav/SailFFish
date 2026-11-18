@@ -5,14 +5,16 @@ dependencies. The software is configured for shared memory machines.
 At the heart of the solver is the fast fourier transform (FFT), which allows us to integrate the Poisson equation in frequency space.
 Transforms to and from the frequency space via FFTs are not carried out by SailFFish, 
 but rather call existing (and very optimised) libraries through the inherited `DataType` class. 
-Currently two compilation options exists: The first is the (deservedly) popular library [FFTW](https://www.fftw.org/) for calculation on a CPU. 
-The second is the high-performance NVIDIA FFT implementation [cuFFT](https://docs.nvidia.com/cuda/cufft/index.html) for calculation on a GPU. 
+Currently three compilation options exists: 
+The first is the (deservedly) popular library [FFTW](https://www.fftw.org/) for multithreaded calculation on a CPU. 
+The second is the FFT implementation [cuFFT](https://docs.nvidia.com/cuda/cufft/index.html) for calculation on NVIDIA GPUs.
+The third is the high-performance OpenCL Vulkan FFT implementation [VkFFT](https://github.com/dtolm/VkFFT) for calculation on numerous GPU platforms.  
 Solvers exist for 1D, 2D and 3D scalar and 3D vector input fields. A range of differential operators may be applied to modify the form of the Poisson equation being solved.
 
 <p align="center">
 <img src="/img/Ring_Omega_Vel.png" width=65% height=65%> 
 </p>
-A 3D_Vector style solver with a curl differential operator has been used to solve for the velocity distribution (right half: x-velocity field) of a vortex ring (left half: voriticity contours).
+A 3D_Vector style solver with a curl differential operator has been used to solve for the velocity distribution (right half: x-velocity field) of a vortex ring (left half: vorticity contours).
 <br />
 
 A [preprint](https://arxiv.org/abs/2301.01145) has been prepared for SailFFish which contains a detailed overview of the software architecture along with a full set of validation cases.
@@ -106,7 +108,7 @@ std::vector<float> Input = std::vector<float>(NT,1.0);
 SailFFish::SFStatus Stat = Solver2DP->Set_Input(Input);
 ```
 In this example (given for the 2D periodic case above) an array of a very uninteresting input field is constructed. The spatial ordering of the grid in SailFFish is *row-major*. 
-This implies that as as you step through adjacent memory locations, the first dimension’s index varies most slowly and the last dimension’s index varies most quickly. 
+This implies that as you step through adjacent memory locations, the first dimension’s index varies most slowly and the last dimension’s index varies most quickly. 
 This is then passed to the solver using the `Set_Input` function. This function has an `SFStatus` output type as a check is carried out to ensure that the correct number of grid node values are being passed. 
 The following values are defined:
 * `SFStatus`       {NoError, DimError, MemError, SetupError, ExecError};
@@ -137,22 +139,21 @@ An ArXiv preprint has been prepared which contains an overview of the solver, da
 This can be found at the [following link](https://arxiv.org/abs/2301.01145).
 
 ## Compilation
-The only dependency of SailFFish is the [eigen](https://eigen.tuxfamily.org) lineary algebra library. 
+Depending on the chosen backend, SailFFish requires specific dependencies. 
+For the FFTW backend you must link to the [FFTW](https://www.fftw.org/download.html) headers and libraries. 
+For the CUDA backend you must link to the [NVIDIA GPU computing toolkit](https://developer.nvidia.com/cuda/toolkit). 
+For the VkFFT backend you must include the [VkFFT](https://developer.nvidia.com/cuda/toolkit) source and the appropriate OpenCL headers and libraries.
+The requires variables become clear once you specify the keyword [SAILFFISH_BACKEND].   
+There is additionally a Vortex-Particle Mesh solver which also requires the [eigen](https://eigen.tuxfamily.org) lineary algebra library. 
+In order to invoke the compilation of this you need to set the variable [SAILFFISH_BUILD_VPM].
 The compilation of SailFFish has been tested with GCC (v7.3).
-Two options are available for compiling:
-- qmake: SailFFish was prepared with the cross-platform development environment [Qt Creator](https://www.qt.io/product/development-tools). 
-The .pro file required for compiling with qmake has been provided. 
-- CMake: The `CMakeLists.txt` file has been provided. Note: This is not thoroughly tested!
-You simply need to include the path to the eigen directory on your device.
-For example:
-```
-INCLUDEPATH += -L$$PWD/../eigen/
-```
+SailFFish is configured to be compiled with CMake: The required `CMakeLists.txt` file has been provided. 
 ### Floating point precision	
 SailFFish can be compiled to use either single or double floating point precision. 
-Simply specify with the appropriate compiler flags: `SinglePrec` or `DoublePrec`
+Simply specify with the appropriate compiler flags for [SAILFFISH_PRECISION]: `Single` or `Double`
 ### Choice of datatype
-As described above, there are two native options for `DataType` in SailFFish. These are specified with the appropriate compiler flags:
+As described above, there are three native options for `DataType` in SailFFish. These are specified with the appropriate compiler flags:
 * `FFTW` The code will compile such that the FFTW3 library is used. 
 * `CUDA` The code will compile such that the cuFFT library is used. 
-In either case, it should be clear from the `.pro` or `CMakeLists.txt` files where you need to point to the corresponding directories and the libraries which must be linked. 
+* `VKFFFT` The code will compile such that the VkFFT library is used. 
+In either case, it should be clear from the `CMakeLists.txt` files where you need to point to the corresponding directories and the libraries which must be linked. 

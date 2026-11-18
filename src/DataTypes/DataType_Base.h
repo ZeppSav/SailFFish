@@ -79,16 +79,16 @@ protected:
     int NZM = 0, NZH = 0;
 
     int gNT = 0;
-    int NCX=0, NCY=0, NCZ=0;    // Number of cells
-    int gNX=0, gNY=0, gNZ=0;    // Number of grid nodes
+    int NCX=0, NCY=0, NCZ=0;        // Number of cells
+    int gNX=0, gNY=0, gNZ=0;        // Number of grid nodes
 
-    Real Xl, Xu;                // X Limits
-    Real Yl, Yu;                // Y Limits
-    Real Zl, Zu;                // Z Limits
-    Real Lx, Ly, Lz;            // Domain widths
-    Real Hx, Hy, Hz;            // Cell widths
-    RVector fX, fY, fZ;         // X-Y values on FFT grid
-    RVector gX, gY, gZ;         // X-Y values on solution grid
+    Real Xl = 0, Xu = 0;            // X Limits
+    Real Yl = 0, Yu = 0;            // Y Limits
+    Real Zl = 0, Zu = 0;            // Z Limits
+    Real Lx = 0, Ly = 0, Lz = 0;    // Domain widths
+    Real Hx = 0, Hy = 0, Hz = 0;    // Cell widths
+    RVector fX, fY, fZ;             // X-Y values on FFT grid
+    RVector gX, gY, gZ;             // X-Y values on solution grid
 
     //--- Grid sizes for R2C transforms
     void Set_NTM1D()   {NXM = NX;                           NTM = NXM;          }
@@ -123,7 +123,7 @@ protected:
     bool c_dbf_4 = false, c_dbf_5 = false, c_dbf_6 = false;
 
     //--- Memory objects (Real)
-    Real *r_FG;
+    Real *r_FG = nullptr;
 
     //--- Mapping functions (bounded solvers)
     virtual void Map_C2F_1D(const RVector &Src, RVector &Dest)  {std::copy(Src.begin(), Src.end(), Dest.begin());}

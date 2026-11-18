@@ -86,30 +86,30 @@ protected:
     dim3 GridDim;
 
     //--- Plan
-    cufftHandle FFT_Plan;
-    cufftHandle Forward_Plan;
-    cufftHandle Backward_Plan;
+    cufftHandle FFT_Plan = 0;
+    cufftHandle Forward_Plan = 0;
+    cufftHandle Backward_Plan = 0;
 
     //--- Handles for cuBLAS
     cublasHandle_t cublashandle;
 
     //--- Memory objects (cpu)
-    Real *r_Input1, *r_Output1;
-    Real *r_Input2, *r_Output2;
-    Real *r_Input3, *r_Output3;
+    Real *r_Input1 = nullptr, *r_Output1 = nullptr;
+    Real *r_Input2 = nullptr, *r_Output2 = nullptr;
+    Real *r_Input3 = nullptr, *r_Output3 = nullptr;
 
     //--- Memory objects (gpu)
     // In reality these are actually stored on the GPU, we shall use these simply as interfacing arrays.
-    CUDAReal *cuda_r_Input1, *cuda_r_Output1;
-    CUDAReal *cuda_r_Input2, *cuda_r_Output2;
-    CUDAReal *cuda_r_Input3, *cuda_r_Output3;
+    CUDAReal *cuda_r_Input1 = nullptr, *cuda_r_Output1 = nullptr;
+    CUDAReal *cuda_r_Input2 = nullptr, *cuda_r_Output2 = nullptr;
+    CUDAReal *cuda_r_Input3 = nullptr, *cuda_r_Output3 = nullptr;
 
-    CUDAComplex *c_Input1, *c_FTInput1, *c_FTOutput1, *c_Output1, *c_FTVel1;
-    CUDAComplex *c_Input2, *c_FTInput2, *c_FTOutput2, *c_Output2, *c_FTVel2;
-    CUDAComplex *c_Input3, *c_FTInput3, *c_FTOutput3, *c_Output3, *c_FTVel3;
-    CUDAComplex *c_DummyBuffer1, *c_DummyBuffer2, *c_DummyBuffer3;
-    CUDAComplex *c_DummyBuffer4, *c_DummyBuffer5, *c_DummyBuffer6;
-    CUDAComplex *c_FG, *c_FGi, *c_FGj, *c_FGk;
+    CUDAComplex *c_Input1 = nullptr, *c_FTInput1 = nullptr, *c_FTOutput1 = nullptr, *c_Output1 = nullptr, *c_FTVel1 = nullptr;
+    CUDAComplex *c_Input2 = nullptr, *c_FTInput2 = nullptr, *c_FTOutput2 = nullptr, *c_Output2 = nullptr, *c_FTVel2 = nullptr;
+    CUDAComplex *c_Input3 = nullptr, *c_FTInput3 = nullptr, *c_FTOutput3 = nullptr, *c_Output3 = nullptr, *c_FTVel3 = nullptr;
+    CUDAComplex *c_DummyBuffer1 = nullptr, *c_DummyBuffer2 = nullptr, *c_DummyBuffer3 = nullptr;
+    CUDAComplex *c_DummyBuffer4 = nullptr, *c_DummyBuffer5 = nullptr, *c_DummyBuffer6 = nullptr;
+    CUDAComplex *c_FG = nullptr, *c_FGi = nullptr, *c_FGj = nullptr, *c_FGk = nullptr;
 
 public:
 

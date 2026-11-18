@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.23)
 project(SailFFish VERSION 1.0 LANGUAGES CXX)
 
 option(BUILD_SHARED_LIBS "Build shared library" OFF)
+option(SAILFFISH_BUILD_TESTS "Build the testing executable" OFF)
 option(SAILFFISH_NATIVE_ARCH "Compile with -march=native" ON)
 
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
@@ -23,17 +24,17 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")     # Not tested
     list(APPEND CMAKE_INSTALL_RPATH "@loader_path/../${CMAKE_INSTALL_LIBDIR}")
 endif()
 
-#--- Add library directory (options and backend selection live in src/CMakeLists.txt)
+#--- Add library directory (options and backend selection in src/CMakeLists.txt)
 add_subdirectory(src)
 
 if(SAILFFISH_NATIVE_ARCH)
     target_compile_options(SailFFish_lib PRIVATE -march=native)
 endif()
 
-add_executable(SailFFish main.cpp)
-target_link_libraries(SailFFish PRIVATE SailFFish_lib)
-if(SAILFFISH_NATIVE_ARCH)
-    target_compile_options(SailFFish PRIVATE -march=native)
-endif()
+# add_executable(SailFFish main.cpp)
+# target_link_libraries(SailFFish PRIVATE SailFFish_lib)
+# if(SAILFFISH_NATIVE_ARCH)
+#     target_compile_options(SailFFish PRIVATE -march=native)
+# endif()
 
-install(TARGETS SailFFish)
+# install(TARGETS SailFFish)

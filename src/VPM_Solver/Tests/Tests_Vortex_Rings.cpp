@@ -25,18 +25,21 @@
 #ifndef TEST_RINGS_H
 #define TEST_RINGS_H
 
-#include "../src/SailFFish_Math_Types.h"
+#include <gtest/gtest.h>
+#include "SailFFish_Math_Types.h"
 #ifdef FFTW
-    #include "../src/VPM_Solver/VPM3D_cpu.h"
+    #include "VPM_Solver/VPM3D_cpu.h"
 #elif CUFFT
-    #include "../src/VPM_Solver/VPM3D_cuda.h"
+    #include "VPM_Solver/VPM3D_cuda.h"
 #elif VKFFT
-    #include "../src/VPM_Solver/VPM3D_ocl.h"
+    #include "VPM_Solver/VPM3D_ocl.h"
 #endif
 
 using namespace SailFFish;
 
-void Vortex_Ring_Evolution_Test()
+static const int NStep_VPM = 500;       // Number of time steps for vortex ring tests
+
+TEST(SailFFish_VPM_Tests, Vortex_Ring_Evolution)
 {
     // This is a test case to check the evolution of the vortex rings
 
@@ -45,11 +48,11 @@ void Vortex_Ring_Evolution_Test()
 
     // --- VPM solver
     #ifdef FFTW
-        SailFFish::VPM3D_cpu *VPM = new SailFFish::VPM3D_cpu(SailFFish::STAGGERED, SailFFish::HEJ_G8);
+        auto VPM = std::make_unique<SailFFish::VPM3D_cpu>(SailFFish::STAGGERED, SailFFish::HEJ_G8);
     #elif CUFFT
-        SailFFish::VPM3D_cuda *VPM = new SailFFish::VPM3D_cuda(SailFFish::STAGGERED, SailFFish::HEJ_G8);
+        auto VPM = std::make_unique<SailFFish::VPM3D_cuda>(SailFFish::STAGGERED, SailFFish::HEJ_G8);
     #elif VKFFT
-        SailFFish::VPM3D_ocl *VPM = new SailFFish::VPM3D_ocl(SailFFish::STAGGERED, SailFFish::HEJ_G8);
+        auto VPM = std::make_unique<SailFFish::VPM3D_ocl>(SailFFish::STAGGERED, SailFFish::HEJ_G8);
     #endif
 
     //--- Initialize with VPM_Input
@@ -160,12 +163,13 @@ void Vortex_Ring_Evolution_Test()
 
     //--- Setup VPM solver
     SFStatus Status = VPM->Setup_VPM(&I);
-    if (Status!=NoError) {std::cout << "Error during setup" << std::endl;   return;}
+    ASSERT_EQ(Status, NoError);
 
     //--- Initialize vorticity field (using Analytical function)
     int NNT;
     VPM->Retrieve_Grid_Size(NNT);
     RVector Px(NNT), Py(NNT), Pz(NNT), Ox(NNT), Oy(NNT), Oz(NNT);
+    ASSERT_GT(NNT, 0);
     VPM->Retrieve_Grid_Positions(Px,Py,Pz);
     Parallel_Kernel(NNT) {KER_Perturbed_Vortex_Ring(Px[i],Py[i],Pz[i],Ox[i],Oy[i],Oz[i],PhaseShift,R,Coresize,Rey,I.KinVisc,Eps);}
     VPM->Set_Input_Arrays(Ox,Oy,Oz);
@@ -177,13 +181,20 @@ void Vortex_Ring_Evolution_Test()
     std::cout << "Min component Oz " << *std::min_element(Oz.begin(), Oz.end()) << std::endl;
     std::cout << "Max component Oz " << *std::max_element(Oz.begin(), Oz.end()) << std::endl;
 
+    // Sanity check of the initial field: finite and nonzero
+    Real OMax = 0;
+    for (int i=0; i<NNT; i++){
+        ASSERT_TRUE(std::isfinite(Ox[i]) && std::isfinite(Oy[i]) && std::isfinite(Oz[i]));
+        OMax = std::max(OMax, std::max(std::fabs(Ox[i]), std::max(std::fabs(Oy[i]), std::fabs(Oz[i]))));
+    }
+    EXPECT_GT(OMax, 0);
+
     // //--- Initialize vorticity field (using Imported data) (The file Mesh_3DV.vtk must exist)
     // VPM->Import_Field();
 
     //--- Execute simulation
     // int NStep = 1000;
-    int NStep = 500;
-    for (int i=0; i<NStep; i++) VPM->Advance_Particle_Set();
+    for (int i=0; i<NStep_VPM; i++) VPM->Advance_Particle_Set();
 
     //--- Finalise simulation
     VPM->Generate_Summary_End();

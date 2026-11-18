@@ -1215,9 +1215,9 @@ DataType_CUDA::~DataType_CUDA()
     Deallocate_Arrays();
 
     // Clear plans
-    cufftDestroy(FFT_Plan);
-    cufftDestroy(Forward_Plan);
-    cufftDestroy(Backward_Plan);
+    if (FFT_Plan)       cufftDestroy(FFT_Plan);
+    if (Forward_Plan)   cufftDestroy(Forward_Plan);
+    if (Backward_Plan)  cufftDestroy(Backward_Plan);
 }
 
 }

@@ -1,5 +1,0 @@
-if(DEFINED USE_SAILFFISH_EXT)
-    include(CMakeLists_ext.txt)
-else()
-    include(CMakeLists_int.txt)
-endif()

@@ -487,8 +487,8 @@ void DataType_FFTW::Get_Output_Unbounded_1D(RVector &I)
     }
 
     // Hack to check output array
-    std::cout << "Outputting complex arrays" << std::endl;
-    for (int i=0; i<NTM; i++) std::cout << c_FTInput1[i][0] csp c_FTInput1[i][1] << std::endl;
+    // std::cout << "Outputting complex arrays" << std::endl;
+    // for (int i=0; i<NTM; i++) std::cout << c_FTInput1[i][0] csp c_FTInput1[i][1] << std::endl;
 }
 
 void DataType_FFTW::Get_Output_Unbounded_2D(RVector &I)
@@ -983,8 +983,9 @@ DataType_FFTW::~DataType_FFTW()
     Deallocate_Arrays();
 
     // Clear plans
-    FFTW_Destroy_Plan(Forward_Plan);
-    FFTW_Destroy_Plan(Backward_Plan);
+    if (Forward_Plan)   FFTW_Destroy_Plan(Forward_Plan);
+    if (Backward_Plan)  FFTW_Destroy_Plan(Backward_Plan);
+    if (R2DPlan)        FFTW_Destroy_Plan(R2DPlan);
 
    fftw_cleanup_threads();
    fftw_cleanup();

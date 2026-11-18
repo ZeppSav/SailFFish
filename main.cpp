@@ -1,7 +1,7 @@
 // #include "Tests/Test_1D.h"
 // #include "Tests/Test_2D.h"
 // #include "Tests/Test_3D.h"
-#include "Tests/Test_3DV.h"
+// #include "Tests/Test_3DV.h"
 // #include "Tests/Test_Vortex_Rings.h"
 
 static const bool Export_VTK = true;
@@ -12,9 +12,9 @@ int main()
     // int nx = 8*100;
     // int ny = 8*16;
     // int nz = 8*16;
-    int nx = 32;
-    int ny = 32;
-    int nz = 32;
+    // int nx = 32;
+    // int ny = 32;
+    // int nz = 32;
 
     // --- 1D solver tests
     // Test_Dirichlet_1D(nx);
@@ -43,7 +43,7 @@ int main()
     // Test_Dirichlet_3DV(nx,ny,nz);
     // Test_Neumann_3DV(nx,ny,nz);
     // Test_Periodic_3DV(nx,ny,nz);        // Not working VKFFT-> Convolution?
-    Test_Unbounded_3DV(nx,ny,nz);
+    // Test_Unbounded_3DV(nx,ny,nz);
     // Test_Unbounded_3DV_Curl(nx,ny,nz);
 
     // --- VPM tests

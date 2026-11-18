@@ -25,25 +25,44 @@
 #ifndef TEST_1D_H
 #define TEST_1D_H
 
-#include "../src/SailFFish.h"
+#include <gtest/gtest.h>
+#include "SailFFish_Math_Types.h"
+#include "Solvers/Periodic_Solver.h"
+#include "Solvers/Dirichlet_Solver.h"
+#include "Solvers/Neumann_Solver.h"
+#include "Solvers/Unbounded_Solver.h"
 #include "Test_Functions.h"
+
+static const int NX_1D = 128;           // Grid resolution for all 1D tests
+static const Real Tol_1D = 1.0e-4;      // E_inf tolerance (calibrate)
+static const Real Tol_1D_FD2 = 1.0e-3;  // E_inf tolerance, 2nd-order finite difference (calibrate)
+
+// Bounded Dirichlet/Neumann solvers use real-to-real transforms (DST/DCT), which cuFFT does not provide
+#if defined(CUFFT)
+    #define SKIP_IF_CUFFT() GTEST_SKIP() << "Real-to-real transforms (DCT/DST) are not supported by cuFFT."
+#else
+    #define SKIP_IF_CUFFT()
+#endif
 
 //---------------------
 //--- Bounded solvers
 //---------------------
 
-void Test_Dirichlet_1D(int NX)
+TEST(SailFFish_1D_Tests, Test_Dirichlet_1D)
 {
+    SKIP_IF_CUFFT();
+
+    const int NX = NX_1D;
     // Test case for 1D bounded Poisson solver with Dirichlet BCs
 
     SailFFish::SFStatus Status = SailFFish::NoError;    // Status of execution
     stopwatch();                                        // Begin timer for profiling
 
     // Define solver
-    SailFFish::Poisson_Dirichlet_1D *Solver = new SailFFish::Poisson_Dirichlet_1D();
+    auto Solver = std::make_unique<SailFFish::Poisson_Dirichlet_1D>();
     Status = Solver->Setup(UnitX,NX);
     // Status = Solver->Setup(HUnitX,NX);
-    if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
+    ASSERT_EQ(Status, SailFFish::NoError);
     unsigned int t2 = stopwatch();  // Timer
 
     // Extract grid values
@@ -66,7 +85,7 @@ void Test_Dirichlet_1D(int NX)
     }
 
     Status = Solver->Set_Input(Input);
-    if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
+    ASSERT_EQ(Status, SailFFish::NoError);
     unsigned int t3 = stopwatch();  // Timer
 
     // Carry out execution
@@ -91,20 +110,25 @@ void Test_Dirichlet_1D(int NX)
     std::cout << "Execution    "     << std::setw(10) << t4 csp "ms. [" << 100.0*t4/tTot << " %]" << std::endl;
     std::cout << "Output spec. "     << std::setw(10) << t5 csp "ms. [" << 100.0*t5/tTot << " %]" << std::endl;
 
-    delete Solver;
+    ASSERT_EQ(Output.size(), Solution.size());
+    EXPECT_LT(E_Inf(Output,Solution), Tol_1D);
 }
 
-void Test_Dirichlet_1D_IHBC(int NX)
+TEST(SailFFish_1D_Tests, Test_Dirichlet_1D_IHBC)
 {
+    SKIP_IF_CUFFT();
+    SKIP_IF_VKFFT();
+
+    const int NX = NX_1D;
     // Test case for 1D bounded Poisson solver with Dirichlet BCs
 
     SailFFish::SFStatus Status = SailFFish::NoError;    // Status of execution
     stopwatch();                                        // Begin timer for profiling
 
     // Define solver
-    SailFFish::Poisson_Dirichlet_1D *Solver = new SailFFish::Poisson_Dirichlet_1D(SailFFish::REGULAR,SailFFish::FD2);
+    auto Solver = std::make_unique<SailFFish::Poisson_Dirichlet_1D>(SailFFish::REGULAR,SailFFish::FD2);
     Status = Solver->Setup(UnitX,NX);
-    if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
+    ASSERT_EQ(Status, SailFFish::NoError);
     unsigned int t2 = stopwatch();  // Timer
 
     // Extract grid values
@@ -129,7 +153,7 @@ void Test_Dirichlet_1D_IHBC(int NX)
         // std::cout << XGrid[i] csp xs csp IH_BC_Omega(xs,Lx,a,b) csp IH_BC_Phi(xs,Lx,a,b) << std::endl;
     }
     Status = Solver->Set_Input(Input);
-    if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
+    ASSERT_EQ(Status, SailFFish::NoError);
     unsigned int t3 = stopwatch();  // Timer
 
     // Set BC
@@ -159,20 +183,24 @@ void Test_Dirichlet_1D_IHBC(int NX)
     std::cout << "Execution    "     << std::setw(10) << t4 csp "ms. [" << 100.0*t4/tTot << " %]" << std::endl;
     std::cout << "Output spec. "     << std::setw(10) << t5 csp "ms. [" << 100.0*t5/tTot << " %]" << std::endl;
 
-    delete Solver;
+    ASSERT_EQ(Output.size(), Solution.size());
+    EXPECT_LT(E_Inf(Output,Solution), Tol_1D_FD2);
 }
 
-void Test_Neumann_1D(int NX)
+TEST(SailFFish_1D_Tests, Test_Neumann_1D)
 {
+    SKIP_IF_CUFFT();
+
+    const int NX = NX_1D;
     // Test case for 1D bounded Poisson solver with Neumann BCs
 
     SailFFish::SFStatus Status = SailFFish::NoError;    // Status of execution
     stopwatch();                                        // Begin timer for profiling
 
     // Define solver
-    SailFFish::Poisson_Neumann_1D *Solver = new SailFFish::Poisson_Neumann_1D();
+    auto Solver = std::make_unique<SailFFish::Poisson_Neumann_1D>();
     Status = Solver->Setup(UnitX,NX);
-    if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
+    ASSERT_EQ(Status, SailFFish::NoError);
     unsigned int t2 = stopwatch();  // Timer
 
     // Extract grid values
@@ -196,7 +224,7 @@ void Test_Neumann_1D(int NX)
 //        Solution.push_back( IH_BC_Phi(xs,Lx,a,b));      // Solution field (if carrying out inhomogeneous test)
     }
     Status = Solver->Set_Input(Input);
-    if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
+    ASSERT_EQ(Status, SailFFish::NoError);
     unsigned int t3 = stopwatch();  // Timer
 
     // Set BC
@@ -231,20 +259,22 @@ void Test_Neumann_1D(int NX)
     std::cout << "Execution    "     << std::setw(10) << t4 csp "ms. [" << 100.0*t4/tTot << " %]" << std::endl;
     std::cout << "Output spec. "     << std::setw(10) << t5 csp "ms. [" << 100.0*t5/tTot << " %]" << std::endl;
 
-    delete Solver;
+    ASSERT_EQ(Output.size(), Solution.size());
+    EXPECT_LT(E_Inf(Output,Solution), Tol_1D);
 }
 
-void Test_Periodic_1D(int NX)
+TEST(SailFFish_1D_Tests, Test_Periodic_1D)
 {
+    const int NX = NX_1D;
     // Test case for 1D bounded Poisson solver with periodic BCs
 
     SailFFish::SFStatus Status = SailFFish::NoError;    // Status of execution
     stopwatch();                                        // Begin timer for profiling
 
     // Define solver
-    SailFFish::Poisson_Periodic_1D *Solver = new SailFFish::Poisson_Periodic_1D();
+    auto Solver = std::make_unique<SailFFish::Poisson_Periodic_1D>();
     Status = Solver->Setup(UnitX,NX);
-    if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
+    ASSERT_EQ(Status, SailFFish::NoError);
     unsigned int t2 = stopwatch();  // Timer
 
     // Extract grid values
@@ -261,7 +291,7 @@ void Test_Periodic_1D(int NX)
         Solution.push_back( CTest_Phi(xs,Lx));      // Solution field
     }
     Status = Solver->Set_Input(Input);
-    if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
+    ASSERT_EQ(Status, SailFFish::NoError);
     unsigned int t3 = stopwatch();  // Timer
 
     // Carry out execution
@@ -286,24 +316,28 @@ void Test_Periodic_1D(int NX)
     std::cout << "Execution    "     << std::setw(10) << t4 csp "ms. [" << 100.0*t4/tTot << " %]" << std::endl;
     std::cout << "Output spec. "     << std::setw(10) << t5 csp "ms. [" << 100.0*t5/tTot << " %]" << std::endl;
 
-    delete Solver;
+    ASSERT_EQ(Output.size(), Solution.size());
+    EXPECT_LT(E_Inf(Output,Solution), Tol_1D);
 }
 
 //---------------------
 //--- Unbounded solvers
 //---------------------
 
-void Test_Unbounded_1D(int NX)
+TEST(SailFFish_1D_Tests, Test_Unbounded_1D)
 {
+    SKIP_IF_VKFFT();
+
+    const int NX = NX_1D;
     // Test case for 1D unbounded Poisson solver
 
     SailFFish::SFStatus Status = SailFFish::NoError;    // Status of execution
     stopwatch();                                        // Begin timer for profiling
 
     // Define solver
-    SailFFish::Unbounded_Solver_1D *Solver = new SailFFish::Unbounded_Solver_1D();
+    auto Solver = std::make_unique<SailFFish::Unbounded_Solver_1D>();
     Status = Solver->Setup(UnitX,NX);
-    if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
+    ASSERT_EQ(Status, SailFFish::NoError);
     unsigned int t2 = stopwatch();  // Timer
 
     // Extract grid values
@@ -322,7 +356,7 @@ void Test_Unbounded_1D(int NX)
     }
 
     Status = Solver->Set_Input_Unbounded_1D(Input);
-    if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
+    ASSERT_EQ(Status, SailFFish::NoError);
     unsigned int t3 = stopwatch();  // Timer
 
     // Carry out execution
@@ -347,7 +381,8 @@ void Test_Unbounded_1D(int NX)
     std::cout << "Execution    "     << std::setw(10) << t4 csp "ms. [" << 100.0*t4/tTot << " %]" << std::endl;
     std::cout << "Output spec. "     << std::setw(10) << t5 csp "ms. [" << 100.0*t5/tTot << " %]" << std::endl;
 
-    delete Solver;
+    ASSERT_EQ(Output.size(), Solution.size());
+    EXPECT_LT(E_Inf(Output,Solution), Tol_1D);
 }
 
 #endif // TEST_1D_H

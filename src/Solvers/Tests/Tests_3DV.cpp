@@ -25,25 +25,49 @@
 #ifndef TEST_3DV_H
 #define TEST_3DV_H
 
-#include "../src/SailFFish.h"
+#include <gtest/gtest.h>
+#include "SailFFish_Math_Types.h"
+#include "Solvers/Periodic_Solver.h"
+#include "Solvers/Dirichlet_Solver.h"
+#include "Solvers/Neumann_Solver.h"
+#include "Solvers/Unbounded_Solver.h"
 #include "Test_Functions.h"
+
+static const int NX_3DV = 64;               // Grid resolution for all 3DV tests (x)
+static const int NY_3DV = 64;               // Grid resolution for all 3DV tests (y)
+static const int NZ_3DV = 64;               // Grid resolution for all 3DV tests (z)
+static const bool ExportVTK_3DV = false;    // Export grids as VTK
+static const Real Tol_3DV = 1.0e-4;         // E_inf tolerance (calibrate)
+
+// Bounded Dirichlet/Neumann solvers use real-to-real transforms (DST/DCT), which cuFFT does not provide
+#if defined(CUFFT)
+#define SKIP_IF_CUFFT() GTEST_SKIP() << "Real-to-real transforms (DCT/DST) are not supported by cuFFT."
+#else
+#define SKIP_IF_CUFFT()
+#endif
 
 //---------------------
 //--- Bounded solvers
 //---------------------
 
-void Test_Dirichlet_3DV(int NX, int NY, int NZ, bool ExportVTK = false)
+TEST(SailFFish_3DV_Tests, Test_Dirichlet_3DV)
 {
+    SKIP_IF_CUFFT();
+
+    const int NX = NX_3DV;
+    const int NY = NY_3DV;
+    const int NZ = NZ_3DV;
+    const bool ExportVTK = ExportVTK_3DV;
     // Test case for 3D (vector field) bounded Poisson solver with Dirichlet BCs
 
     SailFFish::SFStatus Status = SailFFish::NoError;    // Status of execution
     stopwatch();                                        // Begin timer for profiling
 
     // Define solver
-    SailFFish::Poisson_Dirichlet_3DV *Solver = new SailFFish::Poisson_Dirichlet_3DV(SailFFish::STAGGERED, SailFFish::PS);
-    // SailFFish::Poisson_Dirichlet_3DV *Solver = new SailFFish::Poisson_Dirichlet_3DV(SailFFish::REGULAR, SailFFish::PS);
+    auto Solver = std::make_unique<SailFFish::Poisson_Dirichlet_3DV>(SailFFish::STAGGERED, SailFFish::PS);
+    // auto Solver = std::make_unique<SailFFish::Poisson_Dirichlet_3DV>(SailFFish::REGULAR, SailFFish::PS);
     Status = Solver->Setup(UnitX,UnitY,UnitZ,NX,NY,NZ);
-    if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
+    ASSERT_EQ(Status, SailFFish::NoError);
     unsigned int t2 = stopwatch();  // Timer
 
     // Extract grid values
@@ -82,7 +106,7 @@ void Test_Dirichlet_3DV(int NX, int NY, int NZ, bool ExportVTK = false)
         }
     }
     Status = Solver->Set_Input(Input1,Input2,Input3);
-    if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
+    ASSERT_EQ(Status, SailFFish::NoError);
     unsigned int t3 = stopwatch();  // Timer
 
 //    // Set BC
@@ -104,6 +128,9 @@ void Test_Dirichlet_3DV(int NX, int NY, int NZ, bool ExportVTK = false)
 
     // Retrieve solution & collect final timings
     Solver->Get_Output(Output1,Output2,Output3);
+    ASSERT_EQ(Output1.size(), Solution.size());
+    ASSERT_EQ(Output2.size(), Solution.size());
+    ASSERT_EQ(Output3.size(), Solution.size());
     unsigned int t5 = stopwatch();
     Real tTot = Real(t2+t3+t4+t5);
 
@@ -124,21 +151,29 @@ void Test_Dirichlet_3DV(int NX, int NY, int NZ, bool ExportVTK = false)
     // If selected, export grid as VTK
     if (ExportVTK) Solver->Create_vtk();
 
-    delete Solver;
+    EXPECT_LT(E_Inf(Output1,Solution), Tol_3DV);
+    EXPECT_LT(E_Inf(Output2,Solution), Tol_3DV);
+    EXPECT_LT(E_Inf(Output3,Solution), Tol_3DV);
 }
 
-void Test_Neumann_3DV(int NX, int NY, int NZ, bool ExportVTK = false)
+TEST(SailFFish_3DV_Tests, Test_Neumann_3DV)
 {
+    SKIP_IF_CUFFT();
+
+    const int NX = NX_3DV;
+    const int NY = NY_3DV;
+    const int NZ = NZ_3DV;
+    const bool ExportVTK = ExportVTK_3DV;
     // Test case for 3D (vector field) bounded Poisson solver with Neumann BCs
 
     SailFFish::SFStatus Status = SailFFish::NoError;    // Status of execution
     stopwatch();                                        // Begin timer for profiling
 
     // Define solver
-    SailFFish::Poisson_Neumann_3DV *Solver = new SailFFish::Poisson_Neumann_3DV(SailFFish::STAGGERED, SailFFish::PS);
-    // SailFFish::Poisson_Neumann_3DV *Solver = new SailFFish::Poisson_Neumann_3DV(SailFFish::REGULAR, SailFFish::PS);
+    auto Solver = std::make_unique<SailFFish::Poisson_Neumann_3DV>(SailFFish::STAGGERED, SailFFish::PS);
+    // auto Solver = std::make_unique<SailFFish::Poisson_Neumann_3DV>(SailFFish::REGULAR, SailFFish::PS);
     Status = Solver->Setup(UnitX,UnitY,UnitZ,NX,NY,NZ);
-    if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
+    ASSERT_EQ(Status, SailFFish::NoError);
     unsigned int t2 = stopwatch();  // Timer
 
     // Extract grid values
@@ -178,7 +213,7 @@ void Test_Neumann_3DV(int NX, int NY, int NZ, bool ExportVTK = false)
         }
     }
     Status = Solver->Set_Input(Input1,Input2,Input3);
-    if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
+    ASSERT_EQ(Status, SailFFish::NoError);
     unsigned int t3 = stopwatch();  // Timer
 
     // Carry out execution
@@ -189,6 +224,9 @@ void Test_Neumann_3DV(int NX, int NY, int NZ, bool ExportVTK = false)
 
     // Retrieve solution & collect final timings
     Solver->Get_Output(Output1,Output2,Output3);
+    ASSERT_EQ(Output1.size(), Solution.size());
+    ASSERT_EQ(Output2.size(), Solution.size());
+    ASSERT_EQ(Output3.size(), Solution.size());
     unsigned int t5 = stopwatch();
     Real tTot = Real(t2+t3+t4+t5);
 
@@ -209,21 +247,27 @@ void Test_Neumann_3DV(int NX, int NY, int NZ, bool ExportVTK = false)
     // If selected, export grid as VTK
     if (ExportVTK) Solver->Create_vtk();
 
-    delete Solver;
+    EXPECT_LT(E_Inf(Output1,Solution), Tol_3DV);
+    EXPECT_LT(E_Inf(Output2,Solution), Tol_3DV);
+    EXPECT_LT(E_Inf(Output3,Solution), Tol_3DV);
 }
 
-void Test_Periodic_3DV(int NX, int NY, int NZ, bool ExportVTK = false)
+TEST(SailFFish_3DV_Tests, Test_Periodic_3DV)
 {
+    const int NX = NX_3DV;
+    const int NY = NY_3DV;
+    const int NZ = NZ_3DV;
+    const bool ExportVTK = ExportVTK_3DV;
     // Test case for 3D (vector field) bounded Poisson solver with periodic BCs
 
     SailFFish::SFStatus Status = SailFFish::NoError;    // Status of execution
     stopwatch();                                        // Begin timer for profiling
 
     // Define solver
-    SailFFish::Poisson_Periodic_3DV *Solver = new SailFFish::Poisson_Periodic_3DV(SailFFish::STAGGERED, SailFFish::PS);
-    // SailFFish::Poisson_Periodic_3DV *Solver = new SailFFish::Poisson_Periodic_3DV(SailFFish::REGULAR, SailFFish::PS);
+    auto Solver = std::make_unique<SailFFish::Poisson_Periodic_3DV>(SailFFish::STAGGERED, SailFFish::PS);
+    // auto Solver = std::make_unique<SailFFish::Poisson_Periodic_3DV>(SailFFish::REGULAR, SailFFish::PS);
     Status = Solver->Setup(UnitX,UnitY,UnitZ,NX,NY,NZ);
-    if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
+    ASSERT_EQ(Status, SailFFish::NoError);
     unsigned int t2 = stopwatch();  // Timer
 
     // Extract grid values
@@ -256,7 +300,7 @@ void Test_Periodic_3DV(int NX, int NY, int NZ, bool ExportVTK = false)
         }
     }
     Status = Solver->Set_Input(Input1,Input2,Input3);
-    if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
+    ASSERT_EQ(Status, SailFFish::NoError);
     unsigned int t3 = stopwatch();  // Timer
 
     // Carry out execution
@@ -267,6 +311,9 @@ void Test_Periodic_3DV(int NX, int NY, int NZ, bool ExportVTK = false)
 
     // Retrieve solution & collect final timings
     Solver->Get_Output(Output1,Output2,Output3);
+    ASSERT_EQ(Output1.size(), Solution.size());
+    ASSERT_EQ(Output2.size(), Solution.size());
+    ASSERT_EQ(Output3.size(), Solution.size());
     unsigned int t5 = stopwatch();
     Real tTot = Real(t2+t3+t4+t5);
 
@@ -287,25 +334,31 @@ void Test_Periodic_3DV(int NX, int NY, int NZ, bool ExportVTK = false)
     // If selected, export grid as VTK
     if (ExportVTK) Solver->Create_vtk();
 
-    delete Solver;
+    EXPECT_LT(E_Inf(Output1,Solution), Tol_3DV);
+    EXPECT_LT(E_Inf(Output2,Solution), Tol_3DV);
+    EXPECT_LT(E_Inf(Output3,Solution), Tol_3DV);
 }
 
 //---------------------
 //--- Unbounded solvers
 //---------------------
 
-void Test_Unbounded_3DV(int NX, int NY, int NZ, bool ExportVTI = false)
+TEST(SailFFish_3DV_Tests, Test_Unbounded_3DV)
 {
+    const int NX = NX_3DV;
+    const int NY = NY_3DV;
+    const int NZ = NZ_3DV;
+    const bool ExportVTI = ExportVTK_3DV;
     // Test case for 2D unbounded Poisson solver
 
     SailFFish::SFStatus Status = SailFFish::NoError;    // Status of execution
     stopwatch();                                        // Begin timer for profiling
 
     // Define solver
-    SailFFish::Unbounded_Solver_3DV *Solver = new SailFFish::Unbounded_Solver_3DV();
+    auto Solver = std::make_unique<SailFFish::Unbounded_Solver_3DV>();
     // Solver->Specify_Operator(SailFFish::CURL);
     Status = Solver->Setup(UnitX,UnitY,UnitZ,NX,NY,NZ);
-    if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
+    ASSERT_EQ(Status, SailFFish::NoError);
     unsigned int t2 = stopwatch();  // Timer
 
     // Extract grid values
@@ -355,18 +408,20 @@ void Test_Unbounded_3DV(int NX, int NY, int NZ, bool ExportVTI = false)
     for (auto& i : Solution3) i *= EFac;
 
     Status = Solver->Set_Input_Unbounded_3D(Input1,Input2,Input3);
-    if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
+    ASSERT_EQ(Status, SailFFish::NoError);
     unsigned int t3 = stopwatch();  // Timer
 
     // Carry out execution
     Solver->Forward_Transform();
     Solver->Convolution();
-    // Solver->Spectral_Gradients_3DV_Curl();
     Solver->Backward_Transform();
     unsigned int t4 = stopwatch();
 
     // Retrieve solution & collect final timings
     Solver->Get_Output_Unbounded_3D(Output1,Output2,Output3);
+    ASSERT_EQ(Output1.size(), Solution1.size());
+    ASSERT_EQ(Output2.size(), Solution2.size());
+    ASSERT_EQ(Output3.size(), Solution3.size());
     unsigned int t5 = stopwatch();
     Real tTot = Real(t2+t3+t4+t5);
 
@@ -393,24 +448,29 @@ void Test_Unbounded_3DV(int NX, int NY, int NZ, bool ExportVTI = false)
     std::cout << std::scientific;
 
     // If selected, export grid as VTI
-    // if (ExportVTI)
-    Solver->Create_vtk();
+    if (ExportVTI) Solver->Create_vtk();
 
-    delete Solver;
+    EXPECT_LT(E_Inf(Output1,Solution1), Tol_3DV);
+    EXPECT_LT(E_Inf(Output2,Solution2), Tol_3DV);
+    EXPECT_LT(E_Inf(Output3,Solution3), Tol_3DV);
 }
 
-void Test_Unbounded_3DV_Curl(int NX, int NY, int NZ, bool ExportVTI = false)
+TEST(SailFFish_3DV_Tests, Test_Unbounded_3DV_Curl)
 {
+    const int NX = NX_3DV;
+    const int NY = NY_3DV;
+    const int NZ = NZ_3DV;
+    const bool ExportVTI = ExportVTK_3DV;
     // Test case for 2D unbounded Poisson solver
 
     SailFFish::SFStatus Status = SailFFish::NoError;    // Status of execution
     stopwatch();                                        // Begin timer for profiling
 
     // Define solver
-    SailFFish::Unbounded_Solver_3DV *Solver = new SailFFish::Unbounded_Solver_3DV();
+    auto Solver = std::make_unique<SailFFish::Unbounded_Solver_3DV>();
     Solver->Specify_Operator(SailFFish::CURL);
     Status = Solver->Setup(UnitX,UnitY,UnitZ,NX,NY,NZ);
-    if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
+    ASSERT_EQ(Status, SailFFish::NoError);
     unsigned int t2 = stopwatch();  // Timer
 
     // Extract grid values
@@ -460,18 +520,21 @@ void Test_Unbounded_3DV_Curl(int NX, int NY, int NZ, bool ExportVTI = false)
     for (auto& i : Solution3) i *= EFac;
 
     Status = Solver->Set_Input_Unbounded_3D(Input1,Input2,Input3);
-    if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
+    ASSERT_EQ(Status, SailFFish::NoError);
     unsigned int t3 = stopwatch();
 
     // Carry out execution
     Solver->Forward_Transform();
-    // Solver->Convolution();
+    Solver->Convolution();                      // This must be called for test to work
     Solver->Spectral_Gradients_3DV_Curl();
     Solver->Backward_Transform();
     unsigned int t4 = stopwatch();
 
     // Retrieve solution & collect final timings
     Solver->Get_Output_Unbounded_3D(Output1,Output2,Output3);
+    ASSERT_EQ(Output1.size(), Solution1.size());
+    ASSERT_EQ(Output2.size(), Solution2.size());
+    ASSERT_EQ(Output3.size(), Solution3.size());
     unsigned int t5 = stopwatch();
     Real tTot = Real(t2+t3+t4+t5);
 
@@ -491,22 +554,30 @@ void Test_Unbounded_3DV_Curl(int NX, int NY, int NZ, bool ExportVTI = false)
 
     // // If selected, export grid as VTI
     if (ExportVTI) Solver->Create_vtk();
-    Solver->Create_vtk();
-    // delete Solver;
+
+    EXPECT_LT(E_Inf(Output1,Solution1), Tol_3DV);
+    EXPECT_LT(E_Inf(Output2,Solution2), Tol_3DV);
+    EXPECT_LT(E_Inf(Output3,Solution3), Tol_3DV);
 }
 
-void Test_Unbounded_3DV_Nabla(int NX, int NY, int NZ, bool ExportVTI = false)
+TEST(SailFFish_3DV_Tests, DISABLED_Test_Unbounded_3DV_Nabla)
 {
+    // Analytical gradients should be checked!
+
+    const int NX = NX_3DV;
+    const int NY = NY_3DV;
+    const int NZ = NZ_3DV;
+    const bool ExportVTI = ExportVTK_3DV;
     // Test case for 2D unbounded Poisson solver
 
     SailFFish::SFStatus Status = SailFFish::NoError;    // Status of execution
     stopwatch();                                        // Begin timer for profiling
 
     // Define solver
-    SailFFish::Unbounded_Solver_3DV *Solver = new SailFFish::Unbounded_Solver_3DV();
+    auto Solver = std::make_unique<SailFFish::Unbounded_Solver_3DV>();
     Solver->Specify_Operator(SailFFish::NABLA);
     Status = Solver->Setup(UnitX,UnitY,UnitZ,NX,NY,NZ);
-    if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
+    ASSERT_EQ(Status, SailFFish::NoError);
     unsigned int t2 = stopwatch();  // Timer
 
     // Extract grid values
@@ -536,7 +607,7 @@ void Test_Unbounded_3DV_Nabla(int NX, int NY, int NZ, bool ExportVTI = false)
     RVector Solution3 = RVector(NT,0);
 
     OpenMPfor
-        for (int i=0; i<NXM; i++){
+    for (int i=0; i<NXM; i++){
         for (int j=0; j<NYM; j++){
             for (int k=0; k<NZM; k++){
                 int id = i*NYM*NZM + j*NZM + k;
@@ -546,8 +617,9 @@ void Test_Unbounded_3DV_Nabla(int NX, int NY, int NZ, bool ExportVTI = false)
         }
     }
     Status = Solver->Set_Input_Unbounded_3D(Input1,Input2,Input3);
+    ASSERT_EQ(Status, SailFFish::NoError);
     Status = Solver->Transfer_Data_Device();
-    if (Status!=SailFFish::NoError)   {std::cout << "Solver exiting." << std::endl; return;}
+    ASSERT_EQ(Status, SailFFish::NoError);
     unsigned int t3 = stopwatch();  // Timer
 
     // Carry out execution
@@ -559,6 +631,9 @@ void Test_Unbounded_3DV_Nabla(int NX, int NY, int NZ, bool ExportVTI = false)
 
     // Retrieve solution & collect final timings
     Solver->Get_Output_Unbounded_3D(Output1,Output2,Output3);
+    ASSERT_EQ(Output1.size(), Solution1.size());
+    ASSERT_EQ(Output2.size(), Solution2.size());
+    ASSERT_EQ(Output3.size(), Solution3.size());
     unsigned int t5 = stopwatch();
     Real tTot = Real(t2+t3+t4+t5);
 
@@ -579,7 +654,9 @@ void Test_Unbounded_3DV_Nabla(int NX, int NY, int NZ, bool ExportVTI = false)
     // If selected, export grid as VTI
     if (ExportVTI) Solver->Create_vtk();
 
-    delete Solver;
+    EXPECT_LT(E_Inf(Output1,Solution1), Tol_3DV);
+    EXPECT_LT(E_Inf(Output2,Solution2), Tol_3DV);
+    EXPECT_LT(E_Inf(Output3,Solution3), Tol_3DV);
 }
 
 #endif // TEST_3DV_H

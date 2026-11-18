@@ -105,17 +105,17 @@ protected:
     dim3 GridDim;
 
     //--- Plan
-    FFTWPlan Forward_Plan;
-    FFTWPlan Backward_Plan;
+    FFTWPlan Forward_Plan = nullptr;
+    FFTWPlan Backward_Plan = nullptr;
 
     //--- Trial R2C
-    FFTWPlan R2DPlan;
+    FFTWPlan R2DPlan = nullptr;
 
     //--- Memory objects (Complex)
     FFTWReal *c_Input1 = nullptr, *c_FTInput1 = nullptr, *c_FTOutput1 = nullptr, *c_Output1 = nullptr;
     FFTWReal *c_Input2 = nullptr, *c_FTInput2 = nullptr, *c_FTOutput2 = nullptr, *c_Output2 = nullptr;
     FFTWReal *c_Input3 = nullptr, *c_FTInput3 = nullptr, *c_FTOutput3 = nullptr, *c_Output3 = nullptr;
-    FFTWReal *c_FG = nullptr, *c_FGi = nullptr, *c_FGj = nullptr, *c_FGk;
+    FFTWReal *c_FG = nullptr, *c_FGi = nullptr, *c_FGj = nullptr, *c_FGk = nullptr;
 
     //--- Memory objects (Real)
     Real *r_Input1 = nullptr, *r_FTInput1 = nullptr, *r_FTOutput1 = nullptr, *r_Output1 = nullptr;

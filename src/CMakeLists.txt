@@ -134,3 +134,23 @@ target_link_libraries(SailFFish_lib PUBLIC Eigen3::Eigen OpenMP::OpenMP_CXX)
 
 include(GNUInstallDirs)
 install(TARGETS SailFFish_lib FILE_SET HEADERS DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/SailFFish)
+
+if(SAILFFISH_BUILD_TESTS)
+    find_package(GTest REQUIRED)
+    include(GoogleTest)
+    include(CTest)
+
+    add_executable(SailFFish_tests
+
+        # Solvers/Tests/Tests_1D.cpp
+        # Solvers/Tests/Tests_2D.cpp
+        # Solvers/Tests/Tests_3D.cpp
+        # Solvers/Tests/Tests_3DV.cpp
+
+        VPM_Solver/Tests/Tests_Vortex_Rings.cpp
+    )
+
+    target_link_libraries(SailFFish_tests PRIVATE GTest::gtest_main SailFFish_lib)
+    gtest_discover_tests(SailFFish_tests DISCOVERY_MODE PRE_TEST)
+endif()
+

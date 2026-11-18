@@ -356,8 +356,9 @@ public:
     SFStatus Set_Input_Unbounded(RVector &I1, RVector &I2, RVector &I3) override;
 
     // Hack functions for consistency with other solvers
-    SFStatus Set_Input_Unbounded_2D(RVector &I1) override {return Set_Input_Unbounded(I1);}   // Hack
-    SFStatus Set_Input_Unbounded_3D(RVector &I1, RVector &I2, RVector &I3) override {return Set_Input_Unbounded(I1, I2, I3);}   // Hack
+    SFStatus Set_Input_Unbounded_2D(RVector &I1) override {return Set_Input_Unbounded(I1);}
+    SFStatus Set_Input_Unbounded_3D(RVector &I1) override {return Set_Input_Unbounded(I1);}
+    SFStatus Set_Input_Unbounded_3D(RVector &I1, RVector &I2, RVector &I3) override {return Set_Input_Unbounded(I1, I2, I3);}
 
     //--- Retrieve output array
     void Get_Output(RVector &I)                             override;
@@ -366,7 +367,8 @@ public:
     void Get_Output_Unbounded(RVector &I1, RVector &I2, RVector &I3) override ;
 
      // Hack functions for consistency with other solvers
-    void Get_Output_Unbounded_3D(RVector &I1, RVector &I2, RVector &I3) override {return Get_Output_Unbounded(I1, I2, I3);}   // Hack
+    void Get_Output_Unbounded_3D(RVector &I1) override {return Get_Output_Unbounded(I1);}
+    void Get_Output_Unbounded_3D(RVector &I1, RVector &I2, RVector &I3) override {return Get_Output_Unbounded(I1, I2, I3);}
 
     //--- Greens functions prep
     void Prepare_Fused_Kernel(FTType TF);

@@ -106,7 +106,7 @@ TEST(SailFFish_VPM_Tests, Vortex_Ring_Evolution)
     for (int i=0; i<24; i++) PhaseShift.push_back(rand()*1.0/RAND_MAX*M_2PI);
 
     // Output parameters
-    I.NExp = 1000;                  // Frequency of export of visualisation
+    I.NExp = 20;                  // Frequency of export of visualisation
     I.Debug = true;                 // Debugging output of solver
     I.Log = true;                   // Logging output
     I.OutputFolder = "SailFFish_VPM_VortexRing1"; // Output directory (will be created)

@@ -27,16 +27,10 @@
 
 #include "../SailFFish_Math_Types.h"
 
-#ifdef OLDCSTD
-    #include <direct.h>
-    static void Create_Directory(const std::string &A)  {_mkdir(A.c_str());}
-#else
-    #include <filesystem>
-    static void Create_Directory(const std::string &A) {std::filesystem::create_directories(A);}
-#endif
-
 namespace SailFFish
 {
+
+void Create_Directory(const std::string &A);
 
 //--- Status messages
 

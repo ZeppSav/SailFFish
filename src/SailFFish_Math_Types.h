@@ -73,18 +73,18 @@ static void StdAppend(std::vector<T>& lhs, const std::vector<T>& rhs)       {lhs
 
 //--- Create directory
 
-#include <sys/types.h>  // required for stat.h
-#include <sys/stat.h>   // no clue why required -- man pages say so
+// #include <sys/types.h>  // required for stat.h
+// #include <sys/stat.h>   // no clue why required -- man pages say so
 
-inline int CreateDirectory(std::string Path)
-{
-    #if defined(_WIN32)
-        return mkdir(Path.c_str());
-    #else
-        mode_t nMode = 0733; // UNIX style permissions
-        return mkdir(Path.c_str(),nMode);
-    #endif
-}
+// inline int CreateDirectory(std::string Path)
+// {
+//     #if defined(_WIN32)
+//         return mkdir(Path.c_str());
+//     #else
+//         mode_t nMode = 0733; // UNIX style permissions
+//         return mkdir(Path.c_str(),nMode);
+//     #endif
+// }
 
 //---- Input string handling
 

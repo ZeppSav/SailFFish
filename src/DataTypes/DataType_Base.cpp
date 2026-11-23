@@ -4,8 +4,24 @@
 
 #include "DataType_Base.h"
 
+// Includes for Create directory- including alowance for old c standard.
+#ifdef OLDCSTD
+    #include <direct.h>
+#else
+    #include <filesystem>
+#endif
+
 namespace SailFFish
 {
+
+void Create_Directory(const std::string &A)
+{
+    #ifdef OLDCSTD
+        _mkdir(A.c_str());
+    #else
+        std::filesystem::create_directories(A);
+    #endif
+}
 
 //--- Problem Setup (plan creation and destruction)
 

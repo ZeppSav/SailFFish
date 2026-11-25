@@ -40,12 +40,6 @@ SFStatus VPM3D_cpu::Setup_VPM(VPM_Input *I)
     MagFiltFac = I->MagFiltFac;
     DivFilt = I->DivFilt;
 
-    Ux = I->Ux;
-    Uy = I->Uy;
-    Uz = I->Uz;
-    KinVisc = I->KinVisc;
-    Rho = I->Rho;
-
     // Turbulence modelling parameters
     Turb = I->Turb;
     C_smag = I->C_smag;
@@ -63,6 +57,19 @@ SFStatus VPM3D_cpu::Setup_VPM(VPM_Input *I)
 
     if (I->GridDef==NODES)    Stat = Define_Grid_Nodes(I);
     if (I->GridDef==BLOCKS)   Stat = Define_Grid_Blocks(I);
+
+    // Inflow / shear fields. Legacy constant freestream (UINFX/Y/Z) is added to the shear field.
+    KinVisc = I->KinVisc;
+    Rho = I->Rho;
+    Shear = I->Shear;
+    Shear.U_Const[0] += I->Ux;
+    Shear.U_Const[1] += I->Uy;
+    Shear.U_Const[2] += I->Uz;
+    Ux = Shear.U_Const[0];                  // Retained for summary output only
+    Uy = Shear.U_Const[1];
+    Uz = Shear.U_Const[2];
+    T = T_init;
+    if (Shear.Active()) {Shear.Initialise(); Shear.Eval_Grid(ZN1, H_Grid, NNZ, T);}
 
     //--- Prepare dim id array
     loc_ID = (dim3*)malloc(NNT*sizeof(dim3));
@@ -527,7 +534,11 @@ void VPM3D_cpu::Calc_Grid_FDRatesof_Change()
     Grid_Turb_Shear_Stresses();
 
     //--- Add external velocity components
-    Add_Freestream_Velocity();
+    // std::cout << "HERE" << std::endl;
+    if (Shear.Active()) Add_Freestream_Shear();
+    else                Add_Freestream_Velocity();
+    // std::cout << "HERE2" << std::endl;
+
 }
 
 void VPM3D_cpu::Grid_Shear_Stresses()
@@ -629,6 +640,19 @@ void VPM3D_cpu::Add_Freestream_Velocity()
             eu_dddt[1][i] += Uy;
             eu_dddt[2][i] += Uz;
         }
+    }
+}
+
+void VPM3D_cpu::Add_Freestream_Shear()
+{
+    // The background velocity (constant freestream + shear profile) is superposed onto the grid
+    const RVector &Us = Shear.Grid.U, &Vs = Shear.Grid.V;
+    const Real W = Shear.W();
+    Parallel_Kernel(NNT) {
+        const int k = loc_ID[i].z;
+        eu_dddt[0][i] += Us[k];
+        eu_dddt[1][i] += Vs[k];
+        eu_dddt[2][i] += W;
     }
 }
 

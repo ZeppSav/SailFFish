@@ -28,6 +28,7 @@
 
 #include "../Solvers/Unbounded_Solver.h"
 #include "VPM3D_kernels_cpu.h"
+#include "Shear_Fields.h"
 
 namespace SailFFish
 {
@@ -145,6 +146,7 @@ struct VPM_Input
     Real Ux = 0.0, Uy = 0.0, Uz = 0.0;  // Freestream vals
     Real KinVisc = 0.0;                 // Kinematic viscosity
     Real Rho = 1.172;                   // Fluid density
+    Shear_Field Shear;                  // Shear field input
 
     //--- Output settings
     bool Debug = false;
@@ -413,7 +415,8 @@ protected:
     bool Remeshing = false;                 // Remeshing flag
     bool DivFilt = false;                   // Divergence filtering flag
     Real T=0.;                              // Simulation real time
-    Real dT=0.;                              // Timestep size
+    Real dT=0.;                             // Timestep size
+    Real T_init =0.;                        // Initial timestep
     int NStep = 0;                          // Current timestep
     int NInit = 0;                          // Initial timestep
     int NRemesh = 1;                        // Remeshing frequency
@@ -421,7 +424,6 @@ protected:
     Real OmMax = 0.0;                       // Maximum vorticity
     Real SMax = 0.0;                        // Maximum strethcing metric
     Real MagFiltFac = 0.0;                  // Magnitue filering factor
-    Real Ux = 0.0, Uy = 0.0, Uz = 0.0;      // Freestream vals
     Real KinVisc = 0.0;                     // Kinematic viscosity
     Real Rho = 0.0;                         // Fluid density
     Mapping SolverMap = M4D;                // Mapping scheme between Lagrangian and Eulerian grids
@@ -431,6 +433,10 @@ protected:
 
     //--- External forcing
     std::vector<ParticleMap> Ext_Forcing;
+
+    //--- Shear field
+    Real Ux = 0.0, Uy = 0.0, Uz = 0.0;      // Freestream vals
+    Shear_Field Shear;
 
     //--- Debugging & output parameters
     int NExp = 0;                           // Output visualisation frequency
@@ -458,6 +464,9 @@ public:
     virtual SFStatus Define_Grid_Blocks_Adaptive(VPM_Input *I);
     void Retrieve_Grid_Size(int &N) {N = NNX*NNY*NNZ;}
 
+    //--- Shear field
+    const Shear_Field &Get_Shear_Field() const  {return Shear;}
+
     //--- External sources
     void Get_External_Forcing_Nodes(std::vector<Vector3> &Om, std::vector<Vector3> &Pos);
     virtual void Interpolate_Ext_Sources(Mapping M)     {}
@@ -469,6 +478,7 @@ public:
     virtual void Grid_Shear_Stresses()              {}
     virtual void Grid_Turb_Shear_Stresses()         {}
     virtual void Add_Freestream_Velocity()          {}
+    virtual void Add_Freestream_Shear()             {}
     virtual void Calc_Grid_SpectralRatesof_Change() {}
     virtual void Calc_Grid_FDRatesof_Change()       {}
     virtual void Increment_Time()                   {NStep++; T += dT;}

@@ -476,6 +476,7 @@ public:
     virtual void Advance_Particle_Set()             {}
     virtual void Update_Particle_Field()            {}
     virtual void Grid_Shear_Stresses()              {}
+    virtual void Grid_Background_Shear()            {}
     virtual void Grid_Turb_Shear_Stresses()         {}
     virtual void Add_Freestream_Velocity()          {}
     virtual void Add_Freestream_Shear()             {}

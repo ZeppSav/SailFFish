@@ -79,6 +79,7 @@ public:
     void Update_Particle_Field() override;
     void Calc_Particle_RateofChange(const TensorGrid &p_d_Vals, const TensorGrid &p_o_Vals, TensorGrid &dpdt_d_Vals, TensorGrid &dpdt_o_Vals);
     void Grid_Shear_Stresses() override;
+    void Grid_Background_Shear() override;
     void Grid_Turb_Shear_Stresses() override;
     // void Add_Freestream_Velocity() override;
     void Add_Freestream_Shear() override;

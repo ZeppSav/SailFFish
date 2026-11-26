@@ -526,6 +526,7 @@ void VPM3D_cpu::Calc_Grid_FDRatesof_Change()
     //--- Calculate shear stresses on grid
     Grid_Shear_Stresses();
     Grid_Turb_Shear_Stresses();
+    if (Shear.Sheared()) Grid_Background_Shear();
 
     //--- Add external velocity components
     // Add_Freestream_Velocity();       // Depracated
@@ -615,6 +616,20 @@ void VPM3D_cpu::Grid_Turb_Shear_Stresses()
         }
     }
 
+}
+
+void VPM3D_cpu::Grid_Background_Shear()
+{
+    // Source terms of the background shear profile are added to the perturbation vorticity rate of change.
+    // Must be called after Grid_Shear_Stresses() (assigns eu_dodt) and before the background velocity is added to eu_dddt.
+
+    const RVector &dU = Shear.Grid.dU, &dV = Shear.Grid.dV, &d2U = Shear.Grid.d2U, &d2V = Shear.Grid.d2V;
+    Parallel_Kernel(NNT) {
+        if (FD_Flag[i]) {
+            const int k = loc_ID[i].z;
+            KER_Background_Shear(eu_o, eu_dddt, GradU, eu_dodt, dU[k], dV[k], d2U[k], d2V[k], i);
+        }
+    }
 }
 
 // void VPM3D_cpu::Add_Freestream_Velocity()

@@ -305,6 +305,20 @@ inline void KER_Remesh(TensorGrid &p_Vals, TensorGrid &o_Vals, const TensorGrid 
     o_Vals[2][id] = g_Vals[2][id];
 }
 
+//--- Shear field stretching
+
+inline void KER_Background_Shear(const TensorGrid &go, const TensorGrid &dpdt, const TensorGrid &NablaU, TensorGrid &dodt,
+                                 const Real &dU, const Real &dV, const Real &d2U, const Real &d2V, const int &id)
+{
+    // Source terms of the background shear profile U_bg = (U(z),V(z),0), Omega_bg = (-V',U',0) on the perturbation vorticity:
+    // (w'.grad)U_bg + (Omega_bg.grad)u' - (u'.grad)Omega_bg. NablaU[3*i+j] = du'_i/dx_j (perturbation only)
+    const Real oz = go[2][id];
+    const Real uz = dpdt[2][id];
+    dodt[0][id] += oz*dU - dV*NablaU[0][id] + dU*NablaU[1][id] + uz*d2V;
+    dodt[1][id] += oz*dV - dV*NablaU[3][id] + dU*NablaU[4][id] - uz*d2U;
+    dodt[2][id] +=       - dV*NablaU[6][id] + dU*NablaU[7][id];
+}
+
 //--- Finite difference kernels
 
 static Real const D1C2[2] =  {-0.5, 0.5};

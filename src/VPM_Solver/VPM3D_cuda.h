@@ -178,6 +178,7 @@ class VPM3D_cuda : public VPM_3D_Solver //, public cuda_Grid_Data
     cudaKernel *cuda_updateRK3;
     cudaKernel *cuda_updateRK4;
     cudaKernel *cuda_updateRKLS;
+
     cudaKernel *cuda_stretch_FD2;
     cudaKernel *cuda_stretch_FD4;
     cudaKernel *cuda_stretch_FD6;
@@ -223,6 +224,11 @@ class VPM3D_cuda : public VPM_3D_Solver //, public cuda_Grid_Data
     cudaKernel *cuda_Turb_RVM_DGC_FD4;
     cudaKernel *cuda_Turb_RVM_DGC_FD6;
     cudaKernel *cuda_Turb_RVM_DGC_FD8;
+
+    // Shear field
+    cudaKernel *cuda_freestream_shear;
+    Real *cuda_shear = nullptr;         // Background profile on device: [U, V, dU, dV, d2U, d2V], each of length NNZ
+    void Upload_Shear_Profile();
 
 
     //--- Block data format

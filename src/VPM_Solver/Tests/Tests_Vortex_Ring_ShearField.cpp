@@ -37,7 +37,7 @@
 
 using namespace SailFFish;
 
-static const int NStep_VPM = 500;       // Number of time steps for vortex ring tests
+static const int NStep_VPM = 300;       // Number of time steps for vortex ring tests
 
 TEST(SailFFish_VPM_Tests, Vortex_Ring_Evolution)
 {
@@ -71,15 +71,18 @@ TEST(SailFFish_VPM_Tests, Vortex_Ring_Evolution)
     I.BX = 4;                           // Block grid dims
     I.BY = 4;
     I.BZ = 4;
-    I.iBX0 = -8;                        // Initial block indices
+    I.iBX0 = -14;                        // Initial block indices
     I.iBY0 = -14;
     I.iBZ0 = -14;
-    I.NBX = 64;                          // Number of blocks
+    I.NBX = 28;                          // Number of blocks
     I.NBY = 28;
     I.NBZ = 28;
-    dim3 G;
+    // dim3 G;
 
-    // Simulation parameters
+    //---
+    //--- Simulation parameters
+    //---
+
     I.SolverMap = SailFFish::M4D;       // Mapping scheme used within solver for mapping Lagrangian-Eulerian grids
     I.RemeshMap = SailFFish::M4D;       // Mapping scheme used within solver for remeshing
     I.FDOrder = SailFFish::CD8;         // Order of finite difference calculations on the grid
@@ -95,7 +98,7 @@ TEST(SailFFish_VPM_Tests, Vortex_Ring_Evolution)
     I.Rho = 1.0;                        // Density of fluid
     I.Integrator = SailFFish::LSRK4;    // Time integration scheme
 
-    // Parameters of vortex ring
+    //--- Parameters of vortex ring
     Real R = 1.0;                       // Ring radius
     Real Rey = 5500;                    // Ring vorticity Reynolds number
     Real Coresize = 0.4131;             // Ring coresize
@@ -103,22 +106,23 @@ TEST(SailFFish_VPM_Tests, Vortex_Ring_Evolution)
     I.dT = 0.01*t0;                     // Timestep size
     RVector PhaseShift(24,0);           // Random phase shifts of different modes
 
-    //--- Background shear field: linear shear U(z) = G*(z - Z_Ref), zero at mid-height of domain
-    // I.Ux = 1.0;
-    // Shear uniform
-    I.Shear.Profile = SailFFish::SHEAR_UNIFORM;
-    I.Shear.U_Const[2] = 1.0;
+    //--- Background shear field:
+    Real Gamma  = Rey*I.KinVisc;                        // Ring circulation
+    Real U_Ring = Gamma/(4.0*M_PI*R)*(log(8.0*R/Coresize) - 0.558);   // Self-induced speed, Gaussian core (~1050)
 
-    // // Shear linear
-    // I.Shear.Profile = SailFFish::SHEAR_LINEAR;
-    // I.Shear.U_Ref = 0.0;                // U at Z_Ref
-    // I.Shear.Z_Ref = 2.8;                // Reference height (mid-height of domain)
-    // I.Shear.Z_Ground = 0.0;             // Ground plane (no effect for linear profile)
-    // I.Shear.Gradient = 1.0;             // dU/dz
-    // I.Shear.Dir = 0.0;                  // Shear velocity along x
-    // I.Shear.Initialise();               // Required for reference evaluation below (also called in Setup_VPM)
+    // Self-induced speed, of vortex, can select a much smaller grid
+    I.Shear.Profile  = SailFFish::SHEAR_UNIFORM;
+    I.Shear.Z_Ref    = 0.0;                             // Ring centre
+    I.Shear.U_Const[0] = -U_Ring;       // Co-moving frame: ring stays centred in x
 
-    // Output parameters
+    // Linear shear in x, varying in z, zero shear velocity at ring centre
+    // I.Shear.Profile  = SailFFish::SHEAR_LINEAR;
+    // I.Shear.Z_Ref    = 0.0;                             // Ring centre
+    // I.Shear.U_Ref    = -U_Ring;                         // Co-moving frame: ring stays centred in x
+    // I.Shear.Gradient = 0.04*Gamma/(R*R);                // dU/dz = 220,  G*R/U_Ring ~ 0.21
+    // I.Shear.Dir      = 0.0;                             // Shear velocity along x (ring axis)
+
+    //--- Output parameters
     I.NExp = 20;                  // Frequency of export of visualisation
     I.Debug = true;                 // Debugging output of solver
     I.Log = true;                   // Logging output

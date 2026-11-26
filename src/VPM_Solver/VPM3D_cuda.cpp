@@ -36,13 +36,6 @@ SFStatus VPM3D_cuda::Setup_VPM(VPM_Input *I)
     // KinVisc = I->KinVisc;
     // Rho = I->Rho;
 
-    // Inflow / shear fields. Legacy constant freestream (UINFX/Y/Z) is added to the shear field.
-    KinVisc = I->KinVisc;
-    Rho = I->Rho;
-    Shear = I->Shear;
-    T = T_init;
-    if (Shear.Active()) {Shear.Initialise(); Shear.Eval_Grid(ZN1, H_Grid, NNZ, T);}
-
     // Turbulence modelling parameters
     Turb = I->Turb;
     C_smag = I->C_smag;
@@ -63,6 +56,13 @@ SFStatus VPM3D_cuda::Setup_VPM(VPM_Input *I)
 
     if (I->GridDef==NODES)      Stat = Define_Grid_Nodes(I);
     if (I->GridDef==BLOCKS)     Stat = Define_Grid_Blocks(I);
+
+    // Inflow / shear fields. Legacy constant freestream (UINFX/Y/Z) is added to the shear field.
+    KinVisc = I->KinVisc;
+    Rho = I->Rho;
+    Shear = I->Shear;
+    T = T_init;
+    if (Shear.Active()) {Shear.Initialise(); Shear.Eval_Grid(ZN1, H_Grid, NNZ, T);}
 
     // Set block size for Kernel definition
     blockarch_grid = dim3(NBX,NBY,NBZ);
@@ -87,6 +87,7 @@ SFStatus VPM3D_cuda::Setup_VPM(VPM_Input *I)
     Initialize_Data();                          // Initialize halo data for FD calcs
     Initialize_Halo_Data();
     Set_Grid_Positions();                       // Specify positions of grid (for diagnostics and/or initialisation)
+    Upload_Shear_Profile();                     // Transfer background profile to device
 
     // Prepare outputs
     std::string OutputDirectory = "Output";
@@ -336,6 +337,16 @@ void VPM3D_cuda::Set_Input_Arrays(RVector &xo, RVector &yo, RVector &zo)
         cuda_monolith_to_block_arch->Execute(eu_o,lg_o);
         cudaMemset(eu_o,      Real(0.0), 3*NNT*sizeof(Real));
     }
+}
+
+void VPM3D_cuda::Upload_Shear_Profile()
+{
+    // The background profile evaluated on the grid z-nodes is transferred to the device: [U, V, dU, dV, d2U, d2V], each of length NNZ
+    if (!Shear.Active()) return;
+    if (cuda_shear==nullptr) cudaMalloc((void**)&cuda_shear, 6*NNZ*sizeof(Real));
+    const Shear_Arrays &G = Shear.Grid;
+    const RVector *A[6] = {&G.U, &G.V, &G.dU, &G.dV, &G.d2U, &G.d2V};
+    for (int n=0; n<6; n++) cudaMemcpy(cuda_shear + n*NNZ, A[n]->data(), NNZ*sizeof(Real), cudaMemcpyHostToDevice);
 }
 
 //------------- Debugging ----------------
@@ -664,6 +675,9 @@ SFStatus VPM3D_cuda::Initialize_Kernels()
         cuda_Turb_RVM_DGC_FD6 = new cudaKernel(Source,"RVM_DGC_turbulentstress",3,6,(BX+6)*(BY+6)*(BZ+6));
         cuda_Turb_RVM_DGC_FD8 = new cudaKernel(Source,"RVM_DGC_turbulentstress",4,8,(BX+8)*(BY+8)*(BZ+8));
 
+        // Shear kernel
+        cuda_freestream_shear = new cudaKernel(Source, "AddFreestreamShear");
+
         //--- Specify grid constants
         Set_Kernel_Constants(cuda_monolith_to_block_arch->Get_Instance(), 0);
         Set_Kernel_Constants(cuda_block_to_monolith_arch->Get_Instance(), 0);
@@ -688,6 +702,7 @@ SFStatus VPM3D_cuda::Initialize_Kernels()
         Set_Kernel_Constants(cuda_stretch_FD4->Get_Instance(),2);
         Set_Kernel_Constants(cuda_stretch_FD6->Get_Instance(),3);
         Set_Kernel_Constants(cuda_stretch_FD8->Get_Instance(),4);
+        Set_Kernel_Constants(cuda_freestream_shear->Get_Instance(), 0);
         Set_Kernel_Constants(cuda_Diagnostics->Get_Instance(), 0);
         Set_Kernel_Constants(cuda_MagFilt1->Get_Instance(), 0);
         Set_Kernel_Constants(cuda_MagFilt2->Get_Instance(), 0);
@@ -754,6 +769,8 @@ SFStatus VPM3D_cuda::Initialize_Kernels()
             cuda_stretch_FD4->Instantiate(blockarch_grid, blockarch_block);
             cuda_stretch_FD6->Instantiate(blockarch_grid, blockarch_block);
             cuda_stretch_FD8->Instantiate(blockarch_grid, blockarch_block);
+
+            cuda_freestream_shear->Instantiate(blockarch_grid, blockarch_block);
 
             // Turbulence kernels
             cuda_Laplacian_FD2->Instantiate(blockarch_grid, blockarch_block);
@@ -1071,12 +1088,13 @@ void VPM3D_cuda::Calc_Grid_FDRatesof_Change()
 void VPM3D_cuda::Grid_Shear_Stresses()
 {
     // We shall execute the different fd depending on the order of the FD
+    const Real *bgs = Shear.Sheared() ? cuda_shear + 2*NNZ : nullptr;     // Background shear profile [dU, dV, d2U, d2V]
     switch (FDOrder)
     {
-    case (CD2): {cuda_stretch_FD2->Execute(eu_o, eu_dddt, Halo1data, eu_dodt, sgs, qcrit);   break;}
-    case (CD4): {cuda_stretch_FD4->Execute(eu_o, eu_dddt, Halo2data, eu_dodt, sgs, qcrit);   break;}
-    case (CD6): {cuda_stretch_FD6->Execute(eu_o, eu_dddt, Halo3data, eu_dodt, sgs, qcrit);   break;}
-    case (CD8): {cuda_stretch_FD8->Execute(eu_o, eu_dddt, Halo4data, eu_dodt, sgs, qcrit);   break;}
+    case (CD2): {cuda_stretch_FD2->Execute(eu_o, eu_dddt, Halo1data, bgs, eu_dodt, sgs, qcrit);   break;}
+    case (CD4): {cuda_stretch_FD4->Execute(eu_o, eu_dddt, Halo2data, bgs, eu_dodt, sgs, qcrit);   break;}
+    case (CD6): {cuda_stretch_FD6->Execute(eu_o, eu_dddt, Halo3data, bgs, eu_dodt, sgs, qcrit);   break;}
+    case (CD8): {cuda_stretch_FD8->Execute(eu_o, eu_dddt, Halo4data, bgs, eu_dodt, sgs, qcrit);   break;}
     default:    {std::cout << "VPM3D_cuda::Grid_Shear_Stresses(). FDOrder undefined.";   break;}
     }
     return;
@@ -1267,40 +1285,40 @@ inline Real Calc_Root_Finite_Depth(Real O, Real H)
     return y/H;
 }
 
-void VPM3D_cuda::Add_Freestream_Velocity()
-{
-    std::cout << "THIS SHOULD BE IN THE SHEAR KERNEL NOW! << std::endl;"
-    // This adds the local freestream to the grid
-    if (sqrt(Ux*Ux + Uy*Uy + Uz*Uz)==0.0) return;
-    cuda_freestream->Execute(eu_dddt, Real(Ux), Real(Uy), Real(Uz));
+// void VPM3D_cuda::Add_Freestream_Velocity()
+// {
+//     std::cout << "THIS SHOULD BE IN THE SHEAR KERNEL NOW! << std::endl;"
+//     // This adds the local freestream to the grid
+//     if (sqrt(Ux*Ux + Uy*Uy + Uz*Uz)==0.0) return;
+//     cuda_freestream->Execute(eu_dddt, Real(Ux), Real(Uy), Real(Uz));
 
-    // Additions for Airy wave term
+//     // Additions for Airy wave term
 
-    // NumBeRT model is being applied, so the turbine has a radius of 2.59960008m->Length scale L = 4 (compared to UBert)
-    // Values from Sascha:
-    // Real Amp = 2.0, Omega = 0.1*2.0*M_PI;       // Config 1: UBert Scale: Amp 0.5m, Freq = 0.2Hz ->Numbert: Amp = 2.0, Freq = 0.2/(sqrt(L)) = 0.1;
-    // Real Amp = 2.0, Omega = 1.0*2.0*M_PI;       // Config 1: UBert Scale: Amp 0.5m, Freq = 2.0Hz ->Numbert: Amp = 2.0, Freq = 2.0/(sqrt(L)) = 1.0;
-    // Real TurbineDepth = 10.0;   // Attempt for extreme influence
-    // Real BeckenDepth = 20.0;    // Actual tank depth-> 5m-> Scaled = 20m
-    // Real k = Calc_Root_Finite_Depth(Omega,BeckenDepth);
-    // cuda_Airywave->Execute( eu_dddt,
-    //                         Real(NStep*dT),
-    //                         Real(XN1),
-    //                         Real(ZN1),
-    //                         Real(Amp),
-    //                         Real(-TurbineDepth),
-    //                         Real(BeckenDepth),
-    //                         Real(k),
-    //                         Real(Omega)); // Current time
-}
+//     // NumBeRT model is being applied, so the turbine has a radius of 2.59960008m->Length scale L = 4 (compared to UBert)
+//     // Values from Sascha:
+//     // Real Amp = 2.0, Omega = 0.1*2.0*M_PI;       // Config 1: UBert Scale: Amp 0.5m, Freq = 0.2Hz ->Numbert: Amp = 2.0, Freq = 0.2/(sqrt(L)) = 0.1;
+//     // Real Amp = 2.0, Omega = 1.0*2.0*M_PI;       // Config 1: UBert Scale: Amp 0.5m, Freq = 2.0Hz ->Numbert: Amp = 2.0, Freq = 2.0/(sqrt(L)) = 1.0;
+//     // Real TurbineDepth = 10.0;   // Attempt for extreme influence
+//     // Real BeckenDepth = 20.0;    // Actual tank depth-> 5m-> Scaled = 20m
+//     // Real k = Calc_Root_Finite_Depth(Omega,BeckenDepth);
+//     // cuda_Airywave->Execute( eu_dddt,
+//     //                         Real(NStep*dT),
+//     //                         Real(XN1),
+//     //                         Real(ZN1),
+//     //                         Real(Amp),
+//     //                         Real(-TurbineDepth),
+//     //                         Real(BeckenDepth),
+//     //                         Real(k),
+//     //                         Real(Omega)); // Current time
+// }
 
 void VPM3D_cuda::Add_Freestream_Shear()
 {
-    std::cerr << "VPM3D_cuda::Add_Freestream_Shear(): Currently ONLY implemented for CONSTANT free stream shear."  << std::endl;"
+    // The background velocity (constant freestream + shear profile) is superposed onto the grid
     if (!Shear.Active()) return;
-    cuda_freestream->Execute(eu_dddt, Real(Shear.U_Const[0]), Real(Shear.U_Const[1]), Real(Shear.U_Const[2]));
+    if (!Shear.Sheared())   cuda_freestream->Execute(eu_dddt, Real(Shear.Grid.U[0]), Real(Shear.Grid.V[0]), Real(Shear.W()));    // Uniform field
+    else                    cuda_freestream_shear->Execute(eu_dddt, cuda_shear, Real(Shear.W()));                               // Profile U(z), V(z)
 }
-
 
 void VPM3D_cuda::Calc_Grid_Diagnostics()
 {

@@ -1281,7 +1281,7 @@ if (mxx && mxy && mxz){
         ids = gid(txh  ,tyh  ,tzh-4,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C8[0]*(gsx[ids]-gxm)*lfm;  ly += D2C8[0]*(gsy[ids]-gym)*lfm;  lz += D2C8[0]*(gsz[ids]-gzm)*lfm;
         ids = gid(txh  ,tyh  ,tzh-3,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C8[1]*(gsx[ids]-gxm)*lfm;  ly += D2C8[1]*(gsy[ids]-gym)*lfm;  lz += D2C8[1]*(gsz[ids]-gzm)*lfm;
         ids = gid(txh  ,tyh  ,tzh-2,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C8[2]*(gsx[ids]-gxm)*lfm;  ly += D2C8[2]*(gsy[ids]-gym)*lfm;  lz += D2C8[2]*(gsz[ids]-gzm)*lfm;
-        ids = gid(txh  ,tyh  ,tzh-1,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C8[2]*(gsx[ids]-gxm)*lfm;  ly += D2C8[3]*(gsy[ids]-gym)*lfm;  lz += D2C8[3]*(gsz[ids]-gzm)*lfm;
+        ids = gid(txh  ,tyh  ,tzh-1,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C8[3]*(gsx[ids]-gxm)*lfm;  ly += D2C8[3]*(gsy[ids]-gym)*lfm;  lz += D2C8[3]*(gsz[ids]-gzm)*lfm;
         ids = gid(txh  ,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C8[4]*(gsx[ids]-gxm)*lfm;  ly += D2C8[4]*(gsy[ids]-gym)*lfm;  lz += D2C8[4]*(gsz[ids]-gzm)*lfm;
         ids = gid(txh  ,tyh  ,tzh+1,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C8[5]*(gsx[ids]-gxm)*lfm;  ly += D2C8[5]*(gsy[ids]-gym)*lfm;  lz += D2C8[5]*(gsz[ids]-gzm)*lfm;
         ids = gid(txh  ,tyh  ,tzh+2,NFDX,NFDY,NFDZ);    lfm = Hlf*(sgm + sg[ids]);	lx += D2C8[6]*(gsx[ids]-gxm)*lfm;  ly += D2C8[6]*(gsy[ids]-gym)*lfm;  lz += D2C8[6]*(gsz[ids]-gzm)*lfm;
@@ -1809,7 +1809,7 @@ if (mxx && mxy && mxz){
         ids = gid(txh  ,tyh  ,tzh-4,NFDX,NFDY,NFDZ);    lx += D2C8[0]*wx[ids];  ly += D2C8[0]*wy[ids];  lz += D2C8[0]*wz[ids];
         ids = gid(txh  ,tyh  ,tzh-3,NFDX,NFDY,NFDZ);    lx += D2C8[1]*wx[ids];  ly += D2C8[1]*wy[ids];  lz += D2C8[1]*wz[ids];
         ids = gid(txh  ,tyh  ,tzh-2,NFDX,NFDY,NFDZ);    lx += D2C8[2]*wx[ids];  ly += D2C8[2]*wy[ids];  lz += D2C8[2]*wz[ids];
-        ids = gid(txh  ,tyh  ,tzh-1,NFDX,NFDY,NFDZ);    lx += D2C8[2]*wx[ids];  ly += D2C8[3]*wy[ids];  lz += D2C8[3]*wz[ids];
+        ids = gid(txh  ,tyh  ,tzh-1,NFDX,NFDY,NFDZ);    lx += D2C8[3]*wx[ids];  ly += D2C8[3]*wy[ids];  lz += D2C8[3]*wz[ids];
         ids = gid(txh  ,tyh  ,tzh  ,NFDX,NFDY,NFDZ);    lx += D2C8[4]*wx[ids];  ly += D2C8[4]*wy[ids];  lz += D2C8[4]*wz[ids];
         ids = gid(txh  ,tyh  ,tzh+1,NFDX,NFDY,NFDZ);    lx += D2C8[5]*wx[ids];  ly += D2C8[5]*wy[ids];  lz += D2C8[5]*wz[ids];
         ids = gid(txh  ,tyh  ,tzh+2,NFDX,NFDY,NFDZ);    lx += D2C8[6]*wx[ids];  ly += D2C8[6]*wy[ids];  lz += D2C8[6]*wz[ids];

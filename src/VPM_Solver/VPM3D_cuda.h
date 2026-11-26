@@ -292,7 +292,8 @@ public:
     void Calc_Grid_FDRatesof_Change() override;
     void Grid_Shear_Stresses() override;
     void Grid_Turb_Shear_Stresses() override;
-    void Add_Freestream_Velocity() override;
+    // void Add_Freestream_Velocity() override;
+    void Add_Freestream_Shear() override;
     // void Solve_Velocity() override;
 
     // Debugging

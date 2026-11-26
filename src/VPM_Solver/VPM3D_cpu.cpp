@@ -62,12 +62,6 @@ SFStatus VPM3D_cpu::Setup_VPM(VPM_Input *I)
     KinVisc = I->KinVisc;
     Rho = I->Rho;
     Shear = I->Shear;
-    Shear.U_Const[0] += I->Ux;
-    Shear.U_Const[1] += I->Uy;
-    Shear.U_Const[2] += I->Uz;
-    Ux = Shear.U_Const[0];                  // Retained for summary output only
-    Uy = Shear.U_Const[1];
-    Uz = Shear.U_Const[2];
     T = T_init;
     if (Shear.Active()) {Shear.Initialise(); Shear.Eval_Grid(ZN1, H_Grid, NNZ, T);}
 
@@ -534,11 +528,8 @@ void VPM3D_cpu::Calc_Grid_FDRatesof_Change()
     Grid_Turb_Shear_Stresses();
 
     //--- Add external velocity components
-    // std::cout << "HERE" << std::endl;
-    if (Shear.Active()) Add_Freestream_Shear();
-    else                Add_Freestream_Velocity();
-    // std::cout << "HERE2" << std::endl;
-
+    // Add_Freestream_Velocity();       // Depracated
+    Add_Freestream_Shear();
 }
 
 void VPM3D_cpu::Grid_Shear_Stresses()
@@ -626,26 +617,27 @@ void VPM3D_cpu::Grid_Turb_Shear_Stresses()
 
 }
 
-void VPM3D_cpu::Add_Freestream_Velocity()
-{
-    // The freestream velocity of superposed onto the grid
-    // Currently only configured for constant freestream velocity
+// void VPM3D_cpu::Add_Freestream_Velocity()
+// {
+//     // The freestream velocity of superposed onto the grid
+//     // Currently only configured for constant freestream velocity
 
-    //--- Constant
-    Real U_inf = sqrt(Ux*Ux + Uy*Uy + Uz*Uz);
-    if (U_inf>0.0)
-    {
-        Parallel_Kernel(NNT) {
-            eu_dddt[0][i] += Ux;
-            eu_dddt[1][i] += Uy;
-            eu_dddt[2][i] += Uz;
-        }
-    }
-}
+//     //--- Constant
+//     Real U_inf = sqrt(Ux*Ux + Uy*Uy + Uz*Uz);
+//     if (U_inf>0.0)
+//     {
+//         Parallel_Kernel(NNT) {
+//             eu_dddt[0][i] += Ux;
+//             eu_dddt[1][i] += Uy;
+//             eu_dddt[2][i] += Uz;
+//         }
+//     }
+// }
 
 void VPM3D_cpu::Add_Freestream_Shear()
 {
     // The background velocity (constant freestream + shear profile) is superposed onto the grid
+    if (!Shear.Active()) return;
     const RVector &Us = Shear.Grid.U, &Vs = Shear.Grid.V;
     const Real W = Shear.W();
     Parallel_Kernel(NNT) {

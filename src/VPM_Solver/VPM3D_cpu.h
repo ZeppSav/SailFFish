@@ -80,7 +80,7 @@ public:
     void Calc_Particle_RateofChange(const TensorGrid &p_d_Vals, const TensorGrid &p_o_Vals, TensorGrid &dpdt_d_Vals, TensorGrid &dpdt_o_Vals);
     void Grid_Shear_Stresses() override;
     void Grid_Turb_Shear_Stresses() override;
-    void Add_Freestream_Velocity() override;
+    // void Add_Freestream_Velocity() override;
     void Add_Freestream_Shear() override;
     void Calc_Grid_SpectralRatesof_Change() override;
     void Calc_Grid_FDRatesof_Change() override;

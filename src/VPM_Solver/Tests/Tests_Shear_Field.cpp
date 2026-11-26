@@ -83,7 +83,10 @@ TEST(SailFFish_VPM_Tests, Shear_Field_Baseline)
     I.dT = 0.001;                        // Timestep size (no vorticity: no CFL restriction)
 
     //--- Background shear field: linear shear U(z) = G*(z - Z_Ref), zero at mid-height of domain
-    I.Ux = 1.0;
+    // I.Ux = 1.0;
+    // Shear uniform
+    I.Shear.Profile = SailFFish::SHEAR_UNIFORM;
+    I.Shear.U_Const[2] = 1.0;
 
     // // Shear linear
     // I.Shear.Profile = SailFFish::SHEAR_LINEAR;
@@ -145,16 +148,16 @@ TEST(SailFFish_VPM_Tests, Shear_Field_Baseline)
     ASSERT_EQ(NNT%NNZ, 0);
 
     Real Umax = 0.;
-    for (int k=0; k<NNZ; k++) Umax = std::max(Umax, std::fabs(I.Ux + I.Shear.Eval(Z[k]).U));
+    for (int k=0; k<NNZ; k++) Umax = std::max(Umax, std::fabs(I.Shear.U_Const[0] + I.Shear.Eval(Z[k]).U));
     Real Tol = 16*std::numeric_limits<Real>::epsilon()*std::max(Umax, Real(1.));
 
     Real ErrMax = 0.;
     for (int i=0; i<NNT; i++){
         int k = i%NNZ;                  // C-style ordering: k fastest (GID)
         Shear_Point P = I.Shear.Eval(Z[k]);
-        ErrMax = std::max(ErrMax, std::fabs((*Vel)[0][i] - (I.Ux + P.U)));
-        ErrMax = std::max(ErrMax, std::fabs((*Vel)[1][i] - (I.Uy + P.V)));
-        ErrMax = std::max(ErrMax, std::fabs((*Vel)[2][i] - I.Uz));
+        ErrMax = std::max(ErrMax, std::fabs((*Vel)[0][i] - (I.Shear.U_Const[0] + P.U)));
+        ErrMax = std::max(ErrMax, std::fabs((*Vel)[1][i] - (I.Shear.U_Const[1] + P.V)));
+        ErrMax = std::max(ErrMax, std::fabs((*Vel)[2][i] - I.Shear.U_Const[2]));
     }
     std::cout << "Shear field: max |U_grid - U_prescribed| = " << ErrMax << " (Umax = " << Umax << ")" << std::endl;
     EXPECT_LT(ErrMax, Tol);

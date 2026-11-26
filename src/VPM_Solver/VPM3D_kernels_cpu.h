@@ -1758,7 +1758,7 @@ inline void KER_Collision(const Real &x, const Real &y, const Real &z, Real &Ox,
 
 //--- This generates the perturbed vortex ring for the breakdown / turbulence model tests as in Cocle
 
-inline void KER_Perturbed_Vortex_Ring(const Real &x, const Real &y, const Real &z, Real &Ox, Real &Oy, Real &Oz, RVector &PhaseShift, Real &R, Real &a, Real &Rey, Real &Nu, Real &eps)
+inline void KER_Perturbed_Vortex_Ring(const Real &x, const Real &y, const Real &z, Real &Ox, Real &Oy, Real &Oz, RVector &PhaseShift, Real &R, Real &a, Real &Rey, Real &Nu, const Real &eps)
 {
     // This function uses the given x,y,z position and the (prespecified) array of phase angles to generate a perturbed vortex ring
 

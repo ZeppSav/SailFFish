@@ -30,11 +30,18 @@ SFStatus VPM3D_cuda::Setup_VPM(VPM_Input *I)
     MagFiltFac = I->MagFiltFac;
     DivFilt = I->DivFilt;
 
-    Ux = I->Ux;
-    Uy = I->Uy;
-    Uz = I->Uz;
+    // Ux = I->Ux;
+    // Uy = I->Uy;
+    // Uz = I->Uz;
+    // KinVisc = I->KinVisc;
+    // Rho = I->Rho;
+
+    // Inflow / shear fields. Legacy constant freestream (UINFX/Y/Z) is added to the shear field.
     KinVisc = I->KinVisc;
     Rho = I->Rho;
+    Shear = I->Shear;
+    T = T_init;
+    if (Shear.Active()) {Shear.Initialise(); Shear.Eval_Grid(ZN1, H_Grid, NNZ, T);}
 
     // Turbulence modelling parameters
     Turb = I->Turb;
@@ -1057,7 +1064,8 @@ void VPM3D_cuda::Calc_Grid_FDRatesof_Change()
     Grid_Turb_Shear_Stresses();
 
     //--- Add freestream velocity
-    Add_Freestream_Velocity();
+    // Add_Freestream_Velocity();
+    Add_Freestream_Shear();
 }
 
 void VPM3D_cuda::Grid_Shear_Stresses()
@@ -1261,6 +1269,7 @@ inline Real Calc_Root_Finite_Depth(Real O, Real H)
 
 void VPM3D_cuda::Add_Freestream_Velocity()
 {
+    std::cout << "THIS SHOULD BE IN THE SHEAR KERNEL NOW! << std::endl;"
     // This adds the local freestream to the grid
     if (sqrt(Ux*Ux + Uy*Uy + Uz*Uz)==0.0) return;
     cuda_freestream->Execute(eu_dddt, Real(Ux), Real(Uy), Real(Uz));
@@ -1284,6 +1293,14 @@ void VPM3D_cuda::Add_Freestream_Velocity()
     //                         Real(k),
     //                         Real(Omega)); // Current time
 }
+
+void VPM3D_cuda::Add_Freestream_Shear()
+{
+    std::cerr << "VPM3D_cuda::Add_Freestream_Shear(): Currently ONLY implemented for CONSTANT free stream shear."  << std::endl;"
+    if (!Shear.Active()) return;
+    cuda_freestream->Execute(eu_dddt, Real(Shear.U_Const[0]), Real(Shear.U_Const[1]), Real(Shear.U_Const[2]));
+}
+
 
 void VPM3D_cuda::Calc_Grid_Diagnostics()
 {

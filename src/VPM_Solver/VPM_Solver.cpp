@@ -825,9 +825,9 @@ void VPM_3D_Solver::Generate_Summary(std::string Filename)
         file << "MAGFILTFAC "   << MagFiltFac           << "    (Magnitude filtering factor)" <<std::endl;
         file << "\n" << std::endl;
         file << "#-----------Environmental Variables-----------------#" << std::endl;
-        file << "UINFX      "   << Ux       << "    (Freestream velocity in x direction)" <<std::endl;
-        file << "UINFY      "   << Uy       << "    (Freestream velocity in x direction)" <<std::endl;
-        file << "UINFZ      "   << Uz       << "    (Freestream velocity in x direction)" <<std::endl;
+        file << "UINFX      "   << Shear.U_Const[0]     << "    (Freestream velocity in x direction)" <<std::endl;
+        file << "UINFY      "   << Shear.U_Const[1]     << "    (Freestream velocity in x direction)" <<std::endl;
+        file << "UINFZ      "   << Shear.U_Const[2]     << "    (Freestream velocity in x direction)" <<std::endl;
         file << "KINVISC    "   << KinVisc  << "    (Kinematic viscosity of fluid)" <<std::endl;
         file << "DENSITY    "   << Rho      << "    (Density of fluid)" <<std::endl;
         file << "\n" << std::endl;

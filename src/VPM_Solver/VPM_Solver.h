@@ -143,7 +143,7 @@ struct VPM_Input
     Mapping SourceMap = M2;
 
     //--- Environmental vars
-    Real Ux = 0.0, Uy = 0.0, Uz = 0.0;  // Freestream vals
+    // Real Ux = 0.0, Uy = 0.0, Uz = 0.0;  // Freestream vals
     Real KinVisc = 0.0;                 // Kinematic viscosity
     Real Rho = 1.172;                   // Fluid density
     Shear_Field Shear;                  // Shear field input
@@ -258,9 +258,9 @@ struct VPM_Input
                     if (Fields[0] == "TRUE")    Log = true;
                 }
 
-                if (Fields[1] == "UINFX")   Ux = std::stod(Fields[0]);
-                if (Fields[1] == "UINFY")   Uy = std::stod(Fields[0]);
-                if (Fields[1] == "UINFZ")   Uz = std::stod(Fields[0]);
+                if (Fields[1] == "UINFX")   {Shear.Profile = SHEAR_UNIFORM; Shear.U_Const[0] = std::stod(Fields[0]);}
+                if (Fields[1] == "UINFY")   {Shear.Profile = SHEAR_UNIFORM; Shear.U_Const[1] = std::stod(Fields[0]);}
+                if (Fields[1] == "UINFZ")   {Shear.Profile = SHEAR_UNIFORM; Shear.U_Const[2] = std::stod(Fields[0]);}
                 if (Fields[1] == "KINVISC") KinVisc = std::stod(Fields[0]);
                 if (Fields[1] == "DENSITY") Rho = std::stod(Fields[0]);
 
@@ -435,7 +435,7 @@ protected:
     std::vector<ParticleMap> Ext_Forcing;
 
     //--- Shear field
-    Real Ux = 0.0, Uy = 0.0, Uz = 0.0;      // Freestream vals
+    // Real Ux = 0.0, Uy = 0.0, Uz = 0.0;      // Freestream vals
     Shear_Field Shear;
 
     //--- Debugging & output parameters

@@ -111,16 +111,16 @@ TEST(SailFFish_VPM_Tests, Vortex_Ring_Evolution)
     Real U_Ring = Gamma/(4.0*M_PI*R)*(log(8.0*R/Coresize) - 0.558);   // Self-induced speed, Gaussian core (~1050)
 
     // Self-induced speed, of vortex, can select a much smaller grid
-    I.Shear.Profile  = SailFFish::SHEAR_UNIFORM;
-    I.Shear.Z_Ref    = 0.0;                             // Ring centre
-    I.Shear.U_Const[0] = -U_Ring;       // Co-moving frame: ring stays centred in x
+    // I.Shear.Profile  = SailFFish::SHEAR_UNIFORM;
+    // I.Shear.Z_Ref    = 0.0;                             // Ring centre
+    // I.Shear.U_Const[0] = -U_Ring;       // Co-moving frame: ring stays centred in x
 
     // Linear shear in x, varying in z, zero shear velocity at ring centre
-    // I.Shear.Profile  = SailFFish::SHEAR_LINEAR;
-    // I.Shear.Z_Ref    = 0.0;                             // Ring centre
-    // I.Shear.U_Ref    = -U_Ring;                         // Co-moving frame: ring stays centred in x
-    // I.Shear.Gradient = 0.04*Gamma/(R*R);                // dU/dz = 220,  G*R/U_Ring ~ 0.21
-    // I.Shear.Dir      = 0.0;                             // Shear velocity along x (ring axis)
+    I.Shear.Profile  = SailFFish::SHEAR_LINEAR;
+    I.Shear.Z_Ref    = 0.0;                             // Ring centre
+    I.Shear.U_Ref    = -U_Ring;                         // Co-moving frame: ring stays centred in x
+    I.Shear.Gradient = 0.04*Gamma/(R*R);                // dU/dz = 220,  G*R/U_Ring ~ 0.21
+    I.Shear.Dir      = 0.0;                             // Shear velocity along x (ring axis)
 
     //--- Output parameters
     I.NExp = 20;                  // Frequency of export of visualisation

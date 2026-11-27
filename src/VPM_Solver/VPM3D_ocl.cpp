@@ -34,12 +34,8 @@ SFStatus VPM3D_ocl::Setup_VPM(VPM_Input *I)
     // Uy = I->Uy;
     // Uz = I->Uz;
 
-    // Inflow / shear fields. Legacy constant freestream (UINFX/Y/Z) is added to the shear field.
     KinVisc = I->KinVisc;
     Rho = I->Rho;
-    Shear = I->Shear;
-    T = T_init;
-    if (Shear.Active()) {Shear.Initialise(); Shear.Eval_Grid(ZN1, H_Grid, NNZ, T);}
 
     // // Set flag for auxiliary grid
     // Auxiliary = I->AuxGrid;
@@ -64,6 +60,15 @@ SFStatus VPM3D_ocl::Setup_VPM(VPM_Input *I)
 
     if (I->GridDef==NODES)      Stat = Define_Grid_Nodes(I);
     if (I->GridDef==BLOCKS)     Stat = Define_Grid_Blocks(I);
+
+    // Inflow / shear fields (requires grid definition)
+    Shear = I->Shear;
+    T = T_init;
+    if (Shear.Active()) {Shear.Initialise(); Shear.Eval_Grid(ZN1, H_Grid, NNZ, T);}
+    if (Shear.Sheared() && Shear.W()!=0.){
+        std::cout << "VPM3D_ocl::Setup_VPM: constant vertical velocity combined with a sheared profile is not supported." << std::endl;
+        return SetupError;
+    }
 
     //--- Worksize parameters to be called during kernel execution:
 
@@ -110,10 +115,11 @@ SFStatus VPM3D_ocl::Setup_VPM(VPM_Input *I)
     if (Stat != NoError)    return Stat;
     Initialize_Data();                          // Initialize halo data for FD calcs
     Initialize_Halo_Data();
+    Upload_Shear_Profile();                     // Transfer background profile to device
     Set_Grid_Positions();                       // Specify positions of grid (for diagnostics and/or initialisation)
 
     //--- Prepare outputs
-//    create_directory(std::filesystem::path("Output"));  // Generate output folder if not existing
+    //    create_directory(std::filesystem::path("Output"));  // Generate output folder if not existing
     Create_Directory("Output");
     Generate_Summary("Summary.dat");
     Sim_begin = std::chrono::steady_clock::now();    // Begin clock
@@ -330,7 +336,7 @@ void VPM3D_ocl::Retrieve_Grid_Positions(RVector &xc, RVector &yc, RVector &zc)
 {
     //--- Return grid positions for vorticity field initialisation
     OpenMPfor
-    for (int i=0; i<NNX; i++){
+        for (int i=0; i<NNX; i++){
         for (int j=0; j<NNY; j++){
             for (int k=0; k<NNZ; k++)
             {
@@ -658,6 +664,7 @@ SFStatus VPM3D_ocl::Initialize_Kernels()
         // ocl_MagFilt2 = new cudaKernel(Source,"MagnitudeFiltering_Step2",BT);
         // ocl_MagFilt3 = new cudaKernel(Source,"MagnitudeFiltering_Step3");
         ocl_freestream = Generate_Kernel(VPM3D_ocl_kernels_freestream, "AddFreestream",0,0,0);
+        ocl_freestream_shear = Generate_Kernel(VPM3D_ocl_kernels_freestream, "AddFreestreamShear",0,0,0);
 
         ocl_interpM2_block =  Generate_Kernel(VPM3D_ocl_kernels_InterpBlock,"Interp_Block",1,2,(BX+2)*(BY+2)*(BZ+2));
         ocl_interpM4_block =  Generate_Kernel(VPM3D_ocl_kernels_InterpBlock,"Interp_Block",2,4,(BX+4)*(BY+4)*(BZ+4));
@@ -918,11 +925,11 @@ void VPM3D_ocl::Calc_Particle_RateofChange(const cl_mem pd, const cl_mem po, cl_
     SFStatus Stat = NoError;
     switch (SolverMap)
     {
-        case (M2):  {Stat = Execute_Kernel(ocl_mapM2 , BlockArch, {po, pd, Halo1data, eu_o});    break;}
-        case (M4):  {Stat = Execute_Kernel(ocl_mapM4 , BlockArch, {po, pd, Halo2data, eu_o});    break;}
-        case (M4D): {Stat = Execute_Kernel(ocl_mapM4D, BlockArch, {po, pd, Halo2data, eu_o});    break;}
-        case (M6D): {Stat = Execute_Kernel(ocl_mapM6D, BlockArch, {po, pd, Halo3data, eu_o});    break;}
-        default:    {std::cout << "VPM3D_ocl::Calc_Particle_RateofChange(). Mapping undefined.";   return;}
+    case (M2):  {Stat = Execute_Kernel(ocl_mapM2 , BlockArch, {po, pd, Halo1data, eu_o});    break;}
+    case (M4):  {Stat = Execute_Kernel(ocl_mapM4 , BlockArch, {po, pd, Halo2data, eu_o});    break;}
+    case (M4D): {Stat = Execute_Kernel(ocl_mapM4D, BlockArch, {po, pd, Halo2data, eu_o});    break;}
+    case (M6D): {Stat = Execute_Kernel(ocl_mapM6D, BlockArch, {po, pd, Halo3data, eu_o});    break;}
+    default:    {std::cout << "VPM3D_ocl::Calc_Particle_RateofChange(). Mapping undefined.";   return;}
     }
 
     // // Calc_Grid_SpectralRatesof_Change();         // The rates of change are calculated on the fixed grid
@@ -931,11 +938,11 @@ void VPM3D_ocl::Calc_Particle_RateofChange(const cl_mem pd, const cl_mem po, cl_
     // Map grid values to particles
     switch (SolverMap)
     {
-        case (M2):  {Stat = Execute_Kernel(ocl_interpM2 , BlockArch, {eu_dddt, eu_dodt, pd, Halo1data, dpddt, dpodt});    break;}
-        case (M4):  {Stat = Execute_Kernel(ocl_interpM4 , BlockArch, {eu_dddt, eu_dodt, pd, Halo2data, dpddt, dpodt});    break;}
-        case (M4D): {Stat = Execute_Kernel(ocl_interpM4D, BlockArch, {eu_dddt, eu_dodt, pd, Halo2data, dpddt, dpodt});    break;}
-        case (M6D): {Stat = Execute_Kernel(ocl_interpM6D, BlockArch, {eu_dddt, eu_dodt, pd, Halo3data, dpddt, dpodt});    break;}
-        default:    {std::cout << "VPM3D_ocl::Calc_Particle_RateofChange(). Mapping undefined.";   return;}
+    case (M2):  {Stat = Execute_Kernel(ocl_interpM2 , BlockArch, {eu_dddt, eu_dodt, pd, Halo1data, dpddt, dpodt});    break;}
+    case (M4):  {Stat = Execute_Kernel(ocl_interpM4 , BlockArch, {eu_dddt, eu_dodt, pd, Halo2data, dpddt, dpodt});    break;}
+    case (M4D): {Stat = Execute_Kernel(ocl_interpM4D, BlockArch, {eu_dddt, eu_dodt, pd, Halo2data, dpddt, dpodt});    break;}
+    case (M6D): {Stat = Execute_Kernel(ocl_interpM6D, BlockArch, {eu_dddt, eu_dodt, pd, Halo3data, dpddt, dpodt});    break;}
+    default:    {std::cout << "VPM3D_ocl::Calc_Particle_RateofChange(). Mapping undefined.";   return;}
     }
 }
 
@@ -977,11 +984,11 @@ void VPM3D_ocl::Grid_Shear_Stresses()
     SFStatus Stat = NoError;
     switch (FDOrder)
     {
-        case (CD2): {Stat = Execute_Kernel(ocl_stretch_FD2, BlockArch, {eu_o, eu_dddt, Halo1data, eu_dodt, sgs, qcrit});   break;}
-        case (CD4): {Stat = Execute_Kernel(ocl_stretch_FD4, BlockArch, {eu_o, eu_dddt, Halo2data, eu_dodt, sgs, qcrit});   break;}
-        case (CD6): {Stat = Execute_Kernel(ocl_stretch_FD6, BlockArch, {eu_o, eu_dddt, Halo3data, eu_dodt, sgs, qcrit});   break;}
-        case (CD8): {Stat = Execute_Kernel(ocl_stretch_FD8, BlockArch, {eu_o, eu_dddt, Halo4data, eu_dodt, sgs, qcrit});   break;}
-        default:    {std::cout << "VPM3D_ocl::Grid_Shear_Stresses(). FDOrder undefined.";   break;}
+    case (CD2): {Stat = Execute_Kernel(ocl_stretch_FD2, BlockArch, {eu_o, eu_dddt, Halo1data, cl_shear, eu_dodt, sgs, qcrit});   break;}
+    case (CD4): {Stat = Execute_Kernel(ocl_stretch_FD4, BlockArch, {eu_o, eu_dddt, Halo2data, cl_shear, eu_dodt, sgs, qcrit});   break;}
+    case (CD6): {Stat = Execute_Kernel(ocl_stretch_FD6, BlockArch, {eu_o, eu_dddt, Halo3data, cl_shear, eu_dodt, sgs, qcrit});   break;}
+    case (CD8): {Stat = Execute_Kernel(ocl_stretch_FD8, BlockArch, {eu_o, eu_dddt, Halo4data, cl_shear, eu_dodt, sgs, qcrit});   break;}
+    default:    {std::cout << "VPM3D_ocl::Grid_Shear_Stresses(). FDOrder undefined.";   break;}
     }
     return;
 }
@@ -1036,11 +1043,11 @@ void VPM3D_ocl::Grid_Turb_Shear_Stresses()
 
         switch (FDOrder)
         {
-            case (CD2): {Stat = Execute_Kernel(ocl_Turb_RVM_FD2, BlockArch, {gfilt_Array2, sgs, Halo1data, eu_dodt}, {C_smag});    break; }
-            case (CD4): {Stat = Execute_Kernel(ocl_Turb_RVM_FD4, BlockArch, {gfilt_Array2, sgs, Halo2data, eu_dodt}, {C_smag});    break; }
-            case (CD6): {Stat = Execute_Kernel(ocl_Turb_RVM_FD6, BlockArch, {gfilt_Array2, sgs, Halo3data, eu_dodt}, {C_smag});    break; }
-            case (CD8): {Stat = Execute_Kernel(ocl_Turb_RVM_FD8, BlockArch, {gfilt_Array2, sgs, Halo4data, eu_dodt}, {C_smag});    break; }
-            default:    {std::cout << "VPM3D_ocl::Grid_Turb_Shear_Stresses. FDOrder undefined for RVM2.";  break; }
+        case (CD2): {Stat = Execute_Kernel(ocl_Turb_RVM_FD2, BlockArch, {gfilt_Array2, sgs, Halo1data, eu_dodt}, {C_smag});    break; }
+        case (CD4): {Stat = Execute_Kernel(ocl_Turb_RVM_FD4, BlockArch, {gfilt_Array2, sgs, Halo2data, eu_dodt}, {C_smag});    break; }
+        case (CD6): {Stat = Execute_Kernel(ocl_Turb_RVM_FD6, BlockArch, {gfilt_Array2, sgs, Halo3data, eu_dodt}, {C_smag});    break; }
+        case (CD8): {Stat = Execute_Kernel(ocl_Turb_RVM_FD8, BlockArch, {gfilt_Array2, sgs, Halo4data, eu_dodt}, {C_smag});    break; }
+        default:    {std::cout << "VPM3D_ocl::Grid_Turb_Shear_Stresses. FDOrder undefined for RVM2.";  break; }
         }
     }
 
@@ -1060,11 +1067,11 @@ void VPM3D_ocl::Grid_Turb_Shear_Stresses()
 
         switch (FDOrder)
         {
-            case (CD2): {Stat = Execute_Kernel(ocl_Turb_RVM_FD2, BlockArch, {gfilt_Array2, sgs, Halo1data, eu_dodt}, {C_smag});    break; }
-            case (CD4): {Stat = Execute_Kernel(ocl_Turb_RVM_FD4, BlockArch, {gfilt_Array2, sgs, Halo2data, eu_dodt}, {C_smag});    break; }
-            case (CD6): {Stat = Execute_Kernel(ocl_Turb_RVM_FD6, BlockArch, {gfilt_Array2, sgs, Halo3data, eu_dodt}, {C_smag});    break; }
-            case (CD8): {Stat = Execute_Kernel(ocl_Turb_RVM_FD8, BlockArch, {gfilt_Array2, sgs, Halo4data, eu_dodt}, {C_smag});    break; }
-            default:    {std::cout << "VPM3D_ocl::Grid_Turb_Shear_Stresses. FDOrder undefined for RVM2.";  break; }
+        case (CD2): {Stat = Execute_Kernel(ocl_Turb_RVM_FD2, BlockArch, {gfilt_Array2, sgs, Halo1data, eu_dodt}, {C_smag});    break; }
+        case (CD4): {Stat = Execute_Kernel(ocl_Turb_RVM_FD4, BlockArch, {gfilt_Array2, sgs, Halo2data, eu_dodt}, {C_smag});    break; }
+        case (CD6): {Stat = Execute_Kernel(ocl_Turb_RVM_FD6, BlockArch, {gfilt_Array2, sgs, Halo3data, eu_dodt}, {C_smag});    break; }
+        case (CD8): {Stat = Execute_Kernel(ocl_Turb_RVM_FD8, BlockArch, {gfilt_Array2, sgs, Halo4data, eu_dodt}, {C_smag});    break; }
+        default:    {std::cout << "VPM3D_ocl::Grid_Turb_Shear_Stresses. FDOrder undefined for RVM2.";  break; }
         }
     }
 
@@ -1078,11 +1085,11 @@ void VPM3D_ocl::Remesh_Particle_Set()
     // Map to new grid
     switch (RemeshMap)
     {
-        case (M2):  {Execute_Kernel(ocl_mapM2 ,BlockArch,{lg_o, lg_d, Halo1data, eu_o});    break;}
-        case (M4):  {Execute_Kernel(ocl_mapM4 ,BlockArch,{lg_o, lg_d, Halo2data, eu_o});    break;}
-        case (M4D): {Execute_Kernel(ocl_mapM4D,BlockArch,{lg_o, lg_d, Halo2data, eu_o});    break;}
-        case (M6D): {Execute_Kernel(ocl_mapM6D,BlockArch,{lg_o, lg_d, Halo3data, eu_o});    break;}
-        default:    {std::cout << "VPM3D_ocl::Remesh_Particle_Set(). Mapping undefined.";   return;}
+    case (M2):  {Execute_Kernel(ocl_mapM2 ,BlockArch,{lg_o, lg_d, Halo1data, eu_o});    break;}
+    case (M4):  {Execute_Kernel(ocl_mapM4 ,BlockArch,{lg_o, lg_d, Halo2data, eu_o});    break;}
+    case (M4D): {Execute_Kernel(ocl_mapM4D,BlockArch,{lg_o, lg_d, Halo2data, eu_o});    break;}
+    case (M6D): {Execute_Kernel(ocl_mapM6D,BlockArch,{lg_o, lg_d, Halo3data, eu_o});    break;}
+    default:    {std::cout << "VPM3D_ocl::Remesh_Particle_Set(). Mapping undefined.";   return;}
     }
 
     // Transfer data from Eulerian grid to Lagrangian grid and clear temp vars
@@ -1161,18 +1168,34 @@ void VPM3D_ocl::Reproject_Particle_Set_Spectral()
     std::cout << "Vorticity field reprojection completed with spectral method." << std::endl;
 }
 
-void VPM3D_ocl::Add_Freestream_Velocity()
-{
-    // This adds the local freestream to the grid
-    if (sqrt(Ux*Ux + Uy*Uy + Uz*Uz)==0.0) return;
-    Execute_Kernel(ocl_freestream,ListArch,{eu_dddt},{Real(Ux), Real(Uy), Real(Uz)});
-}
+// void VPM3D_ocl::Add_Freestream_Velocity()
+// {
+//     // This adds the local freestream to the grid
+//     if (sqrt(Ux*Ux + Uy*Uy + Uz*Uz)==0.0) return;
+//     Execute_Kernel(ocl_freestream,ListArch,{eu_dddt},{Real(Ux), Real(Uy), Real(Uz)});
+// }
 
 void VPM3D_ocl::Add_Freestream_Shear()
 {
-    std::cerr << "VPM3D_ocl::Add_Freestream_Shear(): Currently ONLY implemented for CONSTANT free stream shear."  << std::endl;"
+    // The background velocity (constant freestream + shear profile) is superposed onto the grid
     if (!Shear.Active()) return;
-    Execute_Kernel(ocl_freestream,ListArch,{eu_dddt},{Shear.U_Const[0], Shear.U_Const[1], Shear.U_Const[2]});
+    if (!Shear.Sheared())   Execute_Kernel(ocl_freestream, ListArch, {eu_dddt}, {Shear.Grid.U[0], Shear.Grid.V[0], Shear.W()});    // Uniform field
+    else                    Execute_Kernel(ocl_freestream_shear, BlockArch, {eu_dddt, cl_shear}, {Shear.W()});                      // Profile U(z), V(z)
+}
+
+void VPM3D_ocl::Upload_Shear_Profile()
+{
+    // The background profile evaluated on the grid z-nodes is transferred to the device: [U, V, dU, dV, d2U, d2V], each of length NNZ.
+    // The buffer is always allocated (zero if no profile is active), so that the stretching kernel always receives a valid buffer.
+    if (cl_shear==nullptr) Allocate_Buffer(cl_shear, 6*NNZ*sizeof(cl_real));
+    RVector P(6*NNZ, Real(0.));
+    if (Shear.Active()){
+        const Shear_Arrays &G = Shear.Grid;
+        const RVector *A[6] = {&G.U, &G.V, &G.dU, &G.dV, &G.d2U, &G.d2V};
+        for (int n=0; n<6; n++) std::copy(A[n]->begin(), A[n]->end(), P.begin()+n*NNZ);
+    }
+    VkFFTResult res = transferDataFromCPU(vkGPU, P.data(), &cl_shear, (uint64_t)6*NNZ*sizeof(cl_real));
+    ConvertVkFFTError(res);
 }
 
 
@@ -1180,7 +1203,7 @@ void VPM3D_ocl::Calc_Grid_Diagnostics()
 {
     // Diagnostics are calculated in blocks of size BS This is transferred back to the CPU and summed there for simplicity
     Zero_FloatBuffer(diagnostic_reduced, NDiags*NBT*sizeof(Real));
-    SFStatus Stat = Execute_Kernel(ocl_Diagnostics, ListArch, {eu_o, eu_dddt, diagnostic_reduced});
+    SFStatus Stat = Execute_Kernel(ocl_Diagnostics, ListArch, {eu_o, eu_dddt, sgs, diagnostic_reduced});
 
 
     // Transfer back to host
@@ -1188,8 +1211,8 @@ void VPM3D_ocl::Calc_Grid_Diagnostics()
     VkFFTResult res = transferDataToCPU(vkGPU, dred.data(), &diagnostic_reduced, (uint64_t)NDiags*NBT*sizeof(Real));
 
     // Carry out sum on host (could be optimised, but for now this probably isn't a bottleneck
-    RVector Sums(15,0);
-    Parallel_Kernel(15) {
+    RVector Sums(NDiags,0);
+    Parallel_Kernel(NDiags) {
         if (i<13)   Sums[i] = std::accumulate(dred.begin()+i*NBT,dred.begin()+(i+1)*NBT,0.0);
         else        Sums[i] = *std::max_element(dred.begin()+i*NBT, dred.begin()+(i+1)*NBT);
     }
@@ -1205,7 +1228,12 @@ void VPM3D_ocl::Calc_Grid_Diagnostics()
     Real OmMax = Sums[13];
     Real UMax = Sums[14];
     Real CFL = UMax*dT/H_Grid;
-    // Real SMax =  *std::max_element(t_SMax.begin(), t_SMax.end());
+    SMax = Sums[15];                                    // Max sqrt(2 S_ij S_ij) of perturbation velocity
+    if (Shear.Sheared()){                               // Upper bound including background shear (triangle inequality)
+        Real SBg = 0.;
+        for (int k=0; k<NNZ; k++) SBg = std::max(SBg, sqrt(Shear.Grid.dU[k]*Shear.Grid.dU[k] + Shear.Grid.dV[k]*Shear.Grid.dV[k]));
+        SMax += SBg;
+    }
 
     //--------------------- Output these values into a file in the output called "Diagnostics.dat"
     //--------------------- Create the file & directory if they don't yet exist
@@ -1218,7 +1246,7 @@ void VPM3D_ocl::Calc_Grid_Diagnostics()
 
         if (NStep==NInit)
         {
-//            create_directory(std::filesystem::path(OutputDirectory));   // Generate directory
+            //            create_directory(std::filesystem::path(OutputDirectory));   // Generate directory
             Create_Directory(OutputDirectory);
             std::ofstream file;
             file.open(FilePath, std::ofstream::out | std::ofstream::trunc); // Clear!
@@ -1346,7 +1374,7 @@ void VPM3D_ocl::Extract_Field(const cl_mem Field, const RVector &Px, const RVect
     int sND = NDS.size();
     RVector map_X(sND), map_Y(sND), map_Z(sND);
     Parallel_Kernel(sND) {
-     // Serial_Kernel(sND) {
+        // Serial_Kernel(sND) {
         map_X[i] = NDS[i](0);
         map_Y[i] = NDS[i](1);
         map_Z[i] = NDS[i](2);
@@ -1383,11 +1411,11 @@ void VPM3D_ocl::Extract_Field(const cl_mem Field, const RVector &Px, const RVect
     SFStatus SFStat = NoError;
     switch (M)
     {
-        case (M2):      {SFStat = Execute_Kernel(ocl_interpM2_block , ExtArch, {Field,px,py,pz,bidx,bidy,bidz,Halo1data,ux,uy,uz});    break;}
-        case (M4):      {SFStat = Execute_Kernel(ocl_interpM4_block , ExtArch, {Field,px,py,pz,bidx,bidy,bidz,Halo2data,ux,uy,uz});    break;}
-        case (M4D):     {SFStat = Execute_Kernel(ocl_interpM4D_block, ExtArch, {Field,px,py,pz,bidx,bidy,bidz,Halo2data,ux,uy,uz});    break;}
-        case (M6D):     {SFStat = Execute_Kernel(ocl_interpM6D_block, ExtArch, {Field,px,py,pz,bidx,bidy,bidz,Halo3data,ux,uy,uz});    break;}
-        default:        {std::cout << "VPM3D_ocl::Extract Field: Mapping undefined."; return;}
+    case (M2):      {SFStat = Execute_Kernel(ocl_interpM2_block , ExtArch, {Field,px,py,pz,bidx,bidy,bidz,Halo1data,ux,uy,uz});    break;}
+    case (M4):      {SFStat = Execute_Kernel(ocl_interpM4_block , ExtArch, {Field,px,py,pz,bidx,bidy,bidz,Halo2data,ux,uy,uz});    break;}
+    case (M4D):     {SFStat = Execute_Kernel(ocl_interpM4D_block, ExtArch, {Field,px,py,pz,bidx,bidy,bidz,Halo2data,ux,uy,uz});    break;}
+    case (M6D):     {SFStat = Execute_Kernel(ocl_interpM6D_block, ExtArch, {Field,px,py,pz,bidx,bidy,bidz,Halo3data,ux,uy,uz});    break;}
+    default:        {std::cout << "VPM3D_ocl::Extract Field: Mapping undefined."; return;}
     }
 
     // Extract out data
@@ -1450,11 +1478,11 @@ void VPM3D_ocl::Interpolate_Ext_Sources(Mapping M)
     // Now execute interp block onto lg_o grid
     switch (M)
     {
-        case (M2):      {Stat = Execute_Kernel(ocl_interpM2_ext,    ExtArch, {eu_dddt,blX,blY,blZ,lg_d,Halo1data,lg_o});    break;}
-        case (M4):      {Stat = Execute_Kernel(ocl_interpM4_ext,    ExtArch, {eu_dddt,blX,blY,blZ,lg_d,Halo2data,lg_o});    break;}
-        case (M4D):     {Stat = Execute_Kernel(ocl_interpM4D_ext,   ExtArch, {eu_dddt,blX,blY,blZ,lg_d,Halo2data,lg_o});    break;}
-        case (M6D):     {Stat = Execute_Kernel(ocl_interpM6D_ext,   ExtArch, {eu_dddt,blX,blY,blZ,lg_d,Halo3data,lg_o});    break;}
-        default:        {std::cout << "VPM3D_ocl::Extract Field: Mapping undefined."; return;}
+    case (M2):      {Stat = Execute_Kernel(ocl_interpM2_ext,    ExtArch, {eu_dddt,blX,blY,blZ,lg_d,Halo1data,lg_o});    break;}
+    case (M4):      {Stat = Execute_Kernel(ocl_interpM4_ext,    ExtArch, {eu_dddt,blX,blY,blZ,lg_d,Halo2data,lg_o});    break;}
+    case (M4D):     {Stat = Execute_Kernel(ocl_interpM4D_ext,   ExtArch, {eu_dddt,blX,blY,blZ,lg_d,Halo2data,lg_o});    break;}
+    case (M6D):     {Stat = Execute_Kernel(ocl_interpM6D_ext,   ExtArch, {eu_dddt,blX,blY,blZ,lg_d,Halo3data,lg_o});    break;}
+    default:        {std::cout << "VPM3D_ocl::Extract Field: Mapping undefined."; return;}
     }
 
     // reset vorticity grid
@@ -1652,7 +1680,7 @@ void VPM3D_ocl::Generate_VTK(cl_mem vtkoutput1, cl_mem vtkoutput2, const std::st
 
     // Fill in output vector
     OpenMPfor
-    for (int i=0; i<NNX; i++){
+        for (int i=0; i<NNX; i++){
         for (int j=0; j<NNY; j++){
             for (int k=0; k<NNZ; k++){
                 // int gid = GID(i,j,k,NX,NY,NZ);
@@ -1751,6 +1779,9 @@ VPM3D_ocl::~VPM3D_ocl()
 
     //--- Turbulence arrays
     clReleaseMemObject(Laplacian);
+
+    //--- Background shear profile
+    if (cl_shear) clReleaseMemObject(cl_shear);
 }
 
 }

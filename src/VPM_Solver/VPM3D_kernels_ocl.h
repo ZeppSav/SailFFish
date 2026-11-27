@@ -21,7 +21,7 @@ const std::string VPM3D_ocl_kernels_double = R"CLC(
 typedef double  Real;
 typedef double2 Complex;
 // inline double fastma(const double &a, const double &b, const double &c) {return fma(a,b,c);}
-inline double fab(float a)  {return abs(a);}
+inline double fab(double a) {return fabs(a);}
 )CLC";
 
 const std::string ocl_GID_functions = R"CLC(
@@ -1346,6 +1346,7 @@ inline void warpReduceMag(__local volatile Real* src, uint tid) {
 
 __kernel void DiagnosticsKernel(__global const Real *omega,
                                 __global const Real *vel,
+                                __global const Real *smag,
                                 __global Real *d) {
 
     // Declare shared memory arrays for diagnostic vales
@@ -1358,6 +1359,7 @@ __kernel void DiagnosticsKernel(__global const Real *omega,
     __local Real H[BT];         	// Helicity
     __local Real normO[BT];      // Magnitude of vorticity
     __local Real normU[BT];      // Magnitude of velocity
+    __local Real normS[BT];      // Magnitude of strain rate sqrt(2 S_ij S_ij) (perturbation velocity)
 
     // Specify grid ids
     unsigned int tid = get_local_id(0);
@@ -1402,6 +1404,7 @@ __kernel void DiagnosticsKernel(__global const Real *omega,
     // Quadratic diagnostics
     normO[tid] = sqrt(Ox*Ox + Oy*Oy + Oz*Oz);
     normU[tid] = sqrt(Ux*Ux + Uy*Uy + Uz*Uz);
+    normS[tid] = smag[i]/(hx*hx);                   // smag = h^2*sqrt(2 S_ij S_ij), written by Shear_Stress
     K1[tid] = (Real)0.5*normU[tid]*normU[tid];      // Approach 1: Winckelmans
     K2[tid] =  (Ux*cx + Uy*cy + Uz*cz);             // Approach 2: Liska
     E[tid] = normO[tid]*normO[tid];
@@ -1439,6 +1442,7 @@ __kernel void DiagnosticsKernel(__global const Real *omega,
             H   [tid-p] += H   [tid] ;
             normO[tid-p] = fmax(normO[tid-p],normO[tid]);
             normU[tid-p] = fmax(normU[tid-p],normU[tid]);
+            normS[tid-p] = fmax(normS[tid-p],normS[tid]);
         }
     }
     barrier(CLK_LOCAL_MEM_FENCE);
@@ -1462,6 +1466,7 @@ __kernel void DiagnosticsKernel(__global const Real *omega,
                 H   [tid] += H   [tid+k] ;
                 normO[tid] = fmax(normO[tid+k],normO[tid]);
                 normU[tid] = fmax(normU[tid+k],normU[tid]);
+                normS[tid] = fmax(normS[tid+k],normS[tid]);
             }
             barrier(CLK_LOCAL_MEM_FENCE);
         }
@@ -1478,6 +1483,7 @@ __kernel void DiagnosticsKernel(__global const Real *omega,
         warpReduceScalar(H, tid);
         warpReduceMag(normO, tid);
         warpReduceMag(normU, tid);
+        warpReduceMag(normS, tid);
     }
 
     // Write result for this block to global mem
@@ -1502,6 +1508,7 @@ __kernel void DiagnosticsKernel(__global const Real *omega,
         d[12*ngroups + get_group_id(0)] = H[0];
         d[13*ngroups + get_group_id(0)] = normO[0];
         d[14*ngroups + get_group_id(0)] = normU[0];
+        d[15*ngroups + get_group_id(0)] = normS[0];
     }
 }
 )CLC";
@@ -1535,9 +1542,22 @@ __constant Real LAP_ISO_3D[27] = {   1.0/30.0,3.0/30.0,1.0/30.0,3.0/30.0,14.0/30
                                      3.0/30.0,14.0/30.0,3.0/30.0,14.0/30.0,-128.0/30.0,14.0/30.0,3.0/30.0,14.0/30.0,3.0/30.0,
                                      1.0/30.0,3.0/30.0,1.0/30.0,3.0/30.0,14.0/30.0,3.0/30.0,1.0/30.0,3.0/30.0,1.0/30.0};
 
+// Background shear source terms on the perturbation vorticity: (w'.grad)U_bg + (Omega_bg.grad)u' - (u'.grad)Omega_bg
+// with U_bg = (U(z),V(z),0), Omega_bg = (-V',U',0). Gradients are of the perturbation velocity u' only.
+inline void Background_Shear(const Real oz, const Real uz,
+                             const Real duxdx, const Real duxdy, const Real duydx, const Real duydy, const Real duzdx, const Real duzdy,
+                             const Real dU, const Real dV, const Real d2U, const Real d2V,
+                             Real *tx, Real *ty, Real *tz) {
+    *tx = oz*dU - dV*duxdx + dU*duxdy + uz*d2V;
+    *ty = oz*dV - dV*duydx + dU*duydy - uz*d2U;
+    *tz =       - dV*duzdx + dU*duzdy;
+}
+
+// bgs: background profile [U, V, dU, dV, d2U, d2V], each of length NZ, indexed by global z index (zero if no profile is active)
 __kernel void Shear_Stress( __global const Real* w,
                             __global const Real* u,
                             __global const int* hs,
+                            __global const Real* bgs,
                             __global Real* grad,
                             __global Real* smag,
                             __global Real* qcrit) {
@@ -1824,9 +1844,19 @@ if (mxx && mxy && mxz){
 }
 
 // Calculate outputs
-const Real sx = duxdx*wx[pid] + duxdy*wy[pid] + duxdz*wz[pid] + KinVisc*lx;
-const Real sy = duydx*wx[pid] + duydy*wy[pid] + duydz*wz[pid] + KinVisc*ly;
-const Real sz = duzdx*wx[pid] + duzdy*wy[pid] + duzdz*wz[pid] + KinVisc*lz;
+Real sx = duxdx*wx[pid] + duxdy*wy[pid] + duxdz*wz[pid] + KinVisc*lx;
+Real sy = duydx*wx[pid] + duydy*wy[pid] + duydz*wz[pid] + KinVisc*ly;
+Real sz = duzdx*wx[pid] + duzdy*wy[pid] + duzdz*wz[pid] + KinVisc*lz;
+
+// Background shear source terms (only within FD region)
+if (mxx && mxy && mxz){
+    Real tx, ty, tz;
+    Background_Shear(wz[pid], uz[pid], duxdx, duxdy, duydx, duydy, duzdx, duzdy,
+                     bgs[gz+2*NZ], bgs[gz+3*NZ], bgs[gz+4*NZ], bgs[gz+5*NZ], &tx, &ty, &tz);
+    sx += tx;
+    sy += ty;
+    sz += tz;
+}
 
 barrier(CLK_LOCAL_MEM_FENCE);
 
@@ -1854,6 +1884,21 @@ __kernel void AddFreestream(__global Real *u,
     u[i		] += Ux;
     u[i+1*NT] += Uy;
     u[i+2*NT] += Uz;
+}
+
+// Background velocity profile U(z), V(z) (block architecture). prof = [U(NZ), V(NZ), ...], W constant.
+__kernel void AddFreestreamShear(   __global Real *u,
+                                    __global const Real *prof,
+                                    const Real W) {
+
+    const int gx = get_local_id(0) + get_group_id(0)*BX;
+    const int gy = get_local_id(1) + get_group_id(1)*BY;
+    const int gz = get_local_id(2) + get_group_id(2)*BZ;
+    const int bid = gidb(gx,gy,gz);
+
+    u[bid     ] += prof[gz];
+    u[bid+1*NT] += prof[gz+NZ];
+    u[bid+2*NT] += W;
 }
 )CLC";
 

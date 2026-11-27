@@ -66,7 +66,7 @@ class VPM3D_ocl : public VPM_3D_Solver
     cl_mem blZ = nullptr;
 
     //--- Diagnostics
-    static const int NDiags = 15;                             // Number of diagnostics outputs
+    static const int NDiags = 16;                             // Number of diagnostics outputs
 
     // Indices for halo data
     cl_mem Halo1data = nullptr;
@@ -147,6 +147,11 @@ class VPM3D_ocl : public VPM_3D_Solver
     // cl_kernel ocl_Turb_RVM_DGC_FD4;
     // cl_kernel ocl_Turb_RVM_DGC_FD6;
     // cl_kernel ocl_Turb_RVM_DGC_FD8;
+    cl_kernel ocl_freestream_shear;
+
+    // Shear field
+    cl_mem cl_shear = nullptr;              // Background profile on device: [U, V, dU, dV, d2U, d2V], each of length NNZ
+    void Upload_Shear_Profile();
 
     //--- Block data format
     gpuDataArch Architecture = BLOCK;
@@ -208,7 +213,7 @@ public:
     void Calc_Grid_FDRatesof_Change() override;
     void Grid_Shear_Stresses() override;
     void Grid_Turb_Shear_Stresses() override;
-    void Add_Freestream_Velocity() override;
+    // void Add_Freestream_Velocity() override;
     void Add_Freestream_Shear() override;
 //     void Solve_Velocity() override;
 

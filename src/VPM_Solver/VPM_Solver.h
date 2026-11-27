@@ -478,7 +478,7 @@ public:
     virtual void Grid_Shear_Stresses()              {}
     virtual void Grid_Background_Shear()            {}
     virtual void Grid_Turb_Shear_Stresses()         {}
-    virtual void Add_Freestream_Velocity()          {}
+    // virtual void Add_Freestream_Velocity()          {}   // Depracated
     virtual void Add_Freestream_Shear()             {}
     virtual void Calc_Grid_SpectralRatesof_Change() {}
     virtual void Calc_Grid_FDRatesof_Change()       {}

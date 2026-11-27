@@ -155,11 +155,11 @@ if(SAILFFISH_BUILD_TESTS)
         # Solvers/Tests/Tests_3DV.cpp
 
         # VPM_Solver/Tests/Tests_HillsVortex.cpp
-        # VPM_Solver/Tests/Tests_Vortex_Rings.cpp
+        VPM_Solver/Tests/Tests_Vortex_Rings.cpp
 
         #---- Shear field tests ----
         # VPM_Solver/Tests/Tests_Shear_Field.cpp
-        VPM_Solver/Tests/Tests_Vortex_Ring_ShearField.cpp
+        # VPM_Solver/Tests/Tests_Vortex_Ring_ShearField.cpp
     )
 
     target_link_libraries(SailFFish_tests PRIVATE GTest::gtest_main SailFFish_lib)
